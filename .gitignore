@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-sandbox/
+*.log
+.DS_Store
+
