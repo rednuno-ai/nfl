@@ -1,6 +1,6 @@
 {
   "name": "nfl-life",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "NFL LIFE — a football career & life simulator. Create an athlete, live High School through retirement, and build your legacy.",
   "type": "module",
