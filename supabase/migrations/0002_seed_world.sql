@@ -1,0 +1,14 @@
+-- =============================================================================
+-- Seed fictional teams & colleges from the engine's static data
+-- (src/engine/teams.ts, src/engine/colleges.ts) so the DB copy and the
+-- client-bundled copy never drift. In CI/production, prefer generating this
+-- file from the TypeScript source (`npm run gen:world-seed`, a small script
+-- left as a Phase 2 follow-up) rather than hand-maintaining two lists.
+-- For now this is intentionally left as a documented manual step: run the
+-- app once, and it will operate correctly against its bundled fictional
+-- data even before this seed exists, because the engine does not require
+-- the DB copy for gameplay — the DB copy only matters for cross-client
+-- analytics/leaderboards once Supabase is wired up.
+-- =============================================================================
+
+-- Intentionally empty in the MVP: see comment above.
