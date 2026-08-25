@@ -563,10 +563,11 @@ function beginGameWeek(state: CareerState, entry: ScheduleEntry): CareerState {
   const { result: game, rngState } = withRng(state, (rng) => beginGame(input, rng));
   state = { ...state, rngState };
 
-  if (game.pendingDecision) {
-    return { ...state, interaction: { type: "game", game } };
-  }
-  return foldGameResult(state, game, ownTeam, opponentTeam);
+  // Always hand the game state to the UI, even once `game.finished` — the
+  // GameDayView plays the final plays out in real time before calling
+  // `acknowledgeFinishedGame` to fold the result into the career. Folding
+  // immediately here would unmount the game view mid-animation.
+  return { ...state, interaction: { type: "game", game } };
 }
 
 export function resolveGameDecision(state: CareerState, optionId: string): CareerState {
@@ -590,12 +591,22 @@ export function resolveGameDecision(state: CareerState, optionId: string): Caree
   const { result: game, rngState } = withRng(state, (rng) => advanceGame(priorGame, input, rng, optionId));
   state = { ...state, rngState };
 
-  if (game.pendingDecision) {
-    return { ...state, interaction: { type: "game", game } };
-  }
-  if (!game.finished) {
-    return { ...state, interaction: { type: "game", game } };
-  }
+  // See the comment in beginGameWeek: folding the result into the career
+  // happens later, via acknowledgeFinishedGame, once the UI has finished
+  // playing out the last plays.
+  return { ...state, interaction: { type: "game", game } };
+}
+
+/** Called by the UI once it has finished visually playing out a completed
+ *  game (see GameDayView's real-time playback pacing) — folds the final
+ *  result into the career and clears the interaction. A no-op if the current
+ *  interaction isn't a finished game, so it's safe to call defensively. */
+export function acknowledgeFinishedGame(state: CareerState): CareerState {
+  if (!state.interaction || state.interaction.type !== "game" || !state.interaction.game.finished) return state;
+  const game = state.interaction.game;
+  const entry = state.schedule.find((s) => s.week === state.weekInSeason)!;
+  const ownTeam = buildOwnTeamForGame(state);
+  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel);
   return foldGameResult({ ...state, interaction: null }, game, ownTeam, opponentTeam);
 }
 
