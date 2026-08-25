@@ -1,0 +1,259 @@
+import { createStore, createUseStore } from "./createStore";
+import { getRepository, type CareerSummary } from "@data/index";
+import {
+  getSession,
+  getCurrentUser,
+  register as authRegister,
+  login as authLogin,
+  logout as authLogout,
+  activateSubscriptionDemo,
+  type AuthSession,
+  type AuthUser,
+} from "@data/auth";
+import {
+  advanceWeek,
+  commitToCollege,
+  createCareer,
+  resolveDecision,
+  resolveGameDecision,
+  retireCareer,
+  signWithTeam,
+  buyAsset,
+  respondToNews,
+  chooseTrainingFocus,
+  type AdvanceWeekOptions,
+  type CareerState,
+} from "@engine/career";
+import type { CreatePlayerInput } from "@engine/player";
+import type { Asset } from "@engine/types";
+import type { TrainingFocus } from "@engine/aging";
+
+export type ScreenId =
+  | "career-select"
+  | "create-player"
+  | "dashboard"
+  | "stats"
+  | "finance"
+  | "relationships"
+  | "news"
+  | "legacy"
+  | "settings"
+  | "team";
+
+export interface GameStoreState {
+  userId: string;
+  session: AuthSession | null;
+  currentUser: AuthUser | null;
+  authError: string | null;
+  authBusy: boolean;
+  careers: CareerSummary[];
+  activeCareer: CareerState | null;
+  screen: ScreenId;
+  loading: boolean;
+  error: string | null;
+  toast: string | null;
+
+  registerAccount: (username: string, password: string, referralCode?: string) => Promise<void>;
+  loginAccount: (username: string, password: string) => Promise<void>;
+  logoutAccount: () => void;
+  subscribe: () => void;
+
+  refreshCareers: () => Promise<void>;
+  startNewCareer: (input: CreatePlayerInput) => Promise<void>;
+  openCareer: (id: string) => Promise<void>;
+  deleteCareer: (id: string) => Promise<void>;
+  backToCareerSelect: () => void;
+
+  advance: (options?: AdvanceWeekOptions) => void;
+  decide: (choiceId: string) => void;
+  chooseTraining: (focus: TrainingFocus) => void;
+  gameDecide: (optionId: string) => void;
+  commitCollege: (collegeId: string) => void;
+  signFreeAgent: (teamId: string) => void;
+  retire: () => void;
+  purchaseAsset: (asset: Omit<Asset, "id" | "purchasedWeek">) => void;
+  respondNews: (newsId: string) => void;
+
+  navigate: (screen: ScreenId) => void;
+  dismissToast: () => void;
+}
+
+const repository = getRepository();
+
+function persist(state: GameStoreState) {
+  if (state.activeCareer) {
+    // Fire-and-forget autosave. LocalRepository is effectively synchronous;
+    // a Supabase-backed repository would be a real network write here.
+    void repository.saveCareer(state.userId, state.activeCareer);
+  }
+}
+
+/** Titles of any achievements that flipped from locked to unlocked between
+ *  two CareerState snapshots (index-aligned since ACHIEVEMENT_DEFINITIONS is
+ *  a fixed, ordered list — see engine/achievements.ts). */
+function newlyUnlockedTitles(prev: CareerState, next: CareerState): string[] {
+  const titles: string[] = [];
+  for (let i = 0; i < next.achievements.length; i++) {
+    const before = prev.achievements[i];
+    const after = next.achievements[i];
+    if (before && after && before.unlockedWeek === null && after.unlockedWeek !== null) {
+      titles.push(after.title);
+    }
+  }
+  return titles;
+}
+
+/** Applies a new CareerState after any mutating engine call, surfacing a
+ *  toast for newly-unlocked achievements (they take priority over a
+ *  caller-supplied fallback toast, since they're rarer and more important),
+ *  and autosaving. Every action below should route through this instead of
+ *  duplicating the set+persist dance. */
+function applyCareer(get: () => GameStoreState, set: (partial: Partial<GameStoreState>) => void, next: CareerState, fallbackToast?: string) {
+  const current = get().activeCareer;
+  const unlocked = current ? newlyUnlockedTitles(current, next) : [];
+  const toast = unlocked.length > 0 ? `🏆 Achievement unlocked: ${unlocked.join(", ")}` : fallbackToast ?? get().toast;
+  set({ activeCareer: next, toast });
+  persist(get());
+}
+
+const initialSession = typeof localStorage !== "undefined" ? getSession() : null;
+
+export const gameStore = createStore<GameStoreState>((set, get) => ({
+  userId: initialSession?.username ?? "",
+  session: initialSession,
+  currentUser: typeof localStorage !== "undefined" ? getCurrentUser() : null,
+  authError: null,
+  authBusy: false,
+  careers: [],
+  activeCareer: null,
+  screen: "career-select",
+  loading: false,
+  error: null,
+  toast: null,
+
+  registerAccount: async (username, password, referralCode) => {
+    set({ authBusy: true, authError: null });
+    const result = await authRegister(username, password, referralCode);
+    if (!result.ok) {
+      set({ authBusy: false, authError: result.error ?? "Não foi possível criar a conta." });
+      return;
+    }
+    const session = getSession();
+    set({ authBusy: false, session, userId: session?.username ?? "", currentUser: getCurrentUser() });
+    await get().refreshCareers();
+  },
+
+  loginAccount: async (username, password) => {
+    set({ authBusy: true, authError: null });
+    const result = await authLogin(username, password);
+    if (!result.ok) {
+      set({ authBusy: false, authError: result.error ?? "Não foi possível entrar." });
+      return;
+    }
+    const session = getSession();
+    set({ authBusy: false, session, userId: session?.username ?? "", currentUser: getCurrentUser() });
+    await get().refreshCareers();
+  },
+
+  logoutAccount: () => {
+    authLogout();
+    set({ session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
+  },
+
+  subscribe: () => {
+    const session = get().session;
+    if (!session) return;
+    activateSubscriptionDemo(session.username);
+    set({ currentUser: getCurrentUser() });
+  },
+
+  refreshCareers: async () => {
+    set({ loading: true });
+    try {
+      const careers = await repository.listCareers(get().userId);
+      set({ careers, loading: false });
+    } catch (err) {
+      set({ error: String(err), loading: false });
+    }
+  },
+
+  startNewCareer: async (input) => {
+    const state = createCareer(input);
+    set({ activeCareer: state, screen: "dashboard" });
+    await repository.saveCareer(get().userId, state);
+    await get().refreshCareers();
+  },
+
+  openCareer: async (id) => {
+    set({ loading: true });
+    const state = await repository.loadCareer(get().userId, id);
+    set({ activeCareer: state, screen: state ? "dashboard" : "career-select", loading: false });
+  },
+
+  deleteCareer: async (id) => {
+    await repository.deleteCareer(get().userId, id);
+    await get().refreshCareers();
+  },
+
+  backToCareerSelect: () => set({ activeCareer: null, screen: "career-select" }),
+
+  advance: (options) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, advanceWeek(current, options));
+  },
+
+  decide: (choiceId) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, resolveDecision(current, choiceId));
+  },
+
+  chooseTraining: (focus) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, chooseTrainingFocus(current, focus));
+  },
+
+  gameDecide: (optionId) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, resolveGameDecision(current, optionId));
+  },
+
+  commitCollege: (collegeId) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, commitToCollege(current, collegeId), "Welcome to college football!");
+  },
+
+  signFreeAgent: (teamId) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, signWithTeam(current, teamId));
+  },
+
+  retire: () => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, retireCareer(current));
+    set({ screen: "legacy" });
+  },
+
+  purchaseAsset: (asset) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, buyAsset(current, asset));
+  },
+
+  respondNews: (newsId) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, respondToNews(current, newsId));
+  },
+
+  navigate: (screen) => set({ screen }),
+  dismissToast: () => set({ toast: null }),
+}));
+
+export const useGameStore = createUseStore(gameStore);
