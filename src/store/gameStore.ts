@@ -16,6 +16,7 @@ import {
   createCareer,
   resolveDecision,
   resolveGameDecision,
+  acknowledgeFinishedGame,
   retireCareer,
   signWithTeam,
   buyAsset,
@@ -68,6 +69,7 @@ export interface GameStoreState {
   decide: (choiceId: string) => void;
   chooseTraining: (focus: TrainingFocus) => void;
   gameDecide: (optionId: string) => void;
+  acknowledgeGameResult: () => void;
   commitCollege: (collegeId: string) => void;
   signFreeAgent: (teamId: string) => void;
   retire: () => void;
@@ -219,6 +221,12 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const current = get().activeCareer;
     if (!current) return;
     applyCareer(get, set, resolveGameDecision(current, optionId));
+  },
+
+  acknowledgeGameResult: () => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, acknowledgeFinishedGame(current));
   },
 
   commitCollege: (collegeId) => {
