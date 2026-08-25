@@ -561,7 +561,7 @@ function buildFourthDownApproachPrompt(state: GameSimState, input: BeginGameInpu
     timeoutsPlayer: state.timeoutsPlayer,
     timeoutsOpponent: state.timeoutsOpponent,
     side: "offense",
-    situation: `4th & ${state.distance} — ${baseSituation(state)}`,
+    situation: baseSituation(state),
     options: [
       { id: "trust_analyst", label: "Trust the Analyst", description: analystNote, riskLevel: "safe", icon: "🎯" },
       { id: "trust_instinct", label: "Follow Your Instinct", description: "Make the call yourself.", riskLevel: "aggressive", icon: "🔥" },
@@ -592,7 +592,7 @@ function buildFourthDownPrompt(state: GameSimState, input: BeginGameInput): KeyM
     timeoutsPlayer: state.timeoutsPlayer,
     timeoutsOpponent: state.timeoutsOpponent,
     side: "offense",
-    situation: `4th & ${state.distance} — ${baseSituation(state)}`,
+    situation: baseSituation(state),
     options,
   };
 }
