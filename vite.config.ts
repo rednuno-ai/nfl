@@ -1,11 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import path from "node:path";
 
 // NFL LIFE — Vite configuration.
-// Runs in any normal Node environment with npm access (local machine, CI, Vercel).
+// Runs in any normal Node environment with npm access (local machine, CI, Vercel,
+// or Cloudflare Workers via `wrangler deploy` — see wrangler.jsonc).
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cloudflare()],
   resolve: {
     alias: {
       "@engine": path.resolve(__dirname, "src/engine"),
