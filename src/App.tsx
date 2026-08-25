@@ -56,6 +56,7 @@ export default function App() {
             opponentLabel={interaction.game.opponentName}
             teamLabel={activeCareer.team ? `${activeCareer.team.city} ${activeCareer.team.name}` : "Your Team"}
             onChoose={(optionId) => gameStore.getState().gameDecide(optionId)}
+            onFinished={() => gameStore.getState().acknowledgeGameResult()}
           />
         ) : (
           <ScreenRouter screen={screen} />
