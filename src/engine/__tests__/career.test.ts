@@ -5,6 +5,7 @@ import {
   advanceWeek,
   resolveDecision,
   resolveGameDecision,
+  acknowledgeFinishedGame,
   commitToCollege,
   signWithTeam,
   retireCareer,
@@ -12,6 +13,17 @@ import {
   chooseTrainingFocus,
   type CareerState,
 } from "../career";
+
+/** Games now stay as the active interaction (see gameSim's play-by-play
+ *  engine + GameDayView's real-time playback) until the UI explicitly
+ *  acknowledges a finished one — mirror that here instead of assuming a
+ *  game auto-clears the moment its last down resolves. */
+function driveGameInteraction(state: CareerState): CareerState {
+  if (!state.interaction || state.interaction.type !== "game") return state;
+  const game = state.interaction.game;
+  if (game.finished) return acknowledgeFinishedGame(state);
+  return resolveGameDecision(state, game.pendingDecision!.options[0].id);
+}
 import type { CreatePlayerInput } from "../player";
 
 function baseInput(overrides: Partial<CreatePlayerInput> = {}): CreatePlayerInput {
@@ -33,7 +45,7 @@ function baseInput(overrides: Partial<CreatePlayerInput> = {}): CreatePlayerInpu
 /** Drives the career forward automatically, always taking the first available
  *  option at every decision point. Used to integration-test the full loop:
  *  High School -> Recruiting -> College -> Draft -> NFL -> Retirement -> Legacy. */
-function autoplayUntilRetired(state: CareerState, maxIterations = 16000): { state: CareerState; iterations: number; stagesSeen: Set<string> } {
+function autoplayUntilRetired(state: CareerState, maxIterations = 60000): { state: CareerState; iterations: number; stagesSeen: Set<string> } {
   let iterations = 0;
   const stagesSeen = new Set<string>();
   while (!state.retired && iterations < maxIterations) {
@@ -43,7 +55,7 @@ function autoplayUntilRetired(state: CareerState, maxIterations = 16000): { stat
     } else if (state.interaction?.type === "training") {
       state = chooseTrainingFocus(state, state.interaction.options[0].id);
     } else if (state.interaction?.type === "game") {
-      state = resolveGameDecision(state, state.interaction.game.pendingDecision!.options[0].id);
+      state = driveGameInteraction(state);
     } else if (state.recruitingReady) {
       state = commitToCollege(state, state.recruitingOffers[0]?.collegeId ?? "college_1");
     } else if (state.freeAgencyOffers) {
@@ -109,7 +121,7 @@ describe("career state machine", () => {
       } else if (state.interaction?.type === "training") {
         state = chooseTrainingFocus(state, state.interaction.options[0].id);
       } else if (state.interaction?.type === "game") {
-        state = resolveGameDecision(state, state.interaction.game.pendingDecision!.options[0].id);
+        state = driveGameInteraction(state);
       } else {
         state = advanceWeek(state);
       }
@@ -126,10 +138,10 @@ describe("career state machine", () => {
   it("retireCareer can be called manually once eligible and always produces a legacy tier", () => {
     let state = createCareer(baseInput());
     let guard = 0;
-    while (!canRetire(state) && guard < 6000) {
+    while (!canRetire(state) && guard < 20000) {
       if (state.interaction?.type === "decision") state = resolveDecision(state, state.interaction.decision.choices[0].id);
       else if (state.interaction?.type === "training") state = chooseTrainingFocus(state, state.interaction.options[0].id);
-      else if (state.interaction?.type === "game") state = resolveGameDecision(state, state.interaction.game.pendingDecision!.options[0].id);
+      else if (state.interaction?.type === "game") state = driveGameInteraction(state);
       else if (state.recruitingReady) state = commitToCollege(state, state.recruitingOffers[0]?.collegeId ?? "college_1");
       else if (state.freeAgencyOffers) state = signWithTeam(state, state.freeAgencyOffers[0].teamId);
       else state = advanceWeek(state);
