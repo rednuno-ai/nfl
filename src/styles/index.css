@@ -677,7 +677,7 @@ h4 {
   margin-bottom: 16px;
 }
 
-.field {
+.field-pitch {
   position: relative;
   height: 84px;
   border-radius: var(--radius-md);
@@ -788,6 +788,38 @@ h4 {
   font-weight: 800;
   font-size: 12px;
   color: var(--text);
+}
+
+.momentum-banner {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.momentum-hot {
+  background: rgba(232, 90, 40, 0.14);
+  border-left: 2px solid #e85a28;
+  color: #e85a28;
+}
+
+.momentum-shaken {
+  background: rgba(120, 130, 150, 0.14);
+  border-left: 2px solid var(--text-dim);
+  color: var(--text-dim);
+}
+
+.game-story-line {
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.game-story-line:last-child {
+  border-bottom: none;
 }
 
 .choice-icon {
