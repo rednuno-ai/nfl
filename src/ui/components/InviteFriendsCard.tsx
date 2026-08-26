@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useGameStore } from "@store/gameStore";
 import { buildReferralLink } from "@data/auth";
 
-/** "Convidar Amigos" section: every account gets a real, working referral
+/** "Invite Friends" section: every account gets a real, working referral
  *  link (?ref=CODE) that pre-fills the invited friend's registration and
  *  credits the referrer's count the moment they sign up — see
  *  src/data/auth.ts's `register()`. No fake counters: referralCount only
