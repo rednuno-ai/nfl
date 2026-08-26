@@ -4,7 +4,7 @@ import type { CareerSummary, Repository } from "./repository";
 import { FREE_TIER_CAREER_LIMIT } from "./repository";
 
 // =============================================================================
-// localStorage-backed Repository. This is what NFL LIFE runs on today (no
+// localStorage-backed Repository. This is what GRIDIRON LIFE runs on today (no
 // backend required to play end-to-end). Storage layout:
 //   nfl-life:index:{userId}        -> string[] of career ids
 //   nfl-life:career:{careerId}     -> full CareerState JSON

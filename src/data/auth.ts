@@ -1,7 +1,7 @@
 // =============================================================================
 // Local authentication + subscription gate.
 // -----------------------------------------------------------------------------
-// NFL LIFE requires an account to play (registration wall) and an active
+// GRIDIRON LIFE requires an account to play (registration wall) and an active
 // subscription (paywall) once logged in. This module is a client-side,
 // localStorage-backed implementation so that requirement works TODAY with no
 // backend — see GAME_DESIGN.md §5/§8 for why this sandbox can't reach a live
@@ -17,7 +17,7 @@
 // Nothing outside src/data/auth.ts and the two screens that call it needs to
 // change when that swap happens.
 //
-// Pricing: NFL LIFE is $5/month (SUBSCRIPTION_PRICE_USD below). No payment
+// Pricing: GRIDIRON LIFE is $5/month (SUBSCRIPTION_PRICE_USD below). No payment
 // processor is connected in this build (no Stripe/PayPal account authorized
 // for this session), so `activateSubscriptionDemo` simulates a successful
 // payment instead of collecting a real card — the paywall screen says this
