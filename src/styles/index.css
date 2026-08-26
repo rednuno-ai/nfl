@@ -1,5 +1,5 @@
 /* =============================================================================
-   NFL LIFE — design system
+   GRIDIRON LIFE — design system
    -----------------------------------------------------------------------------
    Hand-written in place of a Tailwind build (see GAME_DESIGN.md §5 for why).
    Dark, premium, sport-inspired. Desktop-first, tuned hard for mobile too.
@@ -1132,4 +1132,186 @@ h4 {
   .scoreboard .score {
     font-size: 28px;
   }
+}
+
+/* -----------------------------------------------------------------------
+   Dashboard player card hero
+----------------------------------------------------------------------- */
+
+.player-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated) 100%);
+  border: 1px solid var(--border);
+}
+
+.player-hero-ovr {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 16px;
+  background: radial-gradient(60px 60px at 50% 30%, rgba(62, 207, 142, 0.18), transparent), var(--bg);
+  border: 1px solid var(--border);
+}
+
+.player-hero-ovr-number {
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--green);
+  text-shadow: 0 0 18px rgba(62, 207, 142, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-hero-ovr-label {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+
+.player-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-hero-name {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.player-hero-sub {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.player-hero-pos {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-weight: 800;
+  font-size: 11.5px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+
+/* -----------------------------------------------------------------------
+   Point-buy character creator
+----------------------------------------------------------------------- */
+
+.ovr-preview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 18px 0 20px;
+  margin: 4px 0 18px;
+  background: radial-gradient(120px 80px at 50% 0%, rgba(62, 207, 142, 0.14), transparent), var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.ovr-preview-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+}
+
+.ovr-preview-number {
+  font-size: 56px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--green);
+  text-shadow: 0 0 24px rgba(62, 207, 142, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.points-left {
+  margin-top: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.points-left-done {
+  color: var(--green);
+}
+
+.attribute-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.attribute-row {
+  display: grid;
+  grid-template-columns: 1fr auto minmax(0, 2fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.attribute-row-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.attribute-step {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attribute-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.attribute-bar-track {
+  position: relative;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.attribute-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--accent-dim), var(--green));
+  transition: width 0.15s ease;
+}
+
+.attribute-value {
+  position: relative;
+  display: block;
+  text-align: right;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 20px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
