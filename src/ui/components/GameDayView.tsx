@@ -44,6 +44,49 @@ function fieldPct(displayYard: number): number {
   return 8 + clamp(displayYard, 0, 100) * 0.84;
 }
 
+// A short post-game recap built purely from the resolved log — biggest
+// storylines (scoring, turnovers, momentum swings, crunch-time 4th downs)
+// so a finished game leaves behind more than just a final score.
+function buildGameStory(log: GameSimState["log"], teamLabel: string, opponentLabel: string): string[] {
+  if (log.length === 0) return [];
+  let playerTDs = 0;
+  let oppTDs = 0;
+  let playerTurnovers = 0;
+  let oppTurnovers = 0;
+  let momentumSwings = 0;
+  let clutchPlays = 0;
+  let prevMomentum: string | null = null;
+
+  for (const entry of log) {
+    if (entry.scoringPlay && entry.text.toLowerCase().includes("touchdown")) {
+      if (entry.possession === "player") playerTDs += 1;
+      else oppTDs += 1;
+    }
+    if (entry.turnover && (entry.text.toLowerCase().includes("intercept") || entry.text.toLowerCase().includes("fumbl") || entry.text.toLowerCase().includes("picked off"))) {
+      if (entry.possession === "player") playerTurnovers += 1;
+      else oppTurnovers += 1;
+    }
+    if (prevMomentum !== null && entry.momentum !== prevMomentum) momentumSwings += 1;
+    prevMomentum = entry.momentum;
+    if ((entry.quarter === 4 || entry.overtime) && entry.down === 4 && entry.playerInvolved) clutchPlays += 1;
+  }
+
+  const lines: string[] = [];
+  if (playerTDs || oppTDs) {
+    lines.push(`${teamLabel} found the end zone ${playerTDs} time${playerTDs === 1 ? "" : "s"}; ${opponentLabel} answered with ${oppTDs}.`);
+  }
+  if (playerTurnovers || oppTurnovers) {
+    lines.push(`Turnovers: ${teamLabel} ${playerTurnovers}, ${opponentLabel} ${oppTurnovers}.`);
+  }
+  if (momentumSwings > 0) {
+    lines.push(`The momentum swung ${momentumSwings} time${momentumSwings === 1 ? "" : "s"} over the course of the game.`);
+  }
+  if (clutchPlays > 0) {
+    lines.push(`${clutchPlays} 4th-down decision${clutchPlays === 1 ? "" : "s"} came down to the wire in the final period.`);
+  }
+  return lines;
+}
+
 export function GameDayView({
   game,
   opponentLabel,
@@ -94,6 +137,10 @@ export function GameDayView({
 
   const revealed = useMemo(() => game.log.slice(0, revealedCount), [game.log, revealedCount]);
   const latest = revealed[revealed.length - 1];
+  const gameStory = useMemo(
+    () => (game.finished ? buildGameStory(game.log, teamLabel || "You", opponentLabel) : []),
+    [game.finished, game.log, teamLabel, opponentLabel]
+  );
 
   const decision = game.pendingDecision;
   const showDecision = caughtUp && !!decision;
@@ -152,7 +199,7 @@ export function GameDayView({
       </div>
 
       <div className="field-wrap">
-        <div className="field">
+        <div className="field-pitch">
           <div className="field-endzone field-endzone-left">
             <span>{(teamLabel || "You").slice(0, 3).toUpperCase()}</span>
           </div>
@@ -194,6 +241,11 @@ export function GameDayView({
             </div>
           )}
           {decision.analystNote && decision.kind === "defense_call" && <div className="intel-banner">{decision.analystNote}</div>}
+          {decision.momentumNote && (
+            <div className={`momentum-banner ${decision.momentumNote.startsWith("🔥") ? "momentum-hot" : "momentum-shaken"}`}>
+              {decision.momentumNote}
+            </div>
+          )}
           <div className="choice-list">
             {decision.options.map((option) => (
               <button key={option.id} className="choice-btn" onClick={() => onChoose(option.id)}>
@@ -215,6 +267,18 @@ export function GameDayView({
           <div className="keymoment-title">
             {game.result === "win" ? "You win!" : game.result === "loss" ? "You lose." : "It's a tie."} {scorePlayer}-{scoreOpponent}
           </div>
+          {gameStory.length > 0 && (
+            <div className="game-story">
+              <div className="section-title" style={{ marginTop: 16, textAlign: "left" }}>
+                Game Story
+              </div>
+              {gameStory.map((line, i) => (
+                <div key={i} className="game-story-line">
+                  {line}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
