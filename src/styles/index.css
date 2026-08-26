@@ -617,6 +617,11 @@ h4 {
   position: relative;
 }
 
+.scoreboard .team svg {
+  display: block;
+  margin: 0 auto 6px;
+}
+
 .scoreboard .score {
   font-size: 40px;
   font-weight: 900;
