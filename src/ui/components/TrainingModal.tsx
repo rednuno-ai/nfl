@@ -5,9 +5,9 @@ export function TrainingModal({ week, options, onChoose }: { week: number; optio
   return (
     <div className="modal-backdrop">
       <div className="modal" role="dialog" aria-modal="true">
-        <div className="modal-eyebrow">Treino · Semana {week}</div>
-        <div className="modal-title">Como queres passar a semana de treinos?</div>
-        <div className="modal-body">Escolhe um foco. Isto afeta que atributos evoluem, a tua fadiga e o risco de lesão esta semana.</div>
+        <div className="modal-eyebrow">Training · Week {week}</div>
+        <div className="modal-title">How do you want to spend this training week?</div>
+        <div className="modal-body">Pick a focus. This affects which attributes develop, your fatigue, and your injury risk this week.</div>
         <div className="choice-list">
           {options.map((option) => (
             <button key={option.id} className="choice-btn" onClick={() => onChoose(option.id)}>

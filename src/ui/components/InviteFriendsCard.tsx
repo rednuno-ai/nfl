@@ -14,7 +14,7 @@ export function InviteFriendsCard() {
   if (!currentUser) return null;
 
   const link = buildReferralLink(currentUser.referralCode);
-  const shareMessage = `Estou a jogar NFL LIFE, um simulador de carreira de futebol americano do liceu ao Hall of Fame — junta-te com o meu link:`;
+  const shareMessage = `I'm playing NFL LIFE, a football career sim from high school to the Hall of Fame — join me with my link:`;
 
   async function copyLink() {
     try {
@@ -29,10 +29,10 @@ export function InviteFriendsCard() {
 
   return (
     <div className="card" style={{ marginBottom: 20 }}>
-      <div className="section-title">Convida os Teus Amigos</div>
+      <div className="section-title">Invite Your Friends</div>
       <p className="muted" style={{ marginBottom: 12 }}>
-        Partilha o teu link e joga com os teus amigos. Sempre que alguém se registar através dele, conta para o teu
-        total abaixo.
+        Share your link and play with your friends. Every time someone registers through it, it counts toward your
+        total below.
       </p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -40,7 +40,7 @@ export function InviteFriendsCard() {
           <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} />
         </div>
         <button className="btn btn-primary" onClick={copyLink} type="button">
-          {copied ? "Copiado! ✓" : "Copiar Link"}
+          {copied ? "Copied! ✓" : "Copy Link"}
         </button>
       </div>
 
@@ -51,7 +51,7 @@ export function InviteFriendsCard() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Partilhar no WhatsApp
+          Share on WhatsApp
         </a>
         <a
           className="btn btn-ghost btn-sm"
@@ -59,17 +59,17 @@ export function InviteFriendsCard() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Partilhar no X
+          Share on X
         </a>
       </div>
 
       <p className="faint" style={{ fontSize: 12.5 }}>
         {currentUser.referralCount > 0
           ? currentUser.referralCount === 1
-            ? "🎉 1 amigo já se registou através do teu link."
-            : `🎉 ${currentUser.referralCount} amigos já se registaram através do teu link.`
-          : "Ainda ninguém se registou pelo teu link — sê o primeiro a convidar alguém."}
-        {" "}O teu código: <strong>{currentUser.referralCode}</strong>
+            ? "🎉 1 friend has registered through your link."
+            : `🎉 ${currentUser.referralCount} friends have registered through your link.`
+          : "No one has registered through your link yet — be the first to invite someone."}
+        {" "}Your code: <strong>{currentUser.referralCode}</strong>
       </p>
     </div>
   );
