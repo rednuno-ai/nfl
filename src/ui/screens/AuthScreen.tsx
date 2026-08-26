@@ -29,31 +29,31 @@ export function AuthScreen() {
           NFL LIFE
         </div>
         <p className="page-subtitle" style={{ textAlign: "center", marginBottom: 22 }}>
-          Vive uma carreira inteira de futebol americano — do liceu ao Hall of Fame.
+          Live an entire football career — from high school to the Hall of Fame.
         </p>
 
         <div className="auth-layout">
           <div className="auth-demo">
             <video className="auth-demo-video" src="./demo.webm" autoPlay muted loop playsInline>
-              O teu browser não suporta vídeo.
+              Your browser doesn't support video.
             </video>
             <p className="faint" style={{ marginTop: 10, fontSize: 12.5 }}>
-              Uma carreira real jogada de ponta a ponta — do liceu à reforma.
+              A real career played start to finish — from high school to retirement.
             </p>
           </div>
 
           <form className="card auth-form" onSubmit={submit}>
             <div className="auth-tabs">
               <button type="button" className={`auth-tab ${mode === "login" ? "active" : ""}`} onClick={() => setMode("login")}>
-                Entrar
+                Log In
               </button>
               <button type="button" className={`auth-tab ${mode === "register" ? "active" : ""}`} onClick={() => setMode("register")}>
-                Criar Conta
+                Create Account
               </button>
             </div>
 
             <div className="field">
-              <label>Utilizador</label>
+              <label>Username</label>
               <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="adm" autoComplete="username" />
             </div>
 
@@ -70,18 +70,18 @@ export function AuthScreen() {
 
             {mode === "register" && referralCode && (
               <p className="faint" style={{ marginTop: -6, marginBottom: 4, fontSize: 12 }}>
-                🎟️ Foste convidado com o código <strong>{referralCode}</strong>.
+                🎟️ You were invited with code <strong>{referralCode}</strong>.
               </p>
             )}
 
             {authError && <div className="auth-error">{authError}</div>}
 
             <button className="btn btn-primary btn-block" style={{ marginTop: 4 }} type="submit" disabled={authBusy || !username || !password}>
-              {authBusy ? "A processar…" : mode === "login" ? "Entrar" : "Criar Conta"}
+              {authBusy ? "Processing…" : mode === "login" ? "Log In" : "Create Account"}
             </button>
 
             <p className="faint" style={{ marginTop: 12, fontSize: 12 }}>
-              É necessário registo para jogar. Conta de demonstração: <strong>adm</strong> / <strong>adm</strong>.
+              Registration is required to play. Demo account: <strong>adm</strong> / <strong>adm</strong>.
             </p>
           </form>
         </div>
