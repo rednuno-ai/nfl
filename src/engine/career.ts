@@ -79,12 +79,12 @@ export interface TrainingFocusChoice {
 // TRAINING_TARGETS) — not a cosmetic gate — and it's what item 24 of the
 // spec ("Treino, com escolha de foco") asked for.
 export const TRAINING_FOCUS_CHOICES: TrainingFocusChoice[] = [
-  { id: "strength", label: "Sala de musculação", description: "Foca em força e durabilidade física." },
-  { id: "speed", label: "Trabalho de velocidade", description: "Foca em velocidade e aceleração." },
-  { id: "technique", label: "Técnica e fundamentos", description: "Foca em agilidade e leitura de jogo." },
-  { id: "mental", label: "Sala de vídeo", description: "Foca em tomada de decisão, compostura e gestão de pressão." },
-  { id: "position_specific", label: "Trabalho específico da posição", description: "Foca nos atributos-chave da tua posição." },
-  { id: "recovery", label: "Recuperação ativa", description: "Reduz fadiga e risco de lesão; ganhos de atributos mais lentos." },
+  { id: "strength", label: "Weight Room", description: "Focuses on strength and physical durability." },
+  { id: "speed", label: "Speed Work", description: "Focuses on speed and acceleration." },
+  { id: "technique", label: "Technique & Fundamentals", description: "Focuses on agility and reading the game." },
+  { id: "mental", label: "Film Room", description: "Focuses on decision-making, composure, and handling pressure." },
+  { id: "position_specific", label: "Position-Specific Work", description: "Focuses on your position's key attributes." },
+  { id: "recovery", label: "Active Recovery", description: "Reduces fatigue and injury risk; slower attribute gains." },
 ];
 
 export type Interaction =
