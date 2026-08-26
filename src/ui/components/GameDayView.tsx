@@ -20,6 +20,7 @@ const RISK_CLASS: Record<string, string> = { safe: "risk-safe", balanced: "risk-
 
 const KIND_LABEL: Record<KeyMomentPrompt["kind"], string> = {
   play_call: "Play Call",
+  defense_look: "Pre-Snap Read",
   target_priority: "Target Read",
   defense_call: "Defense Call",
   fourth_down_approach: "4th Down",
@@ -165,7 +166,10 @@ export function GameDayView({
       <div className="scoreboard">
         <div className="team">
           <div className="score">{scorePlayer}</div>
-          <div className="team-label">{teamLabel || "You"}</div>
+          <div className="team-label">
+            {possessionIsPlayer && <span className="possession-dot" />}
+            {teamLabel || "You"}
+          </div>
         </div>
         <div className="meta">
           <div>
@@ -176,7 +180,10 @@ export function GameDayView({
         </div>
         <div className="team">
           <div className="score">{scoreOpponent}</div>
-          <div className="team-label">{opponentLabel}</div>
+          <div className="team-label">
+            {!possessionIsPlayer && <span className="possession-dot" />}
+            {opponentLabel}
+          </div>
         </div>
       </div>
 
@@ -207,7 +214,7 @@ export function GameDayView({
             <span>{opponentLabel.slice(0, 3).toUpperCase()}</span>
           </div>
           {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((yard) => (
-            <div key={yard} className="field-yardline" style={{ left: `${fieldPct(yard)}%` }} />
+            <div key={yard} className={`field-yardline ${yard === 50 ? "field-yardline-mid" : ""}`} style={{ left: `${fieldPct(yard)}%` }} />
           ))}
           {firstDownDisplay !== null && <div className="field-marker field-marker-firstdown" style={{ left: `${fieldPct(firstDownDisplay)}%` }} />}
           <div className="field-marker field-marker-los" style={{ left: `${fieldPct(ballDisplay)}%` }} />
@@ -246,6 +253,7 @@ export function GameDayView({
               {decision.momentumNote}
             </div>
           )}
+          {decision.defenseLookNote && decision.kind === "defense_look" && <div className="intel-banner defense-look-banner">{decision.defenseLookNote}</div>}
           <div className="choice-list">
             {decision.options.map((option) => (
               <button key={option.id} className="choice-btn" onClick={() => onChoose(option.id)}>
