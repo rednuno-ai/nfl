@@ -21,8 +21,8 @@ export function Sidebar({ active, onNavigate, onExit }: { active: ScreenId; onNa
   return (
     <nav className="app-sidebar">
       <div className="brand">
-        <span className="brand-mark">NL</span>
-        NFL LIFE
+        <span className="brand-mark">GL</span>
+        GRIDIRON LIFE
       </div>
       {NAV_ENTRIES.map((entry) => (
         <button key={entry.id} className={`nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
