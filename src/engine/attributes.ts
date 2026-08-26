@@ -194,3 +194,131 @@ export function applyAttributeDelta(attrs: Attributes, path: string, delta: numb
 export function applyAttributeDeltas(attrs: Attributes, deltas: { path: string; delta: number }[]): Attributes {
   return deltas.reduce((acc, d) => applyAttributeDelta(acc, d.path, d.delta), attrs);
 }
+
+/** Immutably sets an attribute by dotted path to an absolute value (clamped
+ *  to [0,100]), rather than applying a relative delta. Used by the point-buy
+ *  character creator to pin a curated set of attributes to the player's
+ *  chosen values regardless of what the random roll would have produced. */
+export function setAttributeByPath(attrs: Attributes, path: string, value: number): Attributes {
+  const parts = path.split(".");
+  const clone: Attributes = JSON.parse(JSON.stringify(attrs));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let node: any = clone;
+  for (let i = 0; i < parts.length - 1; i++) {
+    node = node[parts[i]];
+  }
+  node[parts[parts.length - 1]] = clamp(value, 0, 100);
+  return clone;
+}
+
+// -----------------------------------------------------------------------------
+// Point-buy character creation
+// -----------------------------------------------------------------------------
+
+export interface PointBuySlot {
+  path: string;
+  label: string;
+}
+
+/** Baseline every point-buy attribute starts from before points are spent. */
+export const POINT_BUY_BASELINE = 50;
+/** Total points a new player has to distribute across their curated slots. */
+export const POINT_BUY_POOL = 24;
+/** Ceiling a single point-buy attribute can reach (baseline + all spent there). */
+export const POINT_BUY_MAX = 85;
+
+/** The six headline attributes exposed to the point-buy creator for each
+ *  creatable position (see MVP_POSITIONS) — a curated subset of the full
+ *  attribute tree chosen to read clearly to a new player and to visibly move
+ *  the position's `computeOverall` score. */
+export const POINT_BUY_SLOTS: Partial<Record<Position, PointBuySlot[]>> = {
+  QB: [
+    { path: "position.QB.shortAccuracy", label: "Short Accuracy" },
+    { path: "position.QB.deepAccuracy", label: "Deep Accuracy" },
+    { path: "position.QB.throwPower", label: "Arm Strength" },
+    { path: "position.QB.awareness", label: "Awareness" },
+    { path: "mental.decisionMaking", label: "Decision Making" },
+    { path: "physical.agility", label: "Agility" },
+  ],
+  RB: [
+    { path: "physical.speed", label: "Speed" },
+    { path: "physical.acceleration", label: "Acceleration" },
+    { path: "position.RB.vision", label: "Vision" },
+    { path: "position.RB.elusiveness", label: "Elusiveness" },
+    { path: "position.RB.breakTackle", label: "Break Tackle" },
+    { path: "position.RB.carrying", label: "Ball Security" },
+  ],
+  WR: [
+    { path: "physical.speed", label: "Speed" },
+    { path: "physical.agility", label: "Agility" },
+    { path: "position.WR.catching", label: "Catching" },
+    { path: "position.WR.routeRunning", label: "Route Running" },
+    { path: "position.WR.release", label: "Release" },
+    { path: "position.WR.spectacularCatch", label: "Spectacular Catch" },
+  ],
+  TE: [
+    { path: "position.TE.catching", label: "Catching" },
+    { path: "position.TE.routeRunning", label: "Route Running" },
+    { path: "position.TE.runBlock", label: "Run Blocking" },
+    { path: "position.TE.passBlock", label: "Pass Blocking" },
+    { path: "physical.strength", label: "Strength" },
+    { path: "physical.speed", label: "Speed" },
+  ],
+  LB: [
+    { path: "position.LB.tackling", label: "Tackling" },
+    { path: "position.LB.pursuit", label: "Pursuit" },
+    { path: "position.LB.blockShedding", label: "Block Shedding" },
+    { path: "position.LB.coverage", label: "Coverage" },
+    { path: "physical.strength", label: "Strength" },
+    { path: "mental.footballIQ", label: "Football IQ" },
+  ],
+  CB: [
+    { path: "position.CB.manCoverage", label: "Man Coverage" },
+    { path: "position.CB.zoneCoverage", label: "Zone Coverage" },
+    { path: "position.CB.press", label: "Press" },
+    { path: "position.CB.ballHawk", label: "Ball Hawk" },
+    { path: "physical.speed", label: "Speed" },
+    { path: "physical.agility", label: "Agility" },
+  ],
+};
+
+/** Applies a point-buy allocation (path -> extra points, each 0..pool) on top
+ *  of POINT_BUY_BASELINE, pinning those specific attributes to an absolute
+ *  value. Any position without curated slots (not in MVP_POSITIONS) is a
+ *  no-op. */
+export function applyPointBuy(attrs: Attributes, position: Position, allocations: Record<string, number>): Attributes {
+  const slots = POINT_BUY_SLOTS[position];
+  if (!slots) return attrs;
+  return slots.reduce((acc, slot) => {
+    const points = allocations[slot.path] ?? 0;
+    return setAttributeByPath(acc, slot.path, POINT_BUY_BASELINE + points);
+  }, attrs);
+}
+
+/** Builds a synthetic, fully-populated Attributes object at POINT_BUY_BASELINE
+ *  for every field, with the curated slots overridden by the given
+ *  allocation — used purely to preview OVR live in the creator UI before the
+ *  real (partly random) attribute roll happens at career creation. */
+export function previewPointBuyOverall(position: Position, allocations: Record<string, number>): number {
+  const flat = (v: number) => ({ blocking: v, tackling: v, technique: v, specialTeams: v });
+  const b = POINT_BUY_BASELINE;
+  const baseline: Attributes = {
+    general: { overall: 0, potential: b, fame: 0, reputation: b, confidence: b, morale: b, discipline: b, leadership: b },
+    physical: { speed: b, acceleration: b, strength: b, agility: b, stamina: b, durability: b },
+    mental: { decisionMaking: b, pressure: b, composure: b, footballIQ: b },
+    position: {
+      QB: { throwPower: b, shortAccuracy: b, mediumAccuracy: b, deepAccuracy: b, throwOnRun: b, awareness: b },
+      RB: { vision: b, carrying: b, elusiveness: b, breakTackle: b, passBlock: b },
+      WR: { catching: b, routeRunning: b, release: b, spectacularCatch: b },
+      TE: { catching: b, routeRunning: b, runBlock: b, passBlock: b },
+      LB: { tackling: b, blockShedding: b, coverage: b, pursuit: b },
+      CB: { manCoverage: b, zoneCoverage: b, press: b, ballHawk: b },
+      S: flat(b),
+      OL: flat(b),
+      DL: flat(b),
+      K: flat(b),
+      P: flat(b),
+    },
+  };
+  return computeOverall(applyPointBuy(baseline, position, allocations), position);
+}

@@ -65,3 +65,22 @@ export function advanceContractYear(contract: Contract): Contract {
 export function isContractExpired(contract: Contract): boolean {
   return contract.currentYear >= contract.years;
 }
+
+/** Rare mid-contract release risk: a genuinely bad season can end a deal
+ *  early instead of waiting out its full term, so a contract carries real
+ *  pressure rather than just being a countdown timer. Never triggers in the
+ *  first season on a deal (rookies and new signings get a grace year), and
+ *  never on a deal that's about to expire naturally anyway. Bigger, pricier
+ *  deals draw more scrutiny — the "big free-agent bust" story. */
+export function checkPerformanceRelease(contract: Contract, wins: number, losses: number, rng: RNG): boolean {
+  if (contract.currentYear < 1) return false;
+  if (isContractExpired(contract)) return false;
+  const games = wins + losses;
+  if (games === 0) return false;
+  const winPct = wins / games;
+  if (winPct >= 0.35) return false; // mediocre is safe; only a rough season draws heat
+  const pressure = clamp(contract.totalValue / 40_000_000, 0.2, 1.2);
+  const badness = (0.35 - winPct) / 0.35;
+  const chance = clamp(badness * pressure * 0.5, 0, 0.6);
+  return rng.chance(chance);
+}

@@ -2,7 +2,7 @@ import type { Team } from "./types";
 
 // =============================================================================
 // Fictional NFL-analog league: 32 fictional teams, no real names/logos/cities
-// mapped 1:1 to real teams. This lets NFL LIFE operate commercially without
+// mapped 1:1 to real teams. This lets GRIDIRON LIFE operate commercially without
 // a league license. Swapping in a licensed dataset later only requires
 // replacing this file — nothing else in the engine references real teams.
 // =============================================================================

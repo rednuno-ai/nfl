@@ -1,5 +1,5 @@
 // =============================================================================
-// NFL LIFE — Core domain types
+// GRIDIRON LIFE — Core domain types
 // -----------------------------------------------------------------------------
 // This module has ZERO dependencies on React, Vite, or Supabase. It is pure,
 // deterministic TypeScript so it can be unit tested in isolation and reused

@@ -53,7 +53,7 @@ import {
 } from "./simulation/season";
 import { beginGame, advanceGame, type BeginGameInput, type GameSimState } from "./simulation/gameSim";
 import { generateCombineScores, generateDraftProjection, resolveDraft, rookieContractValue } from "./draft";
-import { advanceContractYear, buildContract, generateFreeAgencyOffers, isContractExpired, weeklySalary, type FreeAgencyOffer } from "./contracts";
+import { advanceContractYear, buildContract, checkPerformanceRelease, generateFreeAgencyOffers, isContractExpired, weeklySalary, type FreeAgencyOffer } from "./contracts";
 import { emptyFinanceState, applyIncome, weeklyFinanceTick, purchaseAsset, addSponsorship, generateSponsorshipOffer } from "./finance";
 import { generatePerformanceNews, generateSocialPost } from "./news";
 import { rollForInjury, tickInjuryRecovery, injuryTagFor } from "./injury";
@@ -1024,9 +1024,26 @@ function handleNFLSeasonEnd(state: CareerState): CareerState {
     }
   }
 
-  // Contract year advance / expiration -> free agency.
-  if (next.contract) {
-    const advanced = advanceContractYear(next.contract);
+  // Contract year advance / expiration -> free agency. A genuinely bad season
+  // can also end a deal early ("released") — real consequences beyond just
+  // waiting out the contract's length; see checkPerformanceRelease.
+  const currentContract = next.contract;
+  if (currentContract) {
+    const teamName = next.team ? `${next.team.city} ${next.team.name}` : "the team";
+    const { result: released, rngState: releaseRng } = withRng(next, (rng) => checkPerformanceRelease(currentContract, next.seasonRecord.wins, next.seasonRecord.losses, rng));
+    next = { ...next, rngState: releaseRng };
+    if (released) {
+      // Guaranteed money is still owed even after a release; approximate the
+      // unpaid guaranteed portion still on the books as a lump-sum payout.
+      const deadMoney = Math.round(currentContract.guaranteedMoney * 0.5);
+      const { state: financeAfterPayout } = applyIncome(next.finance, deadMoney, "Guaranteed money (release)");
+      next = { ...next, contract: null, team: null, finance: financeAfterPayout };
+      next = log(next, `Released by the ${teamName} after a rough ${next.seasonRecord.wins}-${next.seasonRecord.losses} season. Remaining guaranteed money still pays out, but the rest of the deal is void.`);
+      next = enterFreeAgency(next);
+      return next;
+    }
+
+    const advanced = advanceContractYear(currentContract);
     if (isContractExpired(advanced)) {
       next = { ...next, contract: null };
       next = enterFreeAgency(next);

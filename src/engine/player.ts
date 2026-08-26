@@ -1,5 +1,5 @@
 import type { Hand, PersonalityTrait, Player, PlayerBio, Position } from "./types";
-import { generateInitialAttributes } from "./attributes";
+import { applyPointBuy, generateInitialAttributes } from "./attributes";
 import { RNG } from "./rng";
 
 export interface CreatePlayerInput {
@@ -13,6 +13,10 @@ export interface CreatePlayerInput {
   weightLbs: number;
   personality: PersonalityTrait[];
   currentYear: number;
+  /** Point-buy allocation from the character creator (dotted attribute path
+   *  -> extra points above POINT_BUY_BASELINE). Optional so existing callers
+   *  (tests, older saves) keep working with a purely random roll. */
+  attributeAllocations?: Record<string, number>;
 }
 
 export function createId(prefix: string, rng: RNG): string {
@@ -33,12 +37,17 @@ export function createPlayer(input: CreatePlayerInput, rng: RNG): Player {
     weightLbs: input.weightLbs,
   };
 
+  let attributes = generateInitialAttributes(input.position, talent, rng);
+  if (input.attributeAllocations) {
+    attributes = applyPointBuy(attributes, input.position, input.attributeAllocations);
+  }
+
   return {
     id: createId("player", rng),
     bio,
     position: input.position,
     personality: input.personality,
-    attributes: generateInitialAttributes(input.position, talent, rng),
+    attributes,
     stage: "high_school",
     retired: false,
   };
