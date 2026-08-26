@@ -25,7 +25,7 @@
 // =============================================================================
 
 export const SUBSCRIPTION_PRICE_USD = 5;
-export const SUBSCRIPTION_PERIOD_LABEL = "mês";
+export const SUBSCRIPTION_PERIOD_LABEL = "month";
 
 export interface AuthUser {
   username: string;
@@ -151,10 +151,10 @@ export function getCurrentUser(): AuthUser | null {
 
 export async function register(usernameRaw: string, password: string, referralCodeRaw?: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
-  if (username.length < 2) return { ok: false, error: "Nome de utilizador demasiado curto (mínimo 2 caracteres)." };
-  if (password.length < 3) return { ok: false, error: "Password demasiado curta (mínimo 3 caracteres)." };
+  if (username.length < 2) return { ok: false, error: "Username too short (minimum 2 characters)." };
+  if (password.length < 3) return { ok: false, error: "Password too short (minimum 3 characters)." };
   const users = loadUsers();
-  if (users[username]) return { ok: false, error: "Esse nome de utilizador já está registado." };
+  if (users[username]) return { ok: false, error: "That username is already registered." };
 
   // A referral only counts if it points at a real, different account — a
   // stale/typo'd/self-referral code is silently ignored rather than
@@ -191,9 +191,9 @@ export async function login(usernameRaw: string, password: string): Promise<Auth
   const username = normalizeUsername(usernameRaw);
   const users = loadUsers();
   const user = users[username];
-  if (!user) return { ok: false, error: "Não existe nenhuma conta com esse nome de utilizador." };
+  if (!user) return { ok: false, error: "No account exists with that username." };
   const hash = await hashPassword(password, user.salt);
-  if (hash !== user.passwordHash) return { ok: false, error: "Password incorreta." };
+  if (hash !== user.passwordHash) return { ok: false, error: "Incorrect password." };
   startSession(username);
   return { ok: true };
 }
