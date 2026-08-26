@@ -137,7 +137,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     set({ authBusy: true, authError: null });
     const result = await authRegister(username, password, referralCode);
     if (!result.ok) {
-      set({ authBusy: false, authError: result.error ?? "Não foi possível criar a conta." });
+      set({ authBusy: false, authError: result.error ?? "Couldn't create the account." });
       return;
     }
     const session = getSession();
@@ -149,7 +149,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     set({ authBusy: true, authError: null });
     const result = await authLogin(username, password);
     if (!result.ok) {
-      set({ authBusy: false, authError: result.error ?? "Não foi possível entrar." });
+      set({ authBusy: false, authError: result.error ?? "Couldn't sign in." });
       return;
     }
     const session = getSession();
