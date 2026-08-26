@@ -1,4 +1,4 @@
-# NFL LIFE
+# GRIDIRON LIFE
 
 Um simulador de carreira e vida de futebol americano — do liceu ao Hall of Fame.
 

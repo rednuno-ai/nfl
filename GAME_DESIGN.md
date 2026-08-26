@@ -1,8 +1,8 @@
-# NFL LIFE — Game Design & Architecture
+# GRIDIRON LIFE — Game Design & Architecture
 
 ## 1. Vision
 
-NFL LIFE is a football life & career simulator. You don't manage a team —
+GRIDIRON LIFE is a football life & career simulator. You don't manage a team —
 you live one athlete's life, from a 15-year-old high school freshman to
 retirement and legacy. Every system (training, games, money, press,
 relationships, injuries) feeds back into one question: **what kind of career
