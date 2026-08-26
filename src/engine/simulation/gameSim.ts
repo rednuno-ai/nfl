@@ -29,7 +29,7 @@ export type RiskLevel = "safe" | "balanced" | "aggressive";
 export type PlayType = "run" | "short_pass" | "deep_pass" | "play_action" | "qb_scramble" | "trick_play";
 export type TargetPriority = "wr1" | "te" | "checkdown" | "mismatch" | "let_qb_decide";
 export type DefenseCall = "cover2" | "cover3" | "man" | "blitz" | "double_wr1";
-export type MomentKind = "play_call" | "target_priority" | "defense_call" | "fourth_down_approach" | "fourth_down" | "two_point";
+export type MomentKind = "play_call" | "defense_look" | "target_priority" | "defense_call" | "fourth_down_approach" | "fourth_down" | "two_point";
 /** A lightweight "vibe" read on the player's own team's last few notable offensive
  *  snaps — not a hard stat, just narrative texture (see spec point 9, "Momentum"). */
 export type MomentumState = "hot_streak" | "shaken" | "neutral";
@@ -67,6 +67,7 @@ export interface KeyMomentPrompt {
   defenseIntel?: DefenseIntel;
   analystNote?: string;
   momentumNote?: string;
+  defenseLookNote?: string;
 }
 
 export interface PossessionLogEntry {
@@ -121,6 +122,11 @@ export interface GameSimState {
   // Carries a stage-1 choice into a stage-2 prompt (e.g. play_call -> target_priority)
   // without consuming a down. Cleared once the play actually resolves.
   carriedPlayType: PlayType | null;
+  // The defense's call, revealed to the player at the pre-snap "defense_look" stage and
+  // carried through to whichever stage actually resolves the play, so it's rolled once
+  // and the reveal is never a lie.
+  carriedDefenseCall: DefenseCall | null;
+  carriedRiskLevel: RiskLevel | null;
 }
 
 export interface BeginGameInput {
@@ -214,6 +220,8 @@ export function beginGame(input: BeginGameInput, rng: RNG): GameSimState {
     trickPlayCooldown: 99,
     firstHalfReceiver,
     carriedPlayType: null,
+    carriedDefenseCall: null,
+    carriedRiskLevel: null,
     recentOutcomes: [],
     momentum: "neutral",
   };
@@ -355,12 +363,44 @@ function resolveDecision(
   if (decision.kind === "play_call") {
     const playType = PLAY_CALL_TAGS[optionId] ?? "run";
     const riskLevel = decision.options.find((o) => o.id === optionId)?.riskLevel ?? "balanced";
-    if (input.player.position === "QB" && needsTargetPriority(playType)) {
-      next.carriedPlayType = playType;
-      next.pendingDecision = buildTargetPriorityPrompt(next, input, playType);
+    // Roll the defense's call now and reveal it to the player before the play
+    // actually happens — a real pre-snap read, with a chance to check out of a
+    // bad matchup, instead of the defense being a hidden dice roll.
+    const defenseCall = aiChooseDefense(next, true, rng);
+    next.carriedPlayType = playType;
+    next.carriedRiskLevel = riskLevel;
+    next.carriedDefenseCall = defenseCall;
+    next.pendingDecision = buildDefenseLookPrompt(next, defenseCall, playType);
+    return { next, continueLoop: false };
+  }
+
+  if (decision.kind === "defense_look") {
+    const originalPlayType = next.carriedPlayType ?? "run";
+    const originalRiskLevel = next.carriedRiskLevel ?? "balanced";
+    const defenseCall = next.carriedDefenseCall ?? aiChooseDefense(next, true, rng);
+    next.carriedDefenseCall = null;
+
+    if (optionId === "look_audible") {
+      // A quick, safe check-out — never the original call, always the cautious
+      // read of what the revealed defense is vulnerable to.
+      next.carriedPlayType = null;
+      next.carriedRiskLevel = null;
+      const audibledType: PlayType = originalPlayType === "run" ? "short_pass" : "run";
+      const target: TargetPriority | undefined = audibledType === "short_pass" ? "checkdown" : undefined;
+      next = executePlayerOffensePlay(next, input, rng, audibledType, target, "safe", defenseCall);
+      next.pendingDecision = null;
+      next.keyMomentsResolved += 1;
+      return { next, continueLoop: true };
+    }
+
+    // Snap it — proceed with the original call, now that the D is locked in.
+    if (input.player.position === "QB" && needsTargetPriority(originalPlayType)) {
+      next.pendingDecision = buildTargetPriorityPrompt(next, input, originalPlayType);
       return { next, continueLoop: false };
     }
-    next = executePlayerOffensePlay(next, input, rng, playType, undefined, riskLevel);
+    next.carriedPlayType = null;
+    next.carriedRiskLevel = null;
+    next = executePlayerOffensePlay(next, input, rng, originalPlayType, undefined, originalRiskLevel, defenseCall);
     next.pendingDecision = null;
     next.keyMomentsResolved += 1;
     return { next, continueLoop: true };
@@ -370,8 +410,11 @@ function resolveDecision(
     const target = TARGET_TAGS[optionId] ?? "let_qb_decide";
     const playType = next.carriedPlayType ?? "short_pass";
     const riskLevel = decision.options.find((o) => o.id === optionId)?.riskLevel ?? "balanced";
+    const defenseCall = next.carriedDefenseCall;
     next.carriedPlayType = null;
-    next = executePlayerOffensePlay(next, input, rng, playType, target, riskLevel);
+    next.carriedDefenseCall = null;
+    next.carriedRiskLevel = null;
+    next = executePlayerOffensePlay(next, input, rng, playType, target, riskLevel, defenseCall ?? undefined);
     next.pendingDecision = null;
     next.keyMomentsResolved += 1;
     return { next, continueLoop: true };
@@ -503,6 +546,80 @@ function personalityAdjustment(personality: PersonalityTrait[], quarter: number,
   return { success, bigPlay, turnover };
 }
 
+// =============================================================================
+// Position-skill edge — the player's own attributes now reach directly into
+// the play math, not just the aggregate team rating. A cannon-armed QB
+// actually throws a better deep ball; a burst RB actually breaks more tackles;
+// a ball-hawk corner actually takes the catch away. Small, clamped nudges
+// layered on top of everything else, gated to only the side of the ball the
+// player's own position is actually on (mirrors offenseBoost/defenseBoost).
+// =============================================================================
+
+function positionSkillEdge(
+  position: Position,
+  player: Player,
+  offenseBoost: "offense" | "defense" | "special",
+  defenseBoost: "offense" | "defense" | "special",
+  playType: PlayType,
+  targetPriority: TargetPriority | undefined
+): { success: number; bigPlay: number; turnover: number; sack: number } {
+  let success = 0;
+  let bigPlay = 0;
+  let turnover = 0;
+  let sack = 0;
+  const pos = player.attributes.position;
+
+  if (offenseBoost === "offense") {
+    if (position === "QB") {
+      const qb = pos.QB;
+      if (playType === "deep_pass") success += (qb.deepAccuracy - 60) / 400;
+      else if (playType === "short_pass") success += (qb.shortAccuracy - 60) / 500;
+      else if (playType === "play_action") success += (qb.mediumAccuracy - 60) / 500;
+      else if (playType === "qb_scramble") success += (qb.throwOnRun - 60) / 500;
+      turnover -= (qb.awareness - 60) / 800;
+      sack -= (qb.awareness - 60) / 900;
+    } else if (position === "RB") {
+      const rb = pos.RB;
+      if (playType === "run") {
+        success += (rb.vision - 60) / 400;
+        bigPlay += (rb.breakTackle + rb.elusiveness - 120) / 600;
+      } else {
+        bigPlay += (rb.elusiveness - 60) / 500;
+      }
+      turnover -= (rb.carrying - 60) / 900;
+    } else if (position === "WR" || position === "TE") {
+      const wt = position === "WR" ? pos.WR : pos.TE;
+      success += (wt.catching + wt.routeRunning - 120) / 500;
+      if (playType === "deep_pass" || targetPriority === "mismatch") {
+        bigPlay += ((position === "WR" ? pos.WR.spectacularCatch : 55) - 60) / 400;
+      }
+    }
+  }
+
+  if (defenseBoost === "defense") {
+    if (position === "CB") {
+      const cb = pos.CB;
+      const coverageSkill = targetPriority === "wr1" || targetPriority === "mismatch" ? cb.manCoverage : cb.zoneCoverage;
+      success -= (coverageSkill - 60) / 450;
+      turnover += (cb.ballHawk - 60) / 700;
+    } else if (position === "S") {
+      const s = pos.S;
+      success -= (s.technique - 60) / 550;
+      bigPlay -= (s.technique - 60) / 500;
+    } else if (position === "LB") {
+      const lb = pos.LB;
+      if (playType === "run" || playType === "qb_scramble") success -= (lb.tackling + lb.pursuit - 120) / 600;
+      else success -= (lb.coverage - 60) / 600;
+    } else if (position === "DL") {
+      const dl = pos.DL;
+      sack += (dl.technique - 60) / 500;
+      success -= (dl.blocking - 60) / 800; // "blocking" doubles as run-stuffing technique for the generic DL block
+    }
+  }
+
+  return { success, bigPlay, turnover, sack };
+}
+
 function buildPlayCallPrompt(state: GameSimState, input: BeginGameInput, rng: RNG): KeyMomentPrompt {
   const options = offensePlayOptions(input.player.position, state, rng);
   let defenseIntel: DefenseIntel | undefined;
@@ -537,6 +654,43 @@ function buildPlayCallPrompt(state: GameSimState, input: BeginGameInput, rng: RN
     options,
     defenseIntel,
     momentumNote: momentumBannerNote(state.momentum),
+  };
+}
+
+const DEFENSE_LOOK_LABELS: Record<DefenseCall, string> = {
+  cover2: "Two deep safeties — Cover 2 shell.",
+  cover3: "Three-deep zone — Cover 3.",
+  man: "They're playing man coverage, all over the field.",
+  blitz: "Extra rushers coming — they're bringing the house!",
+  double_wr1: "Two defenders bracket your top target.",
+};
+
+function buildDefenseLookPrompt(state: GameSimState, defenseCall: DefenseCall, playType: PlayType): KeyMomentPrompt {
+  return {
+    kind: "defense_look",
+    quarter: state.quarter,
+    overtime: state.overtime,
+    clockLabel: formatClock(state.secondsRemaining),
+    down: state.down,
+    distance: state.distance,
+    ballOn: state.ballOn,
+    scorePlayer: state.scorePlayer,
+    scoreOpponent: state.scoreOpponent,
+    timeoutsPlayer: state.timeoutsPlayer,
+    timeoutsOpponent: state.timeoutsOpponent,
+    side: "offense",
+    situation: "The defense sets up before the snap. Stick with it, or check out?",
+    options: [
+      { id: "look_snap", label: "Snap It", description: "Stick with the called play.", riskLevel: "balanced", icon: "🏈" },
+      {
+        id: "look_audible",
+        label: "Audible!",
+        description: playType === "run" ? "Check to a quick, safe throw instead." : "Check it down to the ground game instead.",
+        riskLevel: "safe",
+        icon: "🔄",
+      },
+    ],
+    defenseLookNote: DEFENSE_LOOK_LABELS[defenseCall],
   };
 }
 
@@ -927,6 +1081,8 @@ function resolvePlay(
       }
     : { success: 0, bigPlay: 0, turnover: 0 };
 
+  const skillEdge = positionSkillEdge(input.player.position, input.player, offenseBoost, defenseBoost, playType, targetPriority);
+
   const offenseFamily = offenseIsPlayer ? state.recentPlayFamily : state.recentOpponentFamily;
   const tendency = computeTendency(offenseFamily);
   const boxDelta = tendency ? tendency.boxCount - 6 : 0;
@@ -979,23 +1135,23 @@ function resolvePlay(
       : { comp: 0.6, yards: 11, variance: 6, sack: 0.07, turnover: 0.045, big: 0.13 };
 
     const boxPassAdj = boxDelta * 0.03;
-    const sackChance = clamp(profile.sack + defAdj.sack - situational * 0.4, 0.02, 0.35);
+    const sackChance = clamp(profile.sack + defAdj.sack - situational * 0.4 + skillEdge.sack, 0.02, 0.35);
     if (rng.chance(sackChance)) {
       const lost = rng.int(3, 9);
       const fumble = rng.chance(0.08);
       return { yards: -lost, complete: false, isPassAttempt: true, sack: true, interception: false, fumble, bigPlay: false, text: fumble ? rng.pick(TEXT_SACK_FUMBLE) : rng.pick(TEXT_SACK)(lost) };
     }
 
-    const completionChance = clamp(profile.comp + situational + riskMod.successBonus + defAdj.success + boxPassAdj + paBonus + flavorAdj.success, 0.15, 0.92);
+    const completionChance = clamp(profile.comp + situational + riskMod.successBonus + defAdj.success + boxPassAdj + paBonus + flavorAdj.success + skillEdge.success, 0.15, 0.92);
     if (rng.chance(completionChance)) {
-      const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay + situational * 0.3 + flavorAdj.bigPlay, 0.03, 0.55);
+      const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay + situational * 0.3 + flavorAdj.bigPlay + skillEdge.bigPlay, 0.03, 0.55);
       const isBig = rng.chance(bigPlayChance);
       let yards = Math.max(1, Math.round(profile.yards + paYardsBonus + rng.gaussian() * profile.variance));
       if (isBig) yards += rng.int(15, 35);
       const fumble = rng.chance(0.012);
       return { yards, complete: true, isPassAttempt: true, sack: false, interception: false, fumble, bigPlay: isBig, text: isBig ? rng.pick(TEXT_PASS_BIG)(yards) : rng.pick(TEXT_PASS_COMPLETE)(yards) };
     }
-    const interceptionChance = clamp(profile.turnover + defAdj.turnover + riskMod.turnoverBonus - situational * 0.3 + flavorAdj.turnover, 0.01, 0.35);
+    const interceptionChance = clamp(profile.turnover + defAdj.turnover + riskMod.turnoverBonus - situational * 0.3 + flavorAdj.turnover + skillEdge.turnover, 0.01, 0.35);
     if (rng.chance(interceptionChance)) {
       return { yards: 0, complete: false, isPassAttempt: true, sack: false, interception: true, fumble: false, bigPlay: false, text: rng.pick(TEXT_INTERCEPTION) };
     }
@@ -1005,9 +1161,9 @@ function resolvePlay(
   // Run family: "run" or "qb_scramble"
   const profile = playType === "qb_scramble" ? { base: 0.72, yards: 6.5, variance: 4, turnover: 0.02, big: 0.12 } : { base: 0.68, yards: 4.3, variance: 3.2, turnover: 0.015, big: 0.06 };
   const boxRunAdj = -boxDelta * 0.05;
-  const successChance = clamp(profile.base + situational + riskMod.successBonus + defAdj.success + boxRunAdj + flavorAdj.success, 0.2, 0.9);
+  const successChance = clamp(profile.base + situational + riskMod.successBonus + defAdj.success + boxRunAdj + flavorAdj.success + skillEdge.success, 0.2, 0.9);
   const success = rng.chance(successChance);
-  const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay - Math.max(0, boxDelta) * 0.02 + flavorAdj.bigPlay, 0.02, 0.4);
+  const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay - Math.max(0, boxDelta) * 0.02 + flavorAdj.bigPlay + skillEdge.bigPlay, 0.02, 0.4);
   const isBig = success && rng.chance(bigPlayChance);
   let yards: number;
   if (success) {
@@ -1016,7 +1172,7 @@ function resolvePlay(
   } else {
     yards = rng.int(-2, 1);
   }
-  const fumbleChance = clamp(profile.turnover + riskMod.turnoverBonus - situational * 0.2 + flavorAdj.turnover, 0.005, 0.06);
+  const fumbleChance = clamp(profile.turnover + riskMod.turnoverBonus - situational * 0.2 + flavorAdj.turnover + skillEdge.turnover, 0.005, 0.06);
   const fumble = rng.chance(fumbleChance);
   return {
     yards,
@@ -1485,47 +1641,70 @@ function aiChooseTarget(rng: RNG): TargetPriority {
   ]);
 }
 
-function aiChooseDefense(state: GameSimState, rng: RNG): DefenseCall {
+// The defense's call is no longer blind to what the offense has been doing: a
+// defense that's just watched a run-heavy or pass-heavy stretch leans into
+// counters for it, on top of the box-count math tendency already applies —
+// spamming one play family gets read and punished by the actual call, not
+// just a hidden probability tweak.
+function aiChooseDefense(state: GameSimState, offenseIsPlayer: boolean, rng: RNG): DefenseCall {
   const { down, distance } = state;
+  let weights: { item: DefenseCall; weight: number }[];
   if (down >= 3 && distance >= 7) {
-    return rng.weighted([
-      { item: "cover3" as DefenseCall, weight: 35 },
-      { item: "cover2" as DefenseCall, weight: 25 },
-      { item: "blitz" as DefenseCall, weight: 20 },
-      { item: "man" as DefenseCall, weight: 15 },
-      { item: "double_wr1" as DefenseCall, weight: 5 },
-    ]);
+    weights = [
+      { item: "cover3", weight: 35 },
+      { item: "cover2", weight: 25 },
+      { item: "blitz", weight: 20 },
+      { item: "man", weight: 15 },
+      { item: "double_wr1", weight: 5 },
+    ];
+  } else if (distance <= 2) {
+    weights = [
+      { item: "blitz", weight: 30 },
+      { item: "man", weight: 25 },
+      { item: "cover3", weight: 25 },
+      { item: "cover2", weight: 20 },
+    ];
+  } else {
+    weights = [
+      { item: "cover3", weight: 30 },
+      { item: "cover2", weight: 25 },
+      { item: "man", weight: 25 },
+      { item: "blitz", weight: 15 },
+      { item: "double_wr1", weight: 5 },
+    ];
   }
-  if (distance <= 2) {
-    return rng.weighted([
-      { item: "blitz" as DefenseCall, weight: 30 },
-      { item: "man" as DefenseCall, weight: 25 },
-      { item: "cover3" as DefenseCall, weight: 25 },
-      { item: "cover2" as DefenseCall, weight: 20 },
-    ]);
+
+  const tendency = computeTendency(offenseIsPlayer ? state.recentPlayFamily : state.recentOpponentFamily);
+  if (tendency && tendency.runRate >= 0.65) {
+    weights = weights.map((w) => (w.item === "blitz" || w.item === "cover3" ? { ...w, weight: w.weight * 1.6 } : { ...w, weight: w.weight * 0.7 }));
+  } else if (tendency && tendency.runRate <= 0.35) {
+    weights = weights.map((w) => (w.item === "cover2" || w.item === "man" || w.item === "double_wr1" ? { ...w, weight: w.weight * 1.6 } : { ...w, weight: w.weight * 0.7 }));
   }
-  return rng.weighted([
-    { item: "cover3" as DefenseCall, weight: 30 },
-    { item: "cover2" as DefenseCall, weight: 25 },
-    { item: "man" as DefenseCall, weight: 25 },
-    { item: "blitz" as DefenseCall, weight: 15 },
-    { item: "double_wr1" as DefenseCall, weight: 5 },
-  ]);
+
+  return rng.weighted(weights);
 }
 
 function simulateAutoPlay(state: GameSimState, input: BeginGameInput, rng: RNG): GameSimState {
   const offenseIsPlayer = state.possession === "player";
   const playType = aiChoosePlayType(state, offenseIsPlayer, rng);
   const target = needsTargetPriority(playType) ? aiChooseTarget(rng) : undefined;
-  const defenseCall = aiChooseDefense(state, rng);
+  const defenseCall = aiChooseDefense(state, offenseIsPlayer, rng);
   const outcome = resolvePlay(state, input, rng, offenseIsPlayer, playType, target, defenseCall, "balanced");
   const myPos = playerSide(input.player.position);
   const playerInvolvedThisSnap = (offenseIsPlayer && myPos === "offense") || (!offenseIsPlayer && myPos === "defense");
   return applyPlayToState(state, input, rng, offenseIsPlayer, playType, target, outcome, playerInvolvedThisSnap);
 }
 
-function executePlayerOffensePlay(state: GameSimState, input: BeginGameInput, rng: RNG, playType: PlayType, target: TargetPriority | undefined, riskLevel: RiskLevel): GameSimState {
-  const defenseCall = aiChooseDefense(state, rng);
+function executePlayerOffensePlay(
+  state: GameSimState,
+  input: BeginGameInput,
+  rng: RNG,
+  playType: PlayType,
+  target: TargetPriority | undefined,
+  riskLevel: RiskLevel,
+  presetDefenseCall?: DefenseCall
+): GameSimState {
+  const defenseCall = presetDefenseCall ?? aiChooseDefense(state, true, rng);
   const outcome = resolvePlay(state, input, rng, true, playType, target, defenseCall, riskLevel);
   return applyPlayToState(state, input, rng, true, playType, target, outcome, true);
 }
