@@ -14,7 +14,7 @@ export function InviteFriendsCard() {
   if (!currentUser) return null;
 
   const link = buildReferralLink(currentUser.referralCode);
-  const shareMessage = `I'm playing NFL LIFE, a football career sim from high school to the Hall of Fame — join me with my link:`;
+  const shareMessage = `I'm playing GRIDIRON LIFE, a football career sim from high school to the Hall of Fame — join me with my link:`;
 
   async function copyLink() {
     try {
