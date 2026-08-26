@@ -260,7 +260,15 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     applyCareer(get, set, respondToNews(current, newsId));
   },
 
-  navigate: (screen) => set({ screen }),
+  navigate: (screen) => {
+    // While a game is live, GameDayView occupies the main area regardless of
+    // `screen` (see App.tsx). Changing `screen` here would desync the nav
+    // highlight from what's actually on screen — the tapped tab would light
+    // up while the game stays put, looking broken. Block it until the game
+    // resolves.
+    if (get().activeCareer?.interaction?.type === "game") return;
+    set({ screen });
+  },
   dismissToast: () => set({ toast: null }),
 }));
 
