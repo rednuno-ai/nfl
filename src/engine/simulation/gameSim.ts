@@ -763,7 +763,11 @@ function recommendFourthDown(state: GameSimState, input: BeginGameInput): "field
 
 function fourthDownConvertProb(state: GameSimState, input: BeginGameInput): number {
   const ratingDiff = teamRating(input.team, "offense", "offense", input.overall, true, input.homeAdvantage) - teamRating(input.opponent, "defense", "special", input.overall, false, input.homeAdvantage);
-  return clamp(0.72 - state.distance * 0.055 + ratingDiff / 300, 0.08, 0.92);
+  // Distance penalty steepens (0.055 -> 0.07) and the ceiling comes down from
+  // .92 -> .78: real 4th-and-short conversion rates sit well below 90% even
+  // for a strong offense, and a never-punt strategy shouldn't turn every
+  // long 4th down into a near-certainty regardless of distance.
+  return clamp(0.68 - state.distance * 0.07 + ratingDiff / 300, 0.06, 0.78);
 }
 
 function fgSuccessProb(attemptYards: number): number {
