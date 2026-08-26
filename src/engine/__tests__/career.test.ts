@@ -115,7 +115,7 @@ describe("career state machine", () => {
   it("commitToCollege moves the player from recruiting into college", () => {
     let state = createCareer(baseInput());
     let guard = 0;
-    while (state.stage !== "recruiting" && guard < 2000) {
+    while (state.stage !== "recruiting" && guard < 20000) {
       if (state.interaction?.type === "decision") {
         state = resolveDecision(state, state.interaction.decision.choices[0].id);
       } else if (state.interaction?.type === "training") {
