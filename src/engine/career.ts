@@ -662,7 +662,7 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
       ? `Week ${state.weekInSeason}: beat ${game.opponentName} ${game.scorePlayer}-${game.scoreOpponent}.`
       : game.result === "loss"
       ? `Week ${state.weekInSeason}: fell to ${game.opponentName} ${game.scoreOpponent}-${game.scorePlayer}.`
-      : `Week ${state.weekInSeason}: tied ${game.opponentName} ${game.scorePlayer}-${game.scorePlayer}.`;
+      : `Week ${state.weekInSeason}: tied ${game.opponentName} ${game.scorePlayer}-${game.scoreOpponent}.`;
 
   let next: CareerState = log(
     {
