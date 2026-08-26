@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameSimState, KeyMomentPrompt } from "@engine/simulation/gameSim";
+import { TeamCrest } from "@ui/components/TeamCrest";
 
 // =============================================================================
 // Game Day — live, real-time presentation of a play-by-play game.
@@ -165,6 +166,7 @@ export function GameDayView({
 
       <div className="scoreboard">
         <div className="team">
+          <TeamCrest seed={game.teamId} label={(teamLabel || "You").slice(0, 3)} size={36} />
           <div className="score">{scorePlayer}</div>
           <div className="team-label">
             {possessionIsPlayer && <span className="possession-dot" />}
@@ -179,6 +181,7 @@ export function GameDayView({
           <div className="faint">Fatigue {Math.round(game.fatigue)}%</div>
         </div>
         <div className="team">
+          <TeamCrest seed={game.opponentId} label={opponentLabel.slice(0, 3)} size={36} />
           <div className="score">{scoreOpponent}</div>
           <div className="team-label">
             {!possessionIsPlayer && <span className="possession-dot" />}
@@ -208,10 +211,10 @@ export function GameDayView({
       <div className="field-wrap">
         <div className="field-pitch">
           <div className="field-endzone field-endzone-left">
-            <span>{(teamLabel || "You").slice(0, 3).toUpperCase()}</span>
+            <TeamCrest seed={game.teamId} label={(teamLabel || "You").slice(0, 3)} size={26} />
           </div>
           <div className="field-endzone field-endzone-right">
-            <span>{opponentLabel.slice(0, 3).toUpperCase()}</span>
+            <TeamCrest seed={game.opponentId} label={opponentLabel.slice(0, 3)} size={26} />
           </div>
           {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((yard) => (
             <div key={yard} className={`field-yardline ${yard === 50 ? "field-yardline-mid" : ""}`} style={{ left: `${fieldPct(yard)}%` }} />
