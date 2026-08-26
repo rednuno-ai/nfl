@@ -2,11 +2,13 @@ import { useState } from "react";
 import { gameStore } from "@store/gameStore";
 import { MVP_POSITIONS, type Hand, type PersonalityTrait, type Position } from "@engine/types";
 import { PERSONALITY_LABELS } from "@engine/player";
+import { POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS, previewPointBuyOverall } from "@engine/attributes";
 
 const PERSONALITY_OPTIONS = Object.keys(PERSONALITY_LABELS) as PersonalityTrait[];
 const US_STATES = ["TX", "CA", "FL", "OH", "GA", "PA", "NC", "MI", "LA", "AL", "TN", "AZ", "NY", "IL", "VA"];
 
 export function CreatePlayerScreen() {
+  const [step, setStep] = useState<"bio" | "attributes">("bio");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [position, setPosition] = useState<Position>("QB");
@@ -16,16 +18,41 @@ export function CreatePlayerScreen() {
   const [heightInches, setHeightInches] = useState(72);
   const [weightLbs, setWeightLbs] = useState(200);
   const [personality, setPersonality] = useState<PersonalityTrait[]>([]);
+  const [allocations, setAllocations] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && city.trim().length > 0 && personality.length > 0 && personality.length <= 3;
+  const canSubmitBio = firstName.trim().length > 0 && lastName.trim().length > 0 && city.trim().length > 0 && personality.length > 0 && personality.length <= 3;
+
+  const slots = POINT_BUY_SLOTS[position] ?? [];
+  const pointsSpent = slots.reduce((sum, slot) => sum + (allocations[slot.path] ?? 0), 0);
+  const pointsLeft = POINT_BUY_POOL - pointsSpent;
+  const previewOverall = previewPointBuyOverall(position, allocations);
 
   function togglePersonality(trait: PersonalityTrait) {
     setPersonality((prev) => (prev.includes(trait) ? prev.filter((t) => t !== trait) : prev.length < 3 ? [...prev, trait] : prev));
   }
 
+  function adjustPoint(path: string, delta: number) {
+    setAllocations((prev) => {
+      const current = prev[path] ?? 0;
+      const next = current + delta;
+      if (next < 0 || next > POINT_BUY_MAX - POINT_BUY_BASELINE) return prev;
+      if (delta > 0 && pointsLeft <= 0) return prev;
+      return { ...prev, [path]: next };
+    });
+  }
+
+  function goToAttributes() {
+    if (!canSubmitBio) return;
+    // Points spent on the previous position (if the player went back and
+    // changed position) don't carry over cleanly onto a different attribute
+    // set, so reset the allocation whenever attributes step is (re)entered
+    // for a position that has no matching slots recorded yet.
+    setStep("attributes");
+  }
+
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmitBio) return;
     setSubmitting(true);
     await gameStore.getState().startNewCareer({
       firstName,
@@ -38,8 +65,64 @@ export function CreatePlayerScreen() {
       weightLbs,
       personality,
       currentYear: new Date().getFullYear(),
+      attributeAllocations: allocations,
     });
     setSubmitting(false);
+  }
+
+  if (step === "attributes") {
+    return (
+      <div className="centered-page">
+        <div className="onboarding-card card">
+          <div className="page-title">Build Your Player</div>
+          <p className="page-subtitle">
+            Distribute {POINT_BUY_POOL} points across your {position}'s standout attributes. Everything else is rolled at random,
+            same as any prospect.
+          </p>
+
+          <div className="ovr-preview-card">
+            <div className="ovr-preview-label">OVERALL</div>
+            <div className="ovr-preview-number">{previewOverall}</div>
+            <div className={`points-left ${pointsLeft === 0 ? "points-left-done" : ""}`}>{pointsLeft} points left</div>
+          </div>
+
+          <div className="attribute-list">
+            {slots.map((slot) => {
+              const value = POINT_BUY_BASELINE + (allocations[slot.path] ?? 0);
+              return (
+                <div className="attribute-row" key={slot.path}>
+                  <div className="attribute-row-label">{slot.label}</div>
+                  <button type="button" className="attribute-step" onClick={() => adjustPoint(slot.path, -2)} disabled={(allocations[slot.path] ?? 0) <= 0}>
+                    −
+                  </button>
+                  <div className="attribute-bar-track">
+                    <div className="attribute-bar-fill" style={{ width: `${value}%` }} />
+                    <span className="attribute-value">{value}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="attribute-step"
+                    onClick={() => adjustPoint(slot.path, 2)}
+                    disabled={pointsLeft <= 0 || value >= POINT_BUY_MAX}
+                  >
+                    +
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="btn-row" style={{ marginTop: 16 }}>
+            <button className="btn btn-ghost" onClick={() => setStep("bio")}>
+              Back
+            </button>
+            <button className="btn btn-primary" style={{ flex: 1 }} disabled={submitting} onClick={handleSubmit}>
+              {submitting ? "Starting…" : "Start Career"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -120,8 +203,8 @@ export function CreatePlayerScreen() {
           <button className="btn btn-ghost" onClick={() => gameStore.setState({ screen: "career-select" })}>
             Back
           </button>
-          <button className="btn btn-primary" style={{ flex: 1 }} disabled={!canSubmit || submitting} onClick={handleSubmit}>
-            {submitting ? "Starting…" : "Start Career"}
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={!canSubmitBio} onClick={goToAttributes}>
+            Next: Build Attributes
           </button>
         </div>
       </div>

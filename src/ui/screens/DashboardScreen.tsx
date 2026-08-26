@@ -5,6 +5,8 @@ import { getCollege } from "@engine/colleges";
 import { getTeam } from "@engine/teams";
 import { money, moneyCompact, STAGE_LABELS } from "../format";
 import { weeklySalary } from "@engine/contracts";
+import { TeamCrest } from "@ui/components/TeamCrest";
+import { PositionBadge } from "@ui/components/PositionBadge";
 
 function currentSchoolOrTeamLabel(state: CareerState): string {
   if (state.stage === "high_school" || state.stage === "recruiting") return state.highSchool.schoolName;
@@ -15,30 +17,48 @@ function currentSchoolOrTeamLabel(state: CareerState): string {
   return "Retired";
 }
 
+/** A crest seed+label for whatever program the player currently belongs to,
+ *  or null when there isn't one yet (draft process, free agency, retired) —
+ *  those fall back to a position badge instead. */
+function currentCrestSeed(state: CareerState): { seed: string; label: string } | null {
+  if (state.stage === "high_school" || state.stage === "recruiting") return { seed: state.highSchool.schoolName, label: state.highSchool.schoolName };
+  if (state.stage === "college" && state.college) {
+    const college = getCollege(state.college.collegeId);
+    return { seed: state.college.collegeId, label: college?.mascot ?? college?.name ?? "College" };
+  }
+  if (state.team) return { seed: state.team.id, label: state.team.abbreviation };
+  return null;
+}
+
 export function DashboardScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
   const overall = computeOverall(state.player.attributes, state.player.position);
   const nextGame = state.schedule.find((s) => s.week === state.weekInSeason && !s.played);
+  const crestSeed = currentCrestSeed(state);
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <div className="page-title">
+      <div className="player-hero card">
+        {crestSeed ? <TeamCrest seed={crestSeed.seed} label={crestSeed.label} size={56} /> : <PositionBadge position={state.player.position} size={56} />}
+        <div className="player-hero-ovr">
+          <div className="player-hero-ovr-number">{overall}</div>
+          <div className="player-hero-ovr-label">OVR</div>
+        </div>
+        <div className="player-hero-info">
+          <div className="player-hero-name">
             {state.player.bio.firstName} {state.player.bio.lastName}
           </div>
-          <div className="page-subtitle">
-            {state.player.position} · {currentSchoolOrTeamLabel(state)} · Age {state.player.bio.age}
+          <div className="player-hero-sub">
+            <span className="player-hero-pos">{state.player.position}</span>
+            {currentSchoolOrTeamLabel(state)} · Age {state.player.bio.age}
           </div>
+          <span className="badge badge-accent" style={{ marginTop: 8, display: "inline-block" }}>
+            {STAGE_LABELS[state.stage] ?? state.stage}
+          </span>
         </div>
-        <span className="badge badge-accent">{STAGE_LABELS[state.stage] ?? state.stage}</span>
       </div>
 
-      <div className="grid grid-4" style={{ marginBottom: 22 }}>
-        <div className="stat-tile">
-          <div className="value">{overall}</div>
-          <div className="label">Overall</div>
-        </div>
+      <div className="grid grid-3" style={{ marginBottom: 22 }}>
         <div className="stat-tile">
           <div className="value">{Math.round(state.player.attributes.general.fame)}</div>
           <div className="label">Fame</div>
@@ -144,10 +164,13 @@ function RecruitingBoard({ state }: { state: CareerState }) {
       <div className="list">
         {state.recruitingOffers.map((offer) => (
           <div className="list-item" key={offer.collegeId}>
-            <div>
-              <div style={{ fontWeight: 700 }}>{offer.collegeName}</div>
-              <div className="faint" style={{ fontSize: 12.5 }}>
-                Interest {offer.interestLevel}% {offer.scholarship ? "· Full scholarship" : ""}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <TeamCrest seed={offer.collegeId} label={offer.collegeName} size={36} />
+              <div>
+                <div style={{ fontWeight: 700 }}>{offer.collegeName}</div>
+                <div className="faint" style={{ fontSize: 12.5 }}>
+                  Interest {offer.interestLevel}% {offer.scholarship ? "· Full scholarship" : ""}
+                </div>
               </div>
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => gameStore.getState().commitCollege(offer.collegeId)}>
@@ -207,12 +230,15 @@ function FreeAgencyBoard({ state }: { state: CareerState }) {
       <div className="list">
         {offers.map((offer) => (
           <div className="list-item" key={offer.teamId}>
-            <div>
-              <div style={{ fontWeight: 700 }}>
-                {getTeam(offer.teamId) ? `${getTeam(offer.teamId)!.city} ${getTeam(offer.teamId)!.name}` : offer.teamId}
-              </div>
-              <div className="faint" style={{ fontSize: 12.5 }}>
-                {offer.contract.years} yrs · {money(offer.contract.totalValue)} total · {money(offer.contract.guaranteedMoney)} guaranteed · {offer.role} role · {Math.round(offer.championshipProbability * 100)}% title odds
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <TeamCrest seed={offer.teamId} label={getTeam(offer.teamId)?.abbreviation ?? offer.teamId} size={36} />
+              <div>
+                <div style={{ fontWeight: 700 }}>
+                  {getTeam(offer.teamId) ? `${getTeam(offer.teamId)!.city} ${getTeam(offer.teamId)!.name}` : offer.teamId}
+                </div>
+                <div className="faint" style={{ fontSize: 12.5 }}>
+                  {offer.contract.years} yrs · {money(offer.contract.totalValue)} total · {money(offer.contract.guaranteedMoney)} guaranteed · {offer.role} role · {Math.round(offer.championshipProbability * 100)}% title odds
+                </div>
               </div>
             </div>
             <button className="btn btn-primary btn-sm" onClick={() => gameStore.getState().signFreeAgent(offer.teamId)}>

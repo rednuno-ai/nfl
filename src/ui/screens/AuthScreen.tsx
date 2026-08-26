@@ -25,8 +25,8 @@ export function AuthScreen() {
     <div className="centered-page">
       <div className="onboarding-card" style={{ maxWidth: 880 }}>
         <div className="brand" style={{ justifyContent: "center", fontSize: 26, marginBottom: 8 }}>
-          <span className="brand-mark">NL</span>
-          NFL LIFE
+          <span className="brand-mark">GL</span>
+          GRIDIRON LIFE
         </div>
         <p className="page-subtitle" style={{ textAlign: "center", marginBottom: 22 }}>
           Live an entire football career — from high school to the Hall of Fame.

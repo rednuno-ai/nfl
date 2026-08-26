@@ -8,15 +8,15 @@ export function SubscriptionScreen() {
     <div className="centered-page">
       <div className="onboarding-card">
         <div className="brand" style={{ justifyContent: "center", fontSize: 24, marginBottom: 8 }}>
-          <span className="brand-mark">NL</span>
-          NFL LIFE
+          <span className="brand-mark">GL</span>
+          GRIDIRON LIFE
         </div>
         <p className="page-subtitle" style={{ textAlign: "center", marginBottom: 4 }}>
           Hi, {session?.username}. Just one step left.
         </p>
 
         <div className="card" style={{ textAlign: "center", marginTop: 18, marginBottom: 18 }}>
-          <div className="section-title">NFL LIFE Subscription</div>
+          <div className="section-title">GRIDIRON LIFE Subscription</div>
           <div style={{ fontSize: 40, fontWeight: 800, margin: "10px 0" }}>
             ${SUBSCRIPTION_PRICE_USD}
             <span style={{ fontSize: 16, fontWeight: 500 }}> / {SUBSCRIPTION_PERIOD_LABEL}</span>

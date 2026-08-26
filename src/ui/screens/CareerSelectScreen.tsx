@@ -3,6 +3,7 @@ import { useGameStore, gameStore } from "@store/gameStore";
 import { STAGE_LABELS } from "../format";
 import { FREE_TIER_CAREER_LIMIT } from "@data/index";
 import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
+import { PositionBadge } from "@ui/components/PositionBadge";
 
 export function CareerSelectScreen() {
   const careers = useGameStore((s) => s.careers);
@@ -18,8 +19,8 @@ export function CareerSelectScreen() {
     <div className="centered-page">
       <div className="onboarding-card">
         <div className="brand" style={{ justifyContent: "center", fontSize: 26, marginBottom: 8 }}>
-          <span className="brand-mark">NL</span>
-          NFL LIFE
+          <span className="brand-mark">GL</span>
+          GRIDIRON LIFE
         </div>
         <p className="page-subtitle" style={{ textAlign: "center" }}>
           Live an entire football career — High School to the Hall of Fame.
@@ -32,7 +33,7 @@ export function CareerSelectScreen() {
             {careers.map((c) => (
               <div key={c.id} className="card card-tight career-card" onClick={() => void gameStore.getState().openCareer(c.id)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div className="career-avatar">{c.position}</div>
+                  <PositionBadge position={c.position} size={48} />
                   <div>
                     <div style={{ fontWeight: 700 }}>{c.playerName}</div>
                     <div className="faint" style={{ fontSize: 12.5 }}>
