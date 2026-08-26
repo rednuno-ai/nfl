@@ -531,14 +531,34 @@ h4 {
   padding: 14px 16px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
+  border-left-width: 3px;
   background: var(--bg-elevated);
   cursor: pointer;
   color: var(--text);
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
 
 .choice-btn:hover {
   border-color: var(--accent);
+  border-left-color: var(--accent);
   background: var(--bg-card-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.choice-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.choice-btn:has(.risk-safe) {
+  border-left-color: rgba(77, 141, 255, 0.5);
+}
+.choice-btn:has(.risk-balanced) {
+  border-left-color: rgba(232, 179, 74, 0.5);
+}
+.choice-btn:has(.risk-aggressive) {
+  border-left-color: rgba(239, 87, 87, 0.5);
 }
 
 .choice-label {
@@ -587,18 +607,21 @@ h4 {
   border-radius: var(--radius-lg);
   background: linear-gradient(135deg, #171b26, #0d1017);
   border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-card);
   margin-bottom: 20px;
 }
 
 .scoreboard .team {
   text-align: center;
   flex: 1;
+  position: relative;
 }
 
 .scoreboard .score {
   font-size: 40px;
   font-weight: 900;
   font-family: var(--font-display);
+  transition: color 0.2s ease;
 }
 
 .scoreboard .team-label {
@@ -607,6 +630,23 @@ h4 {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.possession-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 6px rgba(232, 179, 74, 0.8);
+  animation: possession-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes possession-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
 }
 
 .scoreboard .meta {
@@ -682,7 +722,16 @@ h4 {
   height: 84px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
-  background: linear-gradient(180deg, #143323, #0e2519);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.025) 0%,
+      rgba(255, 255, 255, 0.025) 8.4%,
+      transparent 8.4%,
+      transparent 16.8%
+    ),
+    linear-gradient(180deg, #143323, #0e2519);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -721,6 +770,11 @@ h4 {
   background: rgba(255, 255, 255, 0.14);
 }
 
+.field-yardline-mid {
+  width: 2px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
 .field-marker {
   position: absolute;
   top: 0;
@@ -746,9 +800,9 @@ h4 {
   top: 50%;
   transform: translate(-50%, -50%);
   transition: left 0.6s ease;
-  font-size: 18px;
+  font-size: 20px;
   z-index: 3;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 8px rgba(232, 179, 74, 0.55));
 }
 
 .field-ball-opponent {
@@ -820,6 +874,13 @@ h4 {
 
 .game-story-line:last-child {
   border-bottom: none;
+}
+
+.defense-look-banner {
+  background: rgba(90, 130, 232, 0.12);
+  border-left: 2px solid #5a82e8;
+  color: var(--text);
+  font-weight: 700;
 }
 
 .choice-icon {
