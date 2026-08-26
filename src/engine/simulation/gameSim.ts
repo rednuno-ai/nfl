@@ -1,4 +1,4 @@
-import type { Player, Position, StatLine, Team } from "../types";
+import type { Player, PersonalityTrait, Position, StatLine, Team } from "../types";
 import { emptyStatLine } from "../types";
 import { clamp, RNG } from "../rng";
 
@@ -30,6 +30,9 @@ export type PlayType = "run" | "short_pass" | "deep_pass" | "play_action" | "qb_
 export type TargetPriority = "wr1" | "te" | "checkdown" | "mismatch" | "let_qb_decide";
 export type DefenseCall = "cover2" | "cover3" | "man" | "blitz" | "double_wr1";
 export type MomentKind = "play_call" | "target_priority" | "defense_call" | "fourth_down_approach" | "fourth_down" | "two_point";
+/** A lightweight "vibe" read on the player's own team's last few notable offensive
+ *  snaps — not a hard stat, just narrative texture (see spec point 9, "Momentum"). */
+export type MomentumState = "hot_streak" | "shaken" | "neutral";
 
 export interface KeyMomentOption {
   id: string;
@@ -63,6 +66,7 @@ export interface KeyMomentPrompt {
   options: KeyMomentOption[];
   defenseIntel?: DefenseIntel;
   analystNote?: string;
+  momentumNote?: string;
 }
 
 export interface PossessionLogEntry {
@@ -80,6 +84,7 @@ export interface PossessionLogEntry {
   turnover: boolean;
   scorePlayerAfter: number; // score snapshot as of this play, for UI playback pacing
   scoreOpponentAfter: number;
+  momentum: MomentumState; // player's team vibe as of this play, for UI playback pacing
 }
 
 export interface GameSimState {
@@ -111,6 +116,8 @@ export interface GameSimState {
   recentOpponentFamily: ("run" | "pass")[]; // opponent's recent offensive tendency (read by the player's D)
   trickPlayCooldown: number; // plays since the player's team last ran a trick play
   firstHalfReceiver: "player" | "opponent";
+  recentOutcomes: ("good" | "bad")[]; // player's team's last few notable offensive snaps, feeds `momentum`
+  momentum: MomentumState;
   // Carries a stage-1 choice into a stage-2 prompt (e.g. play_call -> target_priority)
   // without consuming a down. Cleared once the play actually resolves.
   carriedPlayType: PlayType | null;
@@ -207,12 +214,21 @@ export function beginGame(input: BeginGameInput, rng: RNG): GameSimState {
     trickPlayCooldown: 99,
     firstHalfReceiver,
     carriedPlayType: null,
+    recentOutcomes: [],
+    momentum: "neutral",
   };
   return runLoop(state, input, rng);
 }
 
 export function advanceGame(state: GameSimState, input: BeginGameInput, rng: RNG, decisionOptionId?: string): GameSimState {
-  let next: GameSimState = { ...state, log: [...state.log], stat: { ...state.stat }, recentPlayFamily: [...state.recentPlayFamily], recentOpponentFamily: [...state.recentOpponentFamily] };
+  let next: GameSimState = {
+    ...state,
+    log: [...state.log],
+    stat: { ...state.stat },
+    recentPlayFamily: [...state.recentPlayFamily],
+    recentOpponentFamily: [...state.recentOpponentFamily],
+    recentOutcomes: [...state.recentOutcomes],
+  };
 
   if (next.pendingDecision) {
     if (!decisionOptionId) return next; // still waiting on the caller
@@ -428,6 +444,65 @@ function computeTendency(family: ("run" | "pass")[]): { boxCount: number; runRat
   return { boxCount, runRate };
 }
 
+// =============================================================================
+// Momentum — a lightweight narrative "vibe" read on the player's team's last
+// few notable offensive snaps (spec point 9). Not a hard counter: only
+// genuinely good/bad snaps get tracked, so a middling 3-yard gain neither
+// starts nor breaks a streak. Feeds both a small probability nudge and the
+// flavor banner shown on offense decisions.
+// =============================================================================
+
+function classifyMomentumOutcome(outcome: PlayOutcome): "good" | "bad" | null {
+  if (outcome.sack || outcome.interception || outcome.fumble) return "bad";
+  if ((outcome.complete || outcome.bigPlay) && outcome.yards >= 6) return "good";
+  return null;
+}
+
+function computeMomentum(recent: ("good" | "bad")[]): MomentumState {
+  if (recent.length >= 3 && recent.slice(-3).every((r) => r === "good")) return "hot_streak";
+  if (recent.slice(-4).filter((r) => r === "bad").length >= 2) return "shaken";
+  return "neutral";
+}
+
+function momentumAdjustment(momentum: MomentumState): { success: number; bigPlay: number; turnover: number } {
+  if (momentum === "hot_streak") return { success: 0.035, bigPlay: 0.02, turnover: -0.005 };
+  if (momentum === "shaken") return { success: -0.035, bigPlay: -0.01, turnover: 0.01 };
+  return { success: 0, bigPlay: 0, turnover: 0 };
+}
+
+function momentumBannerNote(momentum: MomentumState): string | undefined {
+  if (momentum === "hot_streak") return "🔥 HOT STREAK — the offense has clicked on its last few snaps.";
+  if (momentum === "shaken") return "⚠️ SHAKEN — the offense has struggled the last few snaps.";
+  return undefined;
+}
+
+// =============================================================================
+// Personality — reuses the player's existing off-field personality traits
+// (set at character creation) as small on-field tendencies, so "who they are"
+// actually shapes how their team plays (spec point 10).
+// =============================================================================
+
+function personalityAdjustment(personality: PersonalityTrait[], quarter: number, overtime: boolean): { success: number; bigPlay: number; turnover: number } {
+  let success = 0;
+  let bigPlay = 0;
+  let turnover = 0;
+  if (personality.includes("risk_taker")) {
+    bigPlay += 0.035;
+    turnover += 0.015;
+  }
+  if (personality.includes("disciplined")) {
+    turnover -= 0.012;
+  }
+  if (personality.includes("aggressive")) {
+    bigPlay += 0.02;
+    success -= 0.008;
+  }
+  if ((personality.includes("competitive") || personality.includes("ambitious")) && (quarter >= 4 || overtime)) {
+    success += 0.02;
+  }
+  return { success, bigPlay, turnover };
+}
+
 function buildPlayCallPrompt(state: GameSimState, input: BeginGameInput, rng: RNG): KeyMomentPrompt {
   const options = offensePlayOptions(input.player.position, state, rng);
   let defenseIntel: DefenseIntel | undefined;
@@ -461,6 +536,7 @@ function buildPlayCallPrompt(state: GameSimState, input: BeginGameInput, rng: RN
     situation: baseSituation(state),
     options,
     defenseIntel,
+    momentumNote: momentumBannerNote(state.momentum),
   };
 }
 
@@ -744,6 +820,76 @@ function playFamily(playType: PlayType): "run" | "pass" | null {
   return "pass";
 }
 
+// =============================================================================
+// Play-by-play commentary variety — every outcome family gets several phrasings
+// so the ticker doesn't repeat itself. rng.pick() selects one per resolved play.
+// =============================================================================
+
+const TEXT_SACK: ((lost: number) => string)[] = [
+  (lost) => `sacked for a loss of ${lost}.`,
+  (lost) => `brought down behind the line for a ${lost}-yard sack.`,
+  (lost) => `can't escape the pocket — sacked for ${lost}.`,
+  (lost) => `swallowed up in the backfield, loses ${lost}.`,
+];
+const TEXT_SACK_FUMBLE = ["sacked and fumbles!", "hit as he throws — ball comes loose!", "strip-sacked!"];
+const TEXT_PASS_COMPLETE: ((yards: number) => string)[] = [
+  (y) => `completes it for ${y}.`,
+  (y) => `finds his man for a gain of ${y}.`,
+  (y) => `connects on the throw for ${y}.`,
+  (y) => `drops it in for ${y} yards.`,
+  (y) => `hits the target in stride for ${y}.`,
+];
+const TEXT_PASS_BIG: ((yards: number) => string)[] = [
+  (y) => `takes it deep — big gain of ${y}!`,
+  (y) => `hits paydirt down the sideline for ${y}!`,
+  (y) => `airs it out for a huge ${y}-yard gain!`,
+  (y) => `beats the coverage deep — ${y} yards!`,
+];
+const TEXT_INTERCEPTION = ["intercepted!", "picked off!", "throws it right to a defender — intercepted!", "the pass is jumped and picked off!"];
+const TEXT_INCOMPLETE = ["incomplete.", "pass falls incomplete.", "can't connect — incomplete.", "throws it away, incomplete.", "broken up at the last second — incomplete."];
+const TEXT_RUN_SUCCESS: ((yards: number) => string)[] = [
+  (y) => `picks up ${y}.`,
+  (y) => `grinds out ${y} yards.`,
+  (y) => `fights forward for ${y}.`,
+  (y) => `finds a crease for ${y}.`,
+  (y) => `bounces it outside for ${y}.`,
+];
+const TEXT_RUN_BIG: ((yards: number) => string)[] = [
+  (y) => `breaks free for ${y}!`,
+  (y) => `turns the corner and takes it ${y} yards!`,
+  (y) => `hits the hole and won't be caught — ${y} yards!`,
+  (y) => `bursts through the line for ${y}!`,
+];
+const TEXT_RUN_STUFFED: ((yards: number) => string)[] = [
+  (y) => `stuffed for ${y <= 0 ? "no gain" : `${y}`}.`,
+  (y) => `met at the line — ${y <= 0 ? "no gain" : `${y}`}.`,
+  (y) => `no room to run — ${y <= 0 ? "no gain" : `${y}`}.`,
+  (y) => `wrapped up quickly for ${y <= 0 ? "no gain" : `${y}`}.`,
+];
+const TEXT_RUN_FUMBLE = ["fumbles the ball!", "ball comes loose — fumble!", "can't hang on to it — fumble!", "hit hard and fumbles!"];
+
+// Crunch-time flavor: a short reaction line appended after a high-stakes 4th
+// down conversion attempt (Q4/OT, one-score game) resolves — the moment the
+// broadcast would cut to a reaction shot. Adds narrative weight to exactly
+// the decisions that already matter most, without touching any probability.
+const TEXT_CRUNCH_CONVERT = [
+  " The sideline erupts.",
+  " You can feel the momentum shift.",
+  " The crowd is deafening.",
+  " That's the play of the game.",
+];
+const TEXT_CRUNCH_FAIL = [
+  " The sideline goes silent.",
+  " A gut punch at the worst possible time.",
+  " You can see the deflation on the bench.",
+  " That one's going to sting.",
+];
+
+function crunchReaction(highStakes: boolean, success: boolean, rng: RNG): string {
+  if (!highStakes) return "";
+  return success ? rng.pick(TEXT_CRUNCH_CONVERT) : rng.pick(TEXT_CRUNCH_FAIL);
+}
+
 function resolvePlay(
   state: GameSimState,
   input: BeginGameInput,
@@ -769,6 +915,17 @@ function resolvePlay(
   const situational = ratingDiff / 130 - fatiguePenalty / 100 + confidenceBonus / 100 + pressureAdj / 100;
 
   const riskMod = RISK_MODIFIERS[riskLevel];
+
+  // Momentum and personality only color the PLAYER's own team's snaps — they
+  // represent the human player's makeup and their team's current vibe, not
+  // the (AI-controlled) opponent's.
+  const flavorAdj = offenseIsPlayer
+    ? {
+        success: momentumAdjustment(state.momentum).success + personalityAdjustment(input.player.personality, state.quarter, state.overtime).success,
+        bigPlay: momentumAdjustment(state.momentum).bigPlay + personalityAdjustment(input.player.personality, state.quarter, state.overtime).bigPlay,
+        turnover: momentumAdjustment(state.momentum).turnover + personalityAdjustment(input.player.personality, state.quarter, state.overtime).turnover,
+      }
+    : { success: 0, bigPlay: 0, turnover: 0 };
 
   const offenseFamily = offenseIsPlayer ? state.recentPlayFamily : state.recentOpponentFamily;
   const tendency = computeTendency(offenseFamily);
@@ -826,31 +983,31 @@ function resolvePlay(
     if (rng.chance(sackChance)) {
       const lost = rng.int(3, 9);
       const fumble = rng.chance(0.08);
-      return { yards: -lost, complete: false, isPassAttempt: true, sack: true, interception: false, fumble, bigPlay: false, text: fumble ? "sacked and fumbles!" : `sacked for a loss of ${lost}.` };
+      return { yards: -lost, complete: false, isPassAttempt: true, sack: true, interception: false, fumble, bigPlay: false, text: fumble ? rng.pick(TEXT_SACK_FUMBLE) : rng.pick(TEXT_SACK)(lost) };
     }
 
-    const completionChance = clamp(profile.comp + situational + riskMod.successBonus + defAdj.success + boxPassAdj + paBonus, 0.15, 0.92);
+    const completionChance = clamp(profile.comp + situational + riskMod.successBonus + defAdj.success + boxPassAdj + paBonus + flavorAdj.success, 0.15, 0.92);
     if (rng.chance(completionChance)) {
-      const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay + situational * 0.3, 0.03, 0.55);
+      const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay + situational * 0.3 + flavorAdj.bigPlay, 0.03, 0.55);
       const isBig = rng.chance(bigPlayChance);
       let yards = Math.max(1, Math.round(profile.yards + paYardsBonus + rng.gaussian() * profile.variance));
       if (isBig) yards += rng.int(15, 35);
       const fumble = rng.chance(0.012);
-      return { yards, complete: true, isPassAttempt: true, sack: false, interception: false, fumble, bigPlay: isBig, text: isBig ? `takes it deep — big gain of ${yards}!` : `completes it for ${yards}.` };
+      return { yards, complete: true, isPassAttempt: true, sack: false, interception: false, fumble, bigPlay: isBig, text: isBig ? rng.pick(TEXT_PASS_BIG)(yards) : rng.pick(TEXT_PASS_COMPLETE)(yards) };
     }
-    const interceptionChance = clamp(profile.turnover + defAdj.turnover + riskMod.turnoverBonus - situational * 0.3, 0.01, 0.35);
+    const interceptionChance = clamp(profile.turnover + defAdj.turnover + riskMod.turnoverBonus - situational * 0.3 + flavorAdj.turnover, 0.01, 0.35);
     if (rng.chance(interceptionChance)) {
-      return { yards: 0, complete: false, isPassAttempt: true, sack: false, interception: true, fumble: false, bigPlay: false, text: "intercepted!" };
+      return { yards: 0, complete: false, isPassAttempt: true, sack: false, interception: true, fumble: false, bigPlay: false, text: rng.pick(TEXT_INTERCEPTION) };
     }
-    return { yards: 0, complete: false, isPassAttempt: true, sack: false, interception: false, fumble: false, bigPlay: false, text: "incomplete." };
+    return { yards: 0, complete: false, isPassAttempt: true, sack: false, interception: false, fumble: false, bigPlay: false, text: rng.pick(TEXT_INCOMPLETE) };
   }
 
   // Run family: "run" or "qb_scramble"
   const profile = playType === "qb_scramble" ? { base: 0.72, yards: 6.5, variance: 4, turnover: 0.02, big: 0.12 } : { base: 0.68, yards: 4.3, variance: 3.2, turnover: 0.015, big: 0.06 };
   const boxRunAdj = -boxDelta * 0.05;
-  const successChance = clamp(profile.base + situational + riskMod.successBonus + defAdj.success + boxRunAdj, 0.2, 0.9);
+  const successChance = clamp(profile.base + situational + riskMod.successBonus + defAdj.success + boxRunAdj + flavorAdj.success, 0.2, 0.9);
   const success = rng.chance(successChance);
-  const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay - Math.max(0, boxDelta) * 0.02, 0.02, 0.4);
+  const bigPlayChance = clamp(profile.big + riskMod.bigPlayBonus + defAdj.bigPlay - Math.max(0, boxDelta) * 0.02 + flavorAdj.bigPlay, 0.02, 0.4);
   const isBig = success && rng.chance(bigPlayChance);
   let yards: number;
   if (success) {
@@ -859,7 +1016,7 @@ function resolvePlay(
   } else {
     yards = rng.int(-2, 1);
   }
-  const fumbleChance = clamp(profile.turnover + riskMod.turnoverBonus - situational * 0.2, 0.005, 0.06);
+  const fumbleChance = clamp(profile.turnover + riskMod.turnoverBonus - situational * 0.2 + flavorAdj.turnover, 0.005, 0.06);
   const fumble = rng.chance(fumbleChance);
   return {
     yards,
@@ -869,7 +1026,7 @@ function resolvePlay(
     interception: false,
     fumble,
     bigPlay: isBig,
-    text: fumble ? "fumbles the ball!" : isBig ? `breaks free for ${yards}!` : success ? `picks up ${yards}.` : `stuffed for ${yards <= 0 ? "no gain" : `${yards}`}.`,
+    text: fumble ? rng.pick(TEXT_RUN_FUMBLE) : isBig ? rng.pick(TEXT_RUN_BIG)(yards) : success ? rng.pick(TEXT_RUN_SUCCESS)(yards) : rng.pick(TEXT_RUN_STUFFED)(yards),
   };
 }
 
@@ -911,6 +1068,12 @@ function applyPlayToState(
   if (!offenseIsPlayer && family) next.recentOpponentFamily = [...next.recentOpponentFamily, family].slice(-8);
   if (playType === "trick_play" && offenseIsPlayer) next.trickPlayCooldown = 0;
   else next.trickPlayCooldown += 1;
+
+  if (offenseIsPlayer) {
+    const momentumTag = classifyMomentumOutcome(outcome);
+    if (momentumTag) next.recentOutcomes = [...next.recentOutcomes, momentumTag].slice(-6);
+    next.momentum = computeMomentum(next.recentOutcomes);
+  }
 
   const displayBefore = offenseIsPlayer ? next.ballOn : 100 - next.ballOn;
   const startBallOn = next.ballOn;
@@ -1015,6 +1178,7 @@ function applyPlayToState(
       turnover,
       scorePlayerAfter: next.scorePlayer,
       scoreOpponentAfter: next.scoreOpponent,
+      momentum: next.momentum,
     },
   ];
 
@@ -1043,6 +1207,27 @@ function setupAfterTouchdown(state: GameSimState, input: BeginGameInput, rng: RN
   if (scorerIsPlayer) next.scorePlayer += patGood ? 1 : 0;
   else next.scoreOpponent += patGood ? 1 : 0;
   next.secondsRemaining = clamp(next.secondsRemaining - rng.int(3, 6), 0, QUARTER_SECONDS);
+  const kickerLabel = scorerIsPlayer ? "Extra point" : `${next.opponentName} extra point`;
+  next.log = [
+    ...next.log,
+    {
+      quarter: next.quarter,
+      overtime: next.overtime,
+      clockLabel: formatClock(next.secondsRemaining),
+      text: patGood ? `${kickerLabel} is good.` : `${kickerLabel} is no good!`,
+      playerInvolved: scorerIsPlayer,
+      down: 0,
+      distance: 0,
+      possession: scorerIsPlayer ? "player" : "opponent",
+      displayBallOnBefore: scorerIsPlayer ? 98 : 2,
+      displayBallOnAfter: scorerIsPlayer ? 98 : 2,
+      scoringPlay: patGood,
+      turnover: false,
+      scorePlayerAfter: next.scorePlayer,
+      scoreOpponentAfter: next.scoreOpponent,
+      momentum: next.momentum,
+    },
+  ];
   next = kickoffAfterScore(next, scorerIsPlayer);
   return next;
 }
@@ -1062,18 +1247,18 @@ function resolveTwoPointChoice(state: GameSimState, input: BeginGameInput, rng: 
   if (goForTwo) {
     const success = rng.chance(0.48);
     if (success) next.scorePlayer += 2;
-    next.log = [...next.log, twoPointLogEntry(next, success ? "2-point conversion is good!" : "2-point conversion fails.")];
+    next.log = [...next.log, twoPointLogEntry(next, success ? "2-point conversion is good!" : "2-point conversion fails.", success)];
   } else {
     const success = rng.chance(0.94);
     if (success) next.scorePlayer += 1;
-    next.log = [...next.log, twoPointLogEntry(next, success ? "Extra point is good." : "Extra point is no good!")];
+    next.log = [...next.log, twoPointLogEntry(next, success ? "Extra point is good." : "Extra point is no good!", success)];
   }
   next.pendingDecision = null;
   next = kickoffAfterScore(next, true);
   return next;
 }
 
-function twoPointLogEntry(state: GameSimState, text: string): PossessionLogEntry {
+function twoPointLogEntry(state: GameSimState, text: string, success: boolean): PossessionLogEntry {
   return {
     quarter: state.quarter,
     overtime: state.overtime,
@@ -1085,10 +1270,11 @@ function twoPointLogEntry(state: GameSimState, text: string): PossessionLogEntry
     possession: "player",
     displayBallOnBefore: 98,
     displayBallOnAfter: 98,
-    scoringPlay: text.includes("good"),
+    scoringPlay: success,
     turnover: false,
     scorePlayerAfter: state.scorePlayer,
     scoreOpponentAfter: state.scoreOpponent,
+    momentum: state.momentum,
   };
 }
 
@@ -1106,7 +1292,7 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
   if (choice === "field_goal") {
     const success = rng.chance(fgSuccessProb(attemptYards));
     if (success) next.scorePlayer += 3;
-    next.log = [...next.log, fourthDownLogEntry(next, success ? `Field goal is good from ${attemptYards} yards!` : `Field goal from ${attemptYards} yards is no good.`, success, startBallOn)];
+    next.log = [...next.log, fourthDownLogEntry(next, success ? `Field goal is good from ${attemptYards} yards!` : `Field goal from ${attemptYards} yards is no good.`, { scoringPlay: success, turnover: !success }, startBallOn)];
     if (success) {
       next = kickoffAfterScore(next, true); // opponent receives after the player's made field goal
     } else {
@@ -1122,7 +1308,7 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
     const net = rng.int(35, 48);
     const landing = startBallOn + net;
     const touchback = landing >= 100;
-    next.log = [...next.log, fourthDownLogEntry(next, touchback ? "Punts it into the end zone — touchback." : `Punts it away, ${net} yards.`, false, startBallOn)];
+    next.log = [...next.log, fourthDownLogEntry(next, touchback ? "Punts it into the end zone — touchback." : `Punts it away, ${net} yards.`, { scoringPlay: false, turnover: true }, startBallOn)];
     next.possession = next.possession === "player" ? "opponent" : "player";
     next.ballOn = touchback ? 25 : clamp(100 - landing, 5, 40);
     next.down = 1;
@@ -1131,22 +1317,24 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
   }
 
   // "go_for_it" and "fake" both attempt to convert; fake carries a penalty and a bonus if it hits.
+  const highStakes = (state.quarter === 4 || state.overtime) && Math.abs(state.scorePlayer - state.scoreOpponent) <= 8;
   const baseProb = fourthDownConvertProb(next, input);
   const prob = choice === "fake" ? clamp(baseProb - 0.15, 0.05, 0.85) : baseProb;
   const converts = rng.chance(prob);
   if (converts) {
     const gained = choice === "fake" ? next.distance + rng.int(5, 20) : next.distance + rng.int(0, 6);
-    const endBallOn = clamp(startBallOn + gained, 1, 99);
-    if (endBallOn >= 100) {
+    const rawEndBallOn = startBallOn + gained;
+    if (rawEndBallOn >= 100) {
       next.scorePlayer += 6;
-      next.log = [...next.log, fourthDownLogEntry(next, choice === "fake" ? "The fake works — touchdown!" : "They convert — and take it to the house!", true, startBallOn)];
+      next.log = [...next.log, fourthDownLogEntry(next, (choice === "fake" ? "The fake works — touchdown!" : "They convert — and take it to the house!") + crunchReaction(highStakes, true, rng), { scoringPlay: true, turnover: false }, startBallOn)];
       next = setupAfterTouchdown(next, input, rng, true);
       return next;
     }
+    const endBallOn = clamp(rawEndBallOn, 1, 99);
     next.down = 1;
     next.distance = Math.min(10, 100 - endBallOn);
     next.ballOn = endBallOn;
-    next.log = [...next.log, fourthDownLogEntry(next, choice === "fake" ? "The fake catches the defense off guard — they convert!" : "They convert the 4th down!", true, startBallOn)];
+    next.log = [...next.log, fourthDownLogEntry(next, (choice === "fake" ? "The fake catches the defense off guard — they convert!" : "They convert the 4th down!") + crunchReaction(highStakes, true, rng), { scoringPlay: false, turnover: false, ballOnAfter: endBallOn }, startBallOn)];
     return next;
   }
 
@@ -1154,11 +1342,16 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
   next.ballOn = clamp(100 - startBallOn, 1, 99);
   next.down = 1;
   next.distance = 10;
-  next.log = [...next.log, fourthDownLogEntry(next, choice === "fake" ? "The fake is blown up — turnover on downs." : "Stopped short — turnover on downs.", false, startBallOn)];
+  next.log = [...next.log, fourthDownLogEntry(next, (choice === "fake" ? "The fake is blown up — turnover on downs." : "Stopped short — turnover on downs.") + crunchReaction(highStakes, false, rng), { scoringPlay: false, turnover: true }, startBallOn)];
   return next;
 }
 
-function fourthDownLogEntry(state: GameSimState, text: string, scoringPlay: boolean, startBallOn: number): PossessionLogEntry {
+function fourthDownLogEntry(
+  state: GameSimState,
+  text: string,
+  outcome: { scoringPlay: boolean; turnover: boolean; ballOnAfter?: number },
+  startBallOn: number
+): PossessionLogEntry {
   return {
     quarter: state.quarter,
     overtime: state.overtime,
@@ -1169,11 +1362,12 @@ function fourthDownLogEntry(state: GameSimState, text: string, scoringPlay: bool
     distance: state.distance,
     possession: "player",
     displayBallOnBefore: startBallOn,
-    displayBallOnAfter: scoringPlay ? 100 : startBallOn,
-    scoringPlay,
-    turnover: !scoringPlay,
+    displayBallOnAfter: outcome.scoringPlay ? 100 : outcome.ballOnAfter ?? startBallOn,
+    scoringPlay: outcome.scoringPlay,
+    turnover: outcome.turnover,
     scorePlayerAfter: state.scorePlayer,
     scoreOpponentAfter: state.scoreOpponent,
+    momentum: state.momentum,
   };
 }
 
@@ -1207,7 +1401,7 @@ function resolveOpponentSpecialTeams(state: GameSimState, input: BeginGameInput,
   if (choice === "field_goal") {
     const success = rng.chance(fgSuccessProb(attemptYards));
     if (success) next.scoreOpponent += 3;
-    next.log = [...next.log, { quarter: next.quarter, overtime: next.overtime, clockLabel: formatClock(next.secondsRemaining), text: success ? `${next.opponentName} field goal is good from ${attemptYards} yards.` : `${next.opponentName} field goal from ${attemptYards} yards is no good.`, playerInvolved: false, down: 4, distance: next.distance, possession: "opponent", displayBallOnBefore: 100 - startBallOn, displayBallOnAfter: success ? 0 : 100 - startBallOn, scoringPlay: success, turnover: !success, scorePlayerAfter: next.scorePlayer, scoreOpponentAfter: next.scoreOpponent }];
+    next.log = [...next.log, { quarter: next.quarter, overtime: next.overtime, clockLabel: formatClock(next.secondsRemaining), text: success ? `${next.opponentName} field goal is good from ${attemptYards} yards.` : `${next.opponentName} field goal from ${attemptYards} yards is no good.`, playerInvolved: false, down: 4, distance: next.distance, possession: "opponent", displayBallOnBefore: 100 - startBallOn, displayBallOnAfter: success ? 0 : 100 - startBallOn, scoringPlay: success, turnover: !success, scorePlayerAfter: next.scorePlayer, scoreOpponentAfter: next.scoreOpponent, momentum: next.momentum }];
     if (success) {
       next = kickoffAfterScore(next, false); // player receives after the opponent's made field goal
     } else {
@@ -1221,7 +1415,7 @@ function resolveOpponentSpecialTeams(state: GameSimState, input: BeginGameInput,
   const net = rng.int(35, 48);
   const landing = startBallOn + net;
   const touchback = landing >= 100;
-  next.log = [...next.log, { quarter: next.quarter, overtime: next.overtime, clockLabel: formatClock(next.secondsRemaining), text: touchback ? `${next.opponentName} punts it into the end zone — touchback.` : `${next.opponentName} punts it away, ${net} yards.`, playerInvolved: false, down: 4, distance: next.distance, possession: "opponent", displayBallOnBefore: 100 - startBallOn, displayBallOnAfter: touchback ? 0 : 100 - landing, scoringPlay: false, turnover: true, scorePlayerAfter: next.scorePlayer, scoreOpponentAfter: next.scoreOpponent }];
+  next.log = [...next.log, { quarter: next.quarter, overtime: next.overtime, clockLabel: formatClock(next.secondsRemaining), text: touchback ? `${next.opponentName} punts it into the end zone — touchback.` : `${next.opponentName} punts it away, ${net} yards.`, playerInvolved: false, down: 4, distance: next.distance, possession: "opponent", displayBallOnBefore: 100 - startBallOn, displayBallOnAfter: touchback ? 0 : 100 - landing, scoringPlay: false, turnover: true, scorePlayerAfter: next.scorePlayer, scoreOpponentAfter: next.scoreOpponent, momentum: next.momentum }];
   next.possession = "player";
   next.ballOn = touchback ? 25 : clamp(100 - landing, 5, 40);
   next.down = 1;
