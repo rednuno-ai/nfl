@@ -45,7 +45,9 @@ export function CareerSelectScreen() {
                   className="btn btn-sm btn-ghost"
                   onClick={(e) => {
                     e.stopPropagation();
-                    void gameStore.getState().deleteCareer(c.id);
+                    if (confirm(`Delete ${c.playerName}'s career permanently? This can't be undone.`)) {
+                      void gameStore.getState().deleteCareer(c.id);
+                    }
                   }}
                 >
                   Delete
