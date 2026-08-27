@@ -18,6 +18,7 @@ import { TeamCrest } from "@ui/components/TeamCrest";
 // =============================================================================
 
 const RISK_CLASS: Record<string, string> = { safe: "risk-safe", balanced: "risk-balanced", aggressive: "risk-aggressive" };
+const RISK_LABEL: Record<string, string> = { safe: "Safe", balanced: "Balanced", aggressive: "Aggressive" };
 
 const KIND_LABEL: Record<KeyMomentPrompt["kind"], string> = {
   play_call: "Play Call",
@@ -26,7 +27,9 @@ const KIND_LABEL: Record<KeyMomentPrompt["kind"], string> = {
   defense_call: "Defense Call",
   fourth_down_approach: "4th Down",
   fourth_down: "4th Down",
-  two_point: "Extra Point",
+  // Covers both the kick and the 2-point try, so "Extra Point" alone was
+  // misleading — the player may see two options here, not just a kick.
+  two_point: "Point After Touchdown",
 };
 
 const DOWN_LABELS = ["1st", "2nd", "3rd", "4th"];
@@ -263,7 +266,7 @@ export function GameDayView({
                 <div className="choice-label">
                   <span className="choice-icon">{option.icon}</span>
                   {option.label}
-                  <span className={`risk-tag ${RISK_CLASS[option.riskLevel]}`}>{option.riskLevel}</span>
+                  <span className={`risk-tag ${RISK_CLASS[option.riskLevel]}`}>{RISK_LABEL[option.riskLevel] ?? option.riskLevel}</span>
                 </div>
                 <div className="choice-desc">{option.description}</div>
               </button>
