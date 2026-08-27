@@ -1121,7 +1121,7 @@ function handleNFLSeasonEnd(state: CareerState): CareerState {
     const { result: sponsorship, rngState } = withRng(next, (rng) => generateSponsorshipOffer(next.player.attributes.general.fame, next.player.attributes.general.reputation, rng));
     next = { ...next, rngState };
     if (sponsorship && next.finance.sponsorships.length < 3) {
-      next = { ...next, finance: addSponsorship(next.finance, sponsorship) };
+      next = { ...next, finance: addSponsorship(next.finance, sponsorship, next.totalWeek) };
       next = log(next, `New sponsorship deal with ${sponsorship.brand}.`);
     }
   }

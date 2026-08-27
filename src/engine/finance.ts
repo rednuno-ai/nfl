@@ -35,7 +35,11 @@ export function applyIncome(state: FinanceState, grossAmount: number, label: str
 
 export function purchaseAsset(state: FinanceState, asset: Omit<Asset, "id" | "purchasedWeek">, week: number): { state: FinanceState; ok: boolean } {
   if (asset.value > state.cash) return { state, ok: false };
-  const newAsset: Asset = { ...asset, id: `asset_${week}_${Math.round(Math.random() * 1e6)}`, purchasedWeek: week };
+  // Id is derived from week + current asset count rather than Math.random()
+  // so this stays a pure function of its inputs, like the rest of the
+  // engine — two purchases in the same week naturally get different ids
+  // since the array has grown by the time the second call happens.
+  const newAsset: Asset = { ...asset, id: `asset_${week}_${state.assets.length}`, purchasedWeek: week };
   const next: FinanceState = {
     ...state,
     cash: state.cash - asset.value,
@@ -45,8 +49,12 @@ export function purchaseAsset(state: FinanceState, asset: Omit<Asset, "id" | "pu
   return { state: recomputeNetWorth(next), ok: true };
 }
 
-export function addSponsorship(state: FinanceState, sponsorship: Omit<Sponsorship, "id">): FinanceState {
-  const s: Sponsorship = { ...sponsorship, id: `sponsor_${Date.now()}_${Math.round(Math.random() * 1e6)}` };
+export function addSponsorship(state: FinanceState, sponsorship: Omit<Sponsorship, "id">, week: number): FinanceState {
+  // Same reasoning as purchaseAsset's id above: derive it from inputs
+  // already at hand (week + how many sponsorships exist so far) instead of
+  // Date.now()/Math.random(), so replaying the same seed + decisions
+  // reproduces byte-identical ids too.
+  const s: Sponsorship = { ...sponsorship, id: `sponsor_${week}_${state.sponsorships.length}` };
   return { ...state, sponsorships: [...state.sponsorships, s] };
 }
 
