@@ -95,7 +95,7 @@ export function DashboardScreen() {
       {state.stage === "draft" && <DraftRoom state={state} />}
       {state.stage === "free_agency" && <FreeAgencyBoard state={state} />}
       {(state.stage === "high_school" || state.stage === "college" || state.stage === "nfl_season" || state.stage === "nfl_offseason") && (
-        <NormalDashboard state={state} nextGame={nextGame} />
+        <NormalDashboard state={state} />
       )}
       {state.stage === "retired" && (
         <div className="card">
@@ -112,7 +112,7 @@ export function DashboardScreen() {
   );
 }
 
-function NormalDashboard({ state, nextGame }: { state: CareerState; nextGame: ReturnType<CareerState["schedule"]["find"]> }) {
+function NormalDashboard({ state }: { state: CareerState }) {
   const contract = state.contract;
   return (
     <div className="grid grid-2" style={{ alignItems: "start" }}>
@@ -121,22 +121,16 @@ function NormalDashboard({ state, nextGame }: { state: CareerState; nextGame: Re
         <AttributeSummary state={state} />
       </div>
       <div className="card">
-        <div className="section-title">This Week</div>
-        {nextGame ? (
+        <div className="section-title">Contract</div>
+        {/* The matchup + "advance" prompt now lives in the NEXT EVENT card above —
+            this panel just adds the contract detail that doesn't fit there. */}
+        {contract ? (
           <p className="muted">
-            Week {nextGame.week}: {nextGame.isHome ? "vs" : "at"} <strong style={{ color: "var(--text)" }}>{nextGame.opponentLabel}</strong>
+            {contract.years - contract.currentYear} year(s) left · weekly salary {money(weeklySalary(contract))}
           </p>
         ) : (
-          <p className="muted">No game scheduled this week — training / offseason work.</p>
+          <p className="muted">No active contract yet — keep performing to earn one.</p>
         )}
-        {contract && (
-          <p className="faint" style={{ marginTop: 6 }}>
-            Contract: {contract.years - contract.currentYear} year(s) left · weekly salary {money(weeklySalary(contract))}
-          </p>
-        )}
-        <button className="btn btn-primary btn-block" style={{ marginTop: 14 }} onClick={() => gameStore.getState().advance()}>
-          Advance Week
-        </button>
       </div>
     </div>
   );
