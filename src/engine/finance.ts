@@ -78,11 +78,25 @@ export function weeklyFinanceTick(state: FinanceState): { state: FinanceState; l
   const upkeep = state.assets.reduce((sum, a) => sum + a.weeklyUpkeep, 0) + state.weeklyExpenses;
   cash -= upkeep;
 
+  // Cash can't go negative and just sit there quietly — a shortfall becomes
+  // real debt instead, so it's visible and actually affects net worth
+  // through recomputeNetWorth's "- state.debt" term (this is a pure
+  // relabeling: cash going to -X and debt staying 0 nets out identically to
+  // cash at 0 and debt at X, so this changes nothing about the math, only
+  // whether the shortfall is legible to the player).
+  let debt = state.debt;
+  if (cash < 0) {
+    const shortfall = -cash;
+    debt += shortfall;
+    cash = 0;
+    log.push(`Couldn't cover $${Math.round(shortfall).toLocaleString()} in expenses — added to debt`);
+  }
+
   const sponsorships = state.sponsorships
     .map((s) => ({ ...s, weeksRemaining: s.weeksRemaining - 1 }))
     .filter((s) => s.weeksRemaining > 0);
 
-  const next: FinanceState = { ...state, cash, sponsorships };
+  const next: FinanceState = { ...state, cash, debt, sponsorships };
   return { state: recomputeNetWorth(next), log };
 }
 
