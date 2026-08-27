@@ -1,13 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { cloudflare } from "@cloudflare/vite-plugin";
 import path from "node:path";
 
-// NFL LIFE — Vite configuration.
-// Runs in any normal Node environment with npm access (local machine, CI, Vercel,
-// or Cloudflare Workers via `wrangler deploy` — see wrangler.jsonc).
+// This is a static React SPA. Keeping Vite independent from the Workers
+// runtime makes `vite dev` / HMR reliable; Wrangler deploys the built `dist`
+// directory as static assets (see wrangler.jsonc).
 export default defineConfig({
-  plugins: [react(), cloudflare()],
+  plugins: [react()],
   resolve: {
     alias: {
       "@engine": path.resolve(__dirname, "src/engine"),
