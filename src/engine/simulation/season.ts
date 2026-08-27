@@ -113,12 +113,16 @@ const ROUNDS: PlayoffRoundName[] = ["Wild Card", "Divisional", "Conference Champ
 /** Resolves a full playoff bracket run for the player's team as a sequence of
  *  single-elimination rounds. Stops at the first loss. Returns whether the
  *  Super Bowl was won. Uses team overall quality + a talent factor from the
- *  player's overall rating as a light proxy for roster strength. */
-export function simulatePlayoffRun(teamOverall: number, rng: RNG): { rounds: PlayoffRoundResult[]; wonSuperBowl: boolean } {
+ *  player's overall rating as a light proxy for roster strength — an
+ *  MVP-caliber player nudges their team's playoff odds up over a
+ *  bench-level teammate on the identical roster, without letting one player
+ *  single-handedly overwhelm 52 other guys' worth of team quality. */
+export function simulatePlayoffRun(teamOverall: number, rng: RNG, playerOverall = teamOverall): { rounds: PlayoffRoundResult[]; wonSuperBowl: boolean } {
+  const effectiveOverall = teamOverall * 0.85 + playerOverall * 0.15;
   const rounds: PlayoffRoundResult[] = [];
   for (const round of ROUNDS) {
     const opponentQuality = 45 + rng.next() * 45;
-    const winProb = clampChance(0.5 + (teamOverall - opponentQuality) / 120);
+    const winProb = clampChance(0.5 + (effectiveOverall - opponentQuality) / 120);
     const won = rng.chance(winProb);
     const scorePlayer = 14 + Math.floor(rng.next() * 24);
     const scoreOpponent = won ? scorePlayer - (3 + Math.floor(rng.next() * 14)) : scorePlayer + (1 + Math.floor(rng.next() * 14));

@@ -262,7 +262,7 @@ function runLoop(state: GameSimState, input: BeginGameInput, rng: RNG): GameSimS
     if (next.pendingDecision) return next;
 
     if (next.secondsRemaining <= 0) {
-      next = advanceClockPeriod(next);
+      next = advanceClockPeriod(next, rng);
       if (next.finished) break;
       continue;
     }
@@ -308,7 +308,7 @@ function isHighLeverageDown(state: GameSimState): boolean {
   return false;
 }
 
-function advanceClockPeriod(state: GameSimState): GameSimState {
+function advanceClockPeriod(state: GameSimState, rng: RNG): GameSimState {
   const next = { ...state, log: [...state.log] };
   if (next.overtime) {
     next.finished = true;
@@ -323,7 +323,11 @@ function advanceClockPeriod(state: GameSimState): GameSimState {
       next.timeoutsPlayer = 2;
       next.timeoutsOpponent = 2;
       // Coin toss for OT possession, independent of the opening kickoff.
-      next.possession = next.playCount % 2 === 0 ? "player" : "opponent";
+      // A real 50/50 roll off the seeded RNG — this used to key off
+      // playCount's parity, which made OT possession a deterministic
+      // function of how many plays happened to occur in regulation rather
+      // than an actual coin flip.
+      next.possession = rng.chance(0.5) ? "player" : "opponent";
       next.down = 1;
       next.distance = 10;
       next.ballOn = 25;
@@ -1255,7 +1259,14 @@ function applyPlayToState(
 
   if (turnoverThisPlay) {
     turnover = true;
-    const spotAfterLoss = clamp(startBallOn + Math.min(0, outcome.yards), 0, 100);
+    // Spot the turnover where the play actually ended: behind the line on a
+    // sack (negative yards), at the line on an interception (yards is
+    // always 0 there), and — importantly — at the point of the gain for a
+    // fumble on a positive-yardage run/catch. This used to clamp to
+    // Math.min(0, yards), which zeroed out any gain before a fumble and
+    // spotted the recovery back at the original line of scrimmage no matter
+    // how many yards the runner had actually picked up first.
+    const spotAfterLoss = clamp(startBallOn + outcome.yards, 0, 100);
     endBallOn = spotAfterLoss;
     text = `${featuredName ? `${featuredName} ` : `${offenseTeamLabel} `}${outcome.text}`;
     next.possession = offenseIsPlayer ? "opponent" : "player";
