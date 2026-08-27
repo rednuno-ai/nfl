@@ -8,9 +8,14 @@ import type { NewsItem, NewsTone, SocialPost } from "./types";
 // =============================================================================
 
 let counter = 0;
-function nextId(prefix: string): string {
+// Ids are derived from the week + a monotonic call counter rather than
+// Date.now(), matching the same determinism contract as the rest of the
+// engine (see finance.ts's purchaseAsset/addSponsorship): replaying the same
+// seed + decisions should reproduce byte-identical ids, and Date.now() would
+// make two runs of the same career diverge for no gameplay reason.
+function nextId(prefix: string, week: number): string {
   counter += 1;
-  return `${prefix}_${Date.now().toString(36)}_${counter}`;
+  return `${prefix}_${week}_${counter}`;
 }
 
 interface HeadlineContext {
@@ -96,7 +101,7 @@ export function generatePerformanceNews(
   const body = bodyPool[Math.floor(rng.next() * bodyPool.length)];
 
   return {
-    id: nextId("news"),
+    id: nextId("news", week),
     week,
     headline: headlineFn(ctx),
     body,
@@ -112,7 +117,7 @@ export function generateControversyNews(week: number, playerLastName: string, rn
   const headlineFn = CONTROVERSIAL[Math.floor(rng.next() * CONTROVERSIAL.length)];
   const body = BODY_CONTROVERSIAL[Math.floor(rng.next() * BODY_CONTROVERSIAL.length)];
   return {
-    id: nextId("news"),
+    id: nextId("news", week),
     week,
     headline: headlineFn({ playerLastName, week }),
     body,
@@ -143,7 +148,7 @@ export function generateSocialPost(week: number, tone: "positive" | "negative", 
     pickFrom(tone === "positive" ? SOCIAL_COMMENTS_POS : SOCIAL_COMMENTS_NEG, rng)
   );
   return {
-    id: nextId("social"),
+    id: nextId("social", week),
     week,
     handle: pickFrom(SOCIAL_HANDLES, rng),
     body,
