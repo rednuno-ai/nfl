@@ -116,6 +116,7 @@ export interface GameSimState {
   recentPlayFamily: ("run" | "pass")[]; // player's own team's recent offensive tendency (read by the opposing D)
   recentOpponentFamily: ("run" | "pass")[]; // opponent's recent offensive tendency (read by the player's D)
   trickPlayCooldown: number; // plays since the player's team last ran a trick play
+  opponentTrickPlayCooldown: number; // plays since the opponent last ran a trick play — tracked separately so the AI's own gadget-play staleness isn't judged against the player's history
   firstHalfReceiver: "player" | "opponent";
   recentOutcomes: ("good" | "bad")[]; // player's team's last few notable offensive snaps, feeds `momentum`
   momentum: MomentumState;
@@ -218,6 +219,7 @@ export function beginGame(input: BeginGameInput, rng: RNG): GameSimState {
     recentPlayFamily: [],
     recentOpponentFamily: [],
     trickPlayCooldown: 99,
+    opponentTrickPlayCooldown: 99,
     firstHalfReceiver,
     carriedPlayType: null,
     carriedDefenseCall: null,
@@ -1134,7 +1136,7 @@ function resolvePlay(
   }
 
   if (playType === "trick_play") {
-    return resolveTrickPlay(state, rng, ratingDiff, riskMod);
+    return resolveTrickPlay(state, rng, ratingDiff, riskMod, offenseIsPlayer);
   }
 
   if (isPassPlay) {
@@ -1194,8 +1196,13 @@ function resolvePlay(
   };
 }
 
-function resolveTrickPlay(state: GameSimState, rng: RNG, ratingDiff: number, riskMod: RiskModifier): PlayOutcome {
-  const staleness = state.trickPlayCooldown < 6 ? 0.15 : 0;
+function resolveTrickPlay(state: GameSimState, rng: RNG, ratingDiff: number, riskMod: RiskModifier, offenseIsPlayer: boolean): PlayOutcome {
+  // Each side's own staleness — trickPlayCooldown tracks the player's team, so an
+  // opponent gadget play must be judged against opponentTrickPlayCooldown instead.
+  // Before this split, an opponent trick play was scored against the PLAYER's
+  // cooldown, which is a different team's history entirely.
+  const cooldown = offenseIsPlayer ? state.trickPlayCooldown : state.opponentTrickPlayCooldown;
+  const staleness = cooldown < 6 ? 0.15 : 0;
   const successChance = clamp(0.5 + ratingDiff / 250 + riskMod.successBonus - staleness, 0.15, 0.75);
   if (rng.chance(successChance)) {
     const yards = rng.int(15, 45);
@@ -1232,6 +1239,8 @@ function applyPlayToState(
   if (!offenseIsPlayer && family) next.recentOpponentFamily = [...next.recentOpponentFamily, family].slice(-8);
   if (playType === "trick_play" && offenseIsPlayer) next.trickPlayCooldown = 0;
   else next.trickPlayCooldown += 1;
+  if (playType === "trick_play" && !offenseIsPlayer) next.opponentTrickPlayCooldown = 0;
+  else next.opponentTrickPlayCooldown += 1;
 
   if (offenseIsPlayer) {
     const momentumTag = classifyMomentumOutcome(outcome);
@@ -1280,9 +1289,13 @@ function applyPlayToState(
     if (offenseIsPlayer) next.scorePlayer += 6;
     else next.scoreOpponent += 6;
     next = applyStatFromPlay(next, input.player.position, offenseIsPlayer && playerInvolvedThisSnap, { playType, targetPriority, complete: outcome.complete, yards: Math.max(0, 100 - startBallOn), touchdown: true, interception: false, fumble: false, sack: outcome.sack }, rng);
-    next = setupAfterTouchdown(next, input, rng, offenseIsPlayer);
-  } else if (startBallOn + outcome.yards <= 0) {
-    // Safety: tackled behind the offense's own goal line.
+    // In OT the touchdown itself already breaks the tie — no PAT/2pt attempt happens.
+    next = next.overtime ? endSuddenDeathIfScored(next) : setupAfterTouchdown(next, input, rng, offenseIsPlayer);
+  } else if (startBallOn + outcome.yards < 0) {
+    // Safety: tackled behind the offense's own goal line. Strictly negative —
+    // landing exactly on the goal line (0) is just a stop at the 1, not a
+    // safety; the old `<= 0` incorrectly turned a tackle at the goal line
+    // itself into a safety.
     endBallOn = 0;
     text = `${featuredName ? `${featuredName} is ` : `${offenseTeamLabel} is `}tackled in the end zone — safety!`;
     if (offenseIsPlayer) next.scoreOpponent += 2;
@@ -1291,6 +1304,7 @@ function applyPlayToState(
     next.ballOn = 35;
     next.down = 1;
     next.distance = 10;
+    next = endSuddenDeathIfScored(next);
   } else {
     endBallOn = clamp(startBallOn + outcome.yards, 1, 99);
     const gained = endBallOn - startBallOn;
@@ -1324,7 +1338,10 @@ function applyPlayToState(
   }
   next.stat.gamesPlayed = 1;
 
-  const stopsClock = !outcome.complete && outcome.isPassAttempt ? true : scoringPlay || turnover || rng.chance(0.16);
+  // A sack ends with the QB tackled in bounds, same as a stuffed run — the
+  // clock keeps running. Only a genuine incompletion (no sack) stops it here,
+  // same as an actual incomplete pass would in real football.
+  const stopsClock = !outcome.complete && outcome.isPassAttempt && !outcome.sack ? true : scoringPlay || turnover || rng.chance(0.16);
   const consumed = stopsClock ? rng.int(4, 10) : rng.int(28, 42);
   next.secondsRemaining = clamp(next.secondsRemaining - consumed, 0, QUARTER_SECONDS);
 
@@ -1403,6 +1420,17 @@ function setupAfterTouchdown(state: GameSimState, input: BeginGameInput, rng: RN
   return next;
 }
 
+// Sudden-death overtime only continues while the score is tied (see
+// advanceClockPeriod's tie-check when regulation ends), so ANY score during
+// OT — touchdown, field goal, safety, a 4th-down-conversion touchdown —
+// immediately decides the winner. Call this right after such a score instead
+// of chaining into the normal PAT/2pt-choice/kickoff follow-up, which would
+// otherwise let the trailing team keep playing after the game is already over.
+function endSuddenDeathIfScored(state: GameSimState): GameSimState {
+  if (!state.overtime || state.scorePlayer === state.scoreOpponent) return state;
+  return { ...state, finished: true, result: state.scorePlayer > state.scoreOpponent ? "win" : "loss", pendingDecision: null };
+}
+
 function kickoffAfterScore(state: GameSimState, scorerIsPlayer: boolean): GameSimState {
   const next = { ...state };
   next.possession = scorerIsPlayer ? "opponent" : "player";
@@ -1465,7 +1493,8 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
     if (success) next.scorePlayer += 3;
     next.log = [...next.log, fourthDownLogEntry(next, success ? `Field goal is good from ${attemptYards} yards!` : `Field goal from ${attemptYards} yards is no good.`, { scoringPlay: success, turnover: !success }, startBallOn)];
     if (success) {
-      next = kickoffAfterScore(next, true); // opponent receives after the player's made field goal
+      // In OT the field goal itself already breaks the tie — game over, no kickoff.
+      next = next.overtime ? endSuddenDeathIfScored(next) : kickoffAfterScore(next, true); // opponent receives after the player's made field goal
     } else {
       next.possession = "opponent";
       next.ballOn = clamp(100 - startBallOn, 1, 99);
@@ -1498,7 +1527,7 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
     if (rawEndBallOn >= 100) {
       next.scorePlayer += 6;
       next.log = [...next.log, fourthDownLogEntry(next, (choice === "fake" ? "The fake works — touchdown!" : "They convert — and take it to the house!") + crunchReaction(highStakes, true, rng), { scoringPlay: true, turnover: false }, startBallOn)];
-      next = setupAfterTouchdown(next, input, rng, true);
+      next = next.overtime ? endSuddenDeathIfScored(next) : setupAfterTouchdown(next, input, rng, true);
       return next;
     }
     const endBallOn = clamp(rawEndBallOn, 1, 99);
@@ -1574,7 +1603,8 @@ function resolveOpponentSpecialTeams(state: GameSimState, input: BeginGameInput,
     if (success) next.scoreOpponent += 3;
     next.log = [...next.log, { quarter: next.quarter, overtime: next.overtime, clockLabel: formatClock(next.secondsRemaining), text: success ? `${next.opponentName} field goal is good from ${attemptYards} yards.` : `${next.opponentName} field goal from ${attemptYards} yards is no good.`, playerInvolved: false, down: 4, distance: next.distance, possession: "opponent", displayBallOnBefore: 100 - startBallOn, displayBallOnAfter: success ? 0 : 100 - startBallOn, scoringPlay: success, turnover: !success, scorePlayerAfter: next.scorePlayer, scoreOpponentAfter: next.scoreOpponent, momentum: next.momentum }];
     if (success) {
-      next = kickoffAfterScore(next, false); // player receives after the opponent's made field goal
+      // In OT the field goal itself already breaks the tie — game over, no kickoff.
+      next = next.overtime ? endSuddenDeathIfScored(next) : kickoffAfterScore(next, false); // player receives after the opponent's made field goal
     } else {
       next.possession = "player";
       next.ballOn = clamp(100 - startBallOn, 1, 99);
