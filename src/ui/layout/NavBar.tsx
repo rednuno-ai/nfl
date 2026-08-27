@@ -33,7 +33,7 @@ export function Sidebar({ active, onNavigate, onExit }: { active: ScreenId; onNa
       <div style={{ flex: 1 }} />
       <button className="nav-item" onClick={onExit}>
         <span className="icon">⏏</span>
-        Switch career
+        Switch Career
       </button>
     </nav>
   );
