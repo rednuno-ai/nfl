@@ -15,7 +15,7 @@
 
   --text: #eef1f7;
   --text-dim: #a7b0c2;
-  --text-faint: #6b7488;
+  --text-faint: #7d869b; /* lightened from #6b7488 — original sat ~4.2:1 vs bg, just under WCAG AA's 4.5:1 for normal-size text */
 
   --accent: #ff5a36;
   --accent-strong: #ff7a52;
@@ -505,6 +505,7 @@ h4 {
   place-items: center;
   z-index: 50;
   padding: 20px;
+  animation: modal-backdrop-in 0.18s ease;
 }
 
 .modal {
@@ -516,6 +517,31 @@ h4 {
   padding: 26px;
   max-height: 88vh;
   overflow-y: auto;
+  animation: modal-pop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal {
+    animation: none;
+  }
 }
 
 .modal-eyebrow {
@@ -985,6 +1011,13 @@ h4 {
   color: var(--accent-strong);
 }
 
+.pill-option-position {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 8px;
+}
+
 /* ---------------------------------------------------------------------------
    Auth / subscription
 --------------------------------------------------------------------------- */
@@ -1102,7 +1135,6 @@ h4 {
   position: fixed;
   bottom: 24px;
   left: 50%;
-  transform: translateX(-50%);
   background: var(--bg-card);
   border: 1px solid var(--border-strong);
   padding: 12px 18px;
@@ -1111,6 +1143,26 @@ h4 {
   font-weight: 600;
   box-shadow: var(--shadow-pop);
   z-index: 60;
+  cursor: pointer;
+  transform: translateX(-50%);
+  animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -1148,12 +1200,15 @@ h4 {
     color: var(--text-faint);
     background: none;
     border: none;
-    padding: 4px 6px;
+    border-radius: var(--radius-md);
+    padding: 4px 10px;
     font-weight: 700;
+    transition: background 0.15s ease, color 0.15s ease;
   }
 
   .mobile-nav-item.active {
     color: var(--accent-strong);
+    background: rgba(255, 90, 54, 0.12);
   }
 
   .mobile-nav-item .icon {
