@@ -28,6 +28,11 @@ export function FinanceScreen() {
         <div className="stat-tile">
           <div className="value">{moneyCompact(f.cash)}</div>
           <div className="label">Cash</div>
+          {f.debt > 0 && (
+            <div className="faint" style={{ color: "var(--danger, #e5484d)", fontSize: 12, marginTop: 2 }}>
+              {moneyCompact(f.debt)} debt
+            </div>
+          )}
         </div>
         <div className="stat-tile">
           <div className="value">{moneyCompact(f.netWorth)}</div>
