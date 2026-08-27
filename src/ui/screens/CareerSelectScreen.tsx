@@ -23,7 +23,7 @@ export function CareerSelectScreen() {
           GRIDIRON LIFE
         </div>
         <p className="page-subtitle" style={{ textAlign: "center" }}>
-          Live an entire football career — High School to the Hall of Fame.
+          Live an entire football career — from high school to the Hall of Fame.
         </p>
 
         {loading && <div className="faint" style={{ textAlign: "center" }}>Loading your careers…</div>}

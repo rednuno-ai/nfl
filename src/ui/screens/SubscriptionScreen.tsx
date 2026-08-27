@@ -1,5 +1,6 @@
 import { gameStore, useGameStore } from "@store/gameStore";
 import { SUBSCRIPTION_PRICE_USD, SUBSCRIPTION_PERIOD_LABEL } from "@data/auth";
+import { PremiumBadge } from "@ui/components/PremiumBadge";
 
 export function SubscriptionScreen() {
   const session = useGameStore((s) => s.session);
@@ -16,6 +17,9 @@ export function SubscriptionScreen() {
         </p>
 
         <div className="card" style={{ textAlign: "center", marginTop: 18, marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+            <PremiumBadge size={72} />
+          </div>
           <div className="section-title">GRIDIRON LIFE Subscription</div>
           <div style={{ fontSize: 40, fontWeight: 800, margin: "10px 0" }}>
             ${SUBSCRIPTION_PRICE_USD}

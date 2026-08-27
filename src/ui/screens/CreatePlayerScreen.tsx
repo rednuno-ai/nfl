@@ -3,6 +3,7 @@ import { gameStore } from "@store/gameStore";
 import { MVP_POSITIONS, type Hand, type PersonalityTrait, type Position } from "@engine/types";
 import { PERSONALITY_LABELS } from "@engine/player";
 import { POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS, previewPointBuyOverall } from "@engine/attributes";
+import { PositionBadge } from "@ui/components/PositionBadge";
 
 const PERSONALITY_OPTIONS = Object.keys(PERSONALITY_LABELS) as PersonalityTrait[];
 const US_STATES = ["TX", "CA", "FL", "OH", "GA", "PA", "NC", "MI", "LA", "AL", "TN", "AZ", "NY", "IL", "VA"];
@@ -146,7 +147,13 @@ export function CreatePlayerScreen() {
           <label>Position</label>
           <div className="pill-select">
             {MVP_POSITIONS.map((p) => (
-              <button key={p} className={`pill-option ${position === p ? "selected" : ""}`} onClick={() => setPosition(p)} type="button">
+              <button
+                key={p}
+                className={`pill-option pill-option-position ${position === p ? "selected" : ""}`}
+                onClick={() => setPosition(p)}
+                type="button"
+              >
+                <PositionBadge position={p} size={22} />
                 {p}
               </button>
             ))}

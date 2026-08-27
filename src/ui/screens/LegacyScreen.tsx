@@ -1,17 +1,8 @@
 import { useGameStore, gameStore } from "@store/gameStore";
 import { canRetire } from "@engine/career";
 import { LEGACY_TIER_LABELS } from "@engine/legacy";
-import type { LegacyTier } from "@engine/types";
+import { LegacyMedal } from "@ui/components/LegacyMedal";
 import { money } from "../format";
-
-const LEGACY_TIER_ICON: Record<LegacyTier, string> = {
-  bust: "💤",
-  solid_career: "🎖️",
-  star: "⭐",
-  superstar: "🌟",
-  legend: "👑",
-  hall_of_fame: "🏆",
-};
 
 export function LegacyScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
@@ -26,8 +17,8 @@ export function LegacyScreen() {
       {state.legacy && (
         <div className="card" style={{ marginBottom: 22 }}>
           <div className="modal-eyebrow">Final Verdict</div>
-          <div style={{ fontSize: 30, fontWeight: 900, fontFamily: "var(--font-display)", marginBottom: 6, display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 34 }}>{LEGACY_TIER_ICON[state.legacy.tier]}</span>
+          <div style={{ fontSize: 30, fontWeight: 900, fontFamily: "var(--font-display)", marginBottom: 6, display: "flex", alignItems: "center", gap: 14 }}>
+            <LegacyMedal tier={state.legacy.tier} size={56} />
             {LEGACY_TIER_LABELS[state.legacy.tier]}
           </div>
           <p className="muted" style={{ marginBottom: 16 }}>
