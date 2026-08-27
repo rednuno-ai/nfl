@@ -28,7 +28,7 @@ describe("finance", () => {
 
   it("weekly tick pays upkeep and collects sponsorship income", () => {
     let state = emptyFinanceState();
-    state = addSponsorship(state, { brand: "Test Brand", weeklyValue: 1000, weeksRemaining: 4, requiresFame: 0 });
+    state = addSponsorship(state, { brand: "Test Brand", weeklyValue: 1000, weeksRemaining: 4, requiresFame: 0 }, 1);
     const cashBefore = state.cash;
     const { state: next, log } = weeklyFinanceTick(state);
     assert.ok(next.cash > cashBefore - state.weeklyExpenses); // sponsorship income offsets base expenses
