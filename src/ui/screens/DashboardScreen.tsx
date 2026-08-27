@@ -251,16 +251,42 @@ function FreeAgencyBoard({ state }: { state: CareerState }) {
   );
 }
 
+// Keyword -> icon, checked in order, for the Recent Events feed below. This is
+// cosmetic scanning of the log's own text, not a data model — if it misses a
+// phrasing it just falls through to the generic bullet, so it's safe to be
+// approximate and to fall behind as new log messages are added elsewhere.
+const EVENT_ICON_RULES: [RegExp, string][] = [
+  [/touchdown/i, "🏈"],
+  [/injur/i, "🩹"],
+  [/champion|super bowl/i, "🏆"],
+  [/mvp|all-pro|pro bowl/i, "⭐"],
+  [/drafted|declared for the nfl draft|combine/i, "📋"],
+  [/released by|missed the playoffs/i, "📉"],
+  [/paycheck|purchased|sponsorship/i, "💰"],
+  [/free agent/i, "🤝"],
+  [/retired|career complete/i, "🎖️"],
+  [/scholarship|advancing to|entering year|training camp/i, "🏫"],
+];
+
+function eventIcon(entry: string): string {
+  for (const [pattern, icon] of EVENT_ICON_RULES) {
+    if (pattern.test(entry)) return icon;
+  }
+  return "📋";
+}
+
 function RecentEvents({ state }: { state: CareerState }) {
   return (
     <div className="card" style={{ marginTop: 20 }}>
       <div className="section-title">Recent Events</div>
       <div className="list">
         {state.log.slice(0, 8).map((entry, i) => (
-          <div className="faint" key={i} style={{ fontSize: 13 }}>
-            {entry}
+          <div className="faint" key={i} style={{ fontSize: 13, display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <span>{eventIcon(entry)}</span>
+            <span>{entry}</span>
           </div>
         ))}
+        {state.log.length === 0 && <div className="faint">📋 Nothing to report yet.</div>}
       </div>
     </div>
   );
