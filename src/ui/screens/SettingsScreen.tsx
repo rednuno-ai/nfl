@@ -8,7 +8,7 @@ export function SettingsScreen() {
   return (
     <div>
       <div className="page-title">Settings</div>
-      <p className="page-subtitle">Career info &amp; debug details.</p>
+      <p className="page-subtitle">Manage your account and this career.</p>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="section-title">👤 Account</div>
@@ -22,9 +22,7 @@ export function SettingsScreen() {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="section-title">🏈 Career Info</div>
-        <p className="muted">Career ID: {state.id}</p>
-        <p className="muted">Seed: {state.seed} (same seed + same decisions reproduces this exact career — useful for QA)</p>
-        <p className="muted">Total weeks simulated: {state.totalWeek}</p>
+        <p className="muted">Weeks played: {state.totalWeek}</p>
       </div>
 
       <div className="card">
