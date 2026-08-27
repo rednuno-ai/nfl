@@ -34,7 +34,7 @@ import type {
 import { emptyStatLine } from "./types";
 import { RNG, type RNGState, createSeed, clamp } from "./rng";
 import { createPlayer, type CreatePlayerInput } from "./player";
-import { applyAttributeDeltas, computeOverall } from "./attributes";
+import { applyAttributeDelta, applyAttributeDeltas, computeOverall } from "./attributes";
 import { applySeasonalAging, applyTraining, type TrainingFocus } from "./aging";
 import { ALL_EVENTS } from "./events/data";
 import { createEmptyEventMemory, isEligible, markFired, rollEligibleEvents, selectWeeklyEvents, type EventEngineContext } from "./events/engine";
@@ -497,7 +497,14 @@ function applyTrainingTick(state: CareerState, focus: TrainingFocus): CareerStat
   const college = state.college ? getCollege(state.college.collegeId) : null;
   const devRate = college ? college.developmentRate : 1;
   const { result, rngState } = withRng(state, (rng) => applyTraining(state.player.attributes, focus, 1, devRate, rng, positionSpecificPaths(state.player)));
-  const player: Player = { ...state.player, attributes: result.attributes };
+  // Training doesn't just move raw attributes — it also feeds back into
+  // morale (recovery weeks lift it, grinding sessions barely move it). Note
+  // fatigueDelta/injuryRiskDelta are only meaningful within a single game's
+  // GameSimState.fatigue (see gameSim.ts) — there's no persistent
+  // career-level fatigue meter to apply them to yet, so morale is the one
+  // durable side effect we can fold in here.
+  const attributes = applyAttributeDelta(result.attributes, "general.morale", result.moraleDelta);
+  const player: Player = { ...state.player, attributes };
   return { ...state, player, rngState };
 }
 
@@ -512,7 +519,24 @@ function positionSpecificPaths(player: Player): string[] {
 // Game week flow
 // -----------------------------------------------------------------------------
 
-function opponentTeamStub(label: string): Team {
+// Deterministic FNV-1a-style string hash. Used so a given opponent's stub
+// ratings stay fixed for the whole game (beginGameWeek, every in-game
+// resolveGameDecision call, and the final acknowledgeFinishedGame fold all
+// call opponentTeamStub independently) instead of re-rolling on every call,
+// which used to let the same defense swing from a 47 to a 75 rating between
+// two decisions in the same drive.
+function hashOpponentSeed(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function opponentTeamStub(label: string, week: number): Team {
+  const seed = hashOpponentSeed(`${label}#${week}`);
+  const pick = (salt: number) => 45 + (((seed ^ Math.imul(salt, 2654435761)) >>> 0) % 31);
   return {
     id: `stub_${label}`,
     city: label,
@@ -520,10 +544,10 @@ function opponentTeamStub(label: string): Team {
     abbreviation: "OPP",
     conference: "National",
     division: "",
-    prestige: 45 + Math.round(Math.random() * 30),
+    prestige: pick(1),
     marketSize: 50,
-    coachingQuality: 45 + Math.round(Math.random() * 30),
-    rosterStrength: 45 + Math.round(Math.random() * 30),
+    coachingQuality: pick(2),
+    rosterStrength: pick(3),
     headCoachName: "Opposing Coach",
   };
 }
@@ -548,7 +572,7 @@ function buildOwnTeamForGame(state: CareerState): Team {
 
 function beginGameWeek(state: CareerState, entry: ScheduleEntry): CareerState {
   const ownTeam = buildOwnTeamForGame(state);
-  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel);
+  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel, entry.week);
 
   const input: BeginGameInput = {
     player: state.player,
@@ -576,7 +600,7 @@ export function resolveGameDecision(state: CareerState, optionId: string): Caree
 
   const entry = state.schedule.find((s) => s.week === state.weekInSeason)!;
   const ownTeam = buildOwnTeamForGame(state);
-  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel);
+  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel, entry.week);
 
   const input: BeginGameInput = {
     player: state.player,
@@ -606,7 +630,7 @@ export function acknowledgeFinishedGame(state: CareerState): CareerState {
   const game = state.interaction.game;
   const entry = state.schedule.find((s) => s.week === state.weekInSeason)!;
   const ownTeam = buildOwnTeamForGame(state);
-  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel);
+  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel, entry.week);
   return foldGameResult({ ...state, interaction: null }, game, ownTeam, opponentTeam);
 }
 
@@ -653,8 +677,28 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
     const { result: practiceResult, rngState: rngState3 } = withRng({ ...state, rngState: rngState2 }, (rng) =>
       applyTraining(player.attributes, focus, 0.5, devRate, rng, positionSpecificPaths(player))
     );
-    player = { ...player, attributes: practiceResult.attributes };
+    const attributes = applyAttributeDelta(practiceResult.attributes, "general.morale", practiceResult.moraleDelta * 0.5);
+    player = { ...player, attributes };
     finalRngState = rngState3;
+  }
+
+  // In-game injury risk. Narrative-event injuryChance consequences (see
+  // resolveDecision) only fire from specific story beats and mostly target
+  // players who are already hurt, so without this roll the injury system
+  // (recovery timelines, reinjury risk, playing-hurt tags) was practically
+  // unreachable through ordinary play. One roll per game, skipped while
+  // already carrying an injury so severities don't stack.
+  let injuries = state.injuries;
+  let tags = state.tags;
+  if (injuries.length === 0) {
+    const { result: injuryRoll, rngState: rngState4 } = withRng({ ...state, rngState: finalRngState }, (rng) =>
+      rollForInjury(state.totalWeek, player.attributes.physical.durability, player.attributes.general.discipline, rng, 1)
+    );
+    finalRngState = rngState4;
+    if (injuryRoll) {
+      injuries = [...injuries, injuryRoll];
+      tags = Array.from(new Set([...tags, injuryTagFor(injuryRoll.severity)]));
+    }
   }
 
   const logMsg =
@@ -675,9 +719,15 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
       news,
       socialFeed,
       player,
+      injuries,
+      tags,
     },
     logMsg
   );
+
+  if (injuries.length > state.injuries.length) {
+    next = log(next, `Injury: ${injuries[injuries.length - 1].type} (out an estimated ${injuries[injuries.length - 1].recoveryWeeks} week(s)).`);
+  }
 
   return finishWeekProcessing(next, true);
 }
@@ -705,6 +755,19 @@ function clampScore(v: number): number {
 function finishWeekProcessing(state: CareerState, wasGameOrOffWeek: boolean): CareerState {
   const { state: financeState, log: financeLog } = weeklyFinanceTick(state.finance);
   let next: CareerState = { ...state, finance: financeState };
+
+  // Pay NFL salary. Contracts specify an annual amount spread across the
+  // season, so this only fires while under contract during the nfl_season
+  // stage — signing bonuses and dead money are paid separately at signing
+  // time / release time (see contracts.ts / handleNFLSeasonEnd).
+  if (next.stage === "nfl_season" && next.contract) {
+    const pay = weeklySalary(next.contract, next.schedule.length || 18);
+    if (pay > 0) {
+      const { state: paidFinance } = applyIncome(next.finance, pay, "salary");
+      next = log(next, `Paycheck: $${pay.toLocaleString()} (gross) from ${next.team ? `${next.team.city} ${next.team.name}` : "your team"}.`);
+      next = { ...next, finance: paidFinance };
+    }
+  }
 
   // Injury recovery tick.
   const injuries: Injury[] = [];
