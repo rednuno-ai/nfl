@@ -34,7 +34,7 @@ export function AuthScreen() {
 
         <div className="auth-layout">
           <div className="auth-demo">
-            <video className="auth-demo-video" src="./demo.webm" autoPlay muted loop playsInline>
+            <video className="auth-demo-video" src="./demo.webm" poster="/og-image.png" autoPlay muted loop playsInline preload="metadata">
               Your browser doesn't support video.
             </video>
             <p className="faint" style={{ marginTop: 10, fontSize: 12.5 }}>

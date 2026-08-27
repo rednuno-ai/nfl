@@ -27,11 +27,12 @@ export function PlayerHeroArt({ className }: { className?: string }) {
         </radialGradient>
       </defs>
 
-      <circle cx="460" cy="210" r="260" fill="url(#hero-glow)" />
+      <circle className="hero-art-glow" cx="460" cy="210" r="260" fill="url(#hero-glow)" />
 
       {/* shoulders / torso, shoulder-pad silhouette */}
       <path
         d="M120 760 L120 560 C120 460 180 420 230 400 C210 380 200 352 200 326 C200 300 214 280 232 280 L242 300 C246 288 258 280 272 280 L272 320 C300 300 340 288 380 288 C420 288 460 300 488 320 L488 280 C502 280 514 300 518 326 L528 300 C546 300 560 320 560 346 C560 372 550 400 530 400 C580 420 640 460 640 560 L640 760 Z"
+        className="hero-art-body"
         fill="url(#hero-body-grad)"
         stroke="url(#hero-rim-grad)"
         strokeWidth={3}
@@ -40,6 +41,7 @@ export function PlayerHeroArt({ className }: { className?: string }) {
       {/* helmet */}
       <path
         d="M320 90 C400 90 452 142 452 210 C452 262 424 300 384 320 L384 280 C384 258 356 244 320 244 C284 244 256 258 256 280 L256 320 C216 300 188 262 188 210 C188 142 240 90 320 90 Z"
+        className="hero-art-helmet"
         fill="url(#hero-body-grad)"
         stroke="url(#hero-rim-grad)"
         strokeWidth={3}
@@ -48,6 +50,7 @@ export function PlayerHeroArt({ className }: { className?: string }) {
       <path
         d="M256 280 C256 306 284 328 320 328 C356 328 384 306 384 280"
         fill="none"
+        className="hero-art-mask"
         stroke="rgba(255,90,54,0.4)"
         strokeWidth={5}
         strokeLinecap="round"
