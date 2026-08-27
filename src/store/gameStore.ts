@@ -85,8 +85,12 @@ const repository = getRepository();
 function persist(state: GameStoreState) {
   if (state.activeCareer) {
     // Fire-and-forget autosave. LocalRepository is effectively synchronous;
-    // a Supabase-backed repository would be a real network write here.
-    void repository.saveCareer(state.userId, state.activeCareer);
+    // a Supabase-backed repository would be a real network write here, so a
+    // rejection (e.g. a dropped connection) shouldn't crash the app — just
+    // surface it for debugging.
+    void repository.saveCareer(state.userId, state.activeCareer).catch((err) => {
+      console.error("Autosave failed:", err);
+    });
   }
 }
 
