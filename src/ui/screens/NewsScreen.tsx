@@ -7,6 +7,13 @@ const TONE_BADGE: Record<string, string> = {
   neutral: "",
 };
 
+const TONE_ICON: Record<string, string> = {
+  positive: "📈",
+  negative: "📉",
+  controversial: "🔥",
+  neutral: "📰",
+};
+
 export function NewsScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
 
@@ -21,7 +28,10 @@ export function NewsScreen() {
           <div className="list">
             {state.news.map((n) => (
               <div className="list-item news-item" key={n.id} style={{ display: "block" }}>
-                <div className="news-headline">{n.headline}</div>
+                <div className="news-headline">
+                  <span style={{ marginRight: 8 }}>{TONE_ICON[n.tone] ?? "📰"}</span>
+                  {n.headline}
+                </div>
                 <div className="news-meta">
                   {n.source} · Week {n.week} · <span className={`badge ${TONE_BADGE[n.tone]}`}>{n.tone}</span>
                 </div>

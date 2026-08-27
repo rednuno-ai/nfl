@@ -3,6 +3,7 @@ import { careerTotals, passerRating, yardsPerCarry, yardsPerReception } from "@e
 import { sumStatLines } from "@engine/stats";
 
 const LEVEL_LABELS: Record<string, string> = { high_school: "High School", college: "College", nfl: "NFL" };
+const LEVEL_ICON: Record<string, string> = { high_school: "🏫", college: "🎓", nfl: "🏈" };
 
 export function StatsScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
@@ -74,7 +75,9 @@ export function StatsScreen() {
             {[...seasons, ...(currentSeason ? [currentSeason] : [])].map((s, i) => (
               <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
                 <td style={{ padding: "8px 10px" }}>{s.season || "current"}</td>
-                <td style={{ padding: "8px 10px" }}>{LEVEL_LABELS[s.level] ?? s.level}</td>
+                <td style={{ padding: "8px 10px" }}>
+                  {LEVEL_ICON[s.level] ?? "🏈"} {LEVEL_LABELS[s.level] ?? s.level}
+                </td>
                 <td style={{ padding: "8px 10px" }}>{s.gamesPlayed}</td>
                 <td style={{ padding: "8px 10px" }}>{s.passYards}</td>
                 <td style={{ padding: "8px 10px" }}>{s.rushYards}</td>

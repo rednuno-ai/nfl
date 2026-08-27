@@ -8,6 +8,13 @@ const QUICK_ASSETS = [
   { name: "Local Restaurant Stake", type: "business" as const, value: 200_000, weeklyUpkeep: 40, weeklyReturn: 320 },
 ];
 
+const ASSET_ICON: Record<string, string> = {
+  house: "🏠",
+  car: "🚗",
+  investment: "📈",
+  business: "🏢",
+};
+
 export function FinanceScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
   const f = state.finance;
@@ -43,10 +50,13 @@ export function FinanceScreen() {
           <div className="list">
             {f.assets.map((a) => (
               <div className="list-item" key={a.id}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{a.name}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {money(a.value)} · upkeep {money(a.weeklyUpkeep)}/wk {a.weeklyReturn > 0 && `· return ${money(a.weeklyReturn)}/wk`}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>{ASSET_ICON[a.type] ?? "💼"}</span>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{a.name}</div>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {money(a.value)} · upkeep {money(a.weeklyUpkeep)}/wk {a.weeklyReturn > 0 && `· return ${money(a.weeklyReturn)}/wk`}
+                    </div>
                   </div>
                 </div>
                 <span className="badge">{a.type}</span>
@@ -60,10 +70,13 @@ export function FinanceScreen() {
           <div className="list">
             {QUICK_ASSETS.map((asset) => (
               <div className="list-item" key={asset.name}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{asset.name}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {money(asset.value)}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>{ASSET_ICON[asset.type] ?? "💼"}</span>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{asset.name}</div>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {money(asset.value)}
+                    </div>
                   </div>
                 </div>
                 <button className="btn btn-sm" disabled={f.cash < asset.value} onClick={() => gameStore.getState().purchaseAsset(asset)}>
@@ -80,10 +93,13 @@ export function FinanceScreen() {
           <div className="list">
             {f.sponsorships.map((s) => (
               <div className="list-item" key={s.id}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{s.brand}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {s.weeksRemaining} week(s) remaining
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🤝</span>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{s.brand}</div>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {s.weeksRemaining} week(s) remaining
+                    </div>
                   </div>
                 </div>
                 <span className="badge badge-green">{money(s.weeklyValue)}/wk</span>

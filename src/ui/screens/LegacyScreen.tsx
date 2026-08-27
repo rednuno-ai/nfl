@@ -1,7 +1,17 @@
 import { useGameStore, gameStore } from "@store/gameStore";
 import { canRetire } from "@engine/career";
 import { LEGACY_TIER_LABELS } from "@engine/legacy";
+import type { LegacyTier } from "@engine/types";
 import { money } from "../format";
+
+const LEGACY_TIER_ICON: Record<LegacyTier, string> = {
+  bust: "💤",
+  solid_career: "🎖️",
+  star: "⭐",
+  superstar: "🌟",
+  legend: "👑",
+  hall_of_fame: "🏆",
+};
 
 export function LegacyScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
@@ -16,7 +26,8 @@ export function LegacyScreen() {
       {state.legacy && (
         <div className="card" style={{ marginBottom: 22 }}>
           <div className="modal-eyebrow">Final Verdict</div>
-          <div style={{ fontSize: 30, fontWeight: 900, fontFamily: "var(--font-display)", marginBottom: 6 }}>
+          <div style={{ fontSize: 30, fontWeight: 900, fontFamily: "var(--font-display)", marginBottom: 6, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 34 }}>{LEGACY_TIER_ICON[state.legacy.tier]}</span>
             {LEGACY_TIER_LABELS[state.legacy.tier]}
           </div>
           <p className="muted" style={{ marginBottom: 16 }}>
@@ -62,10 +73,13 @@ export function LegacyScreen() {
           <div className="list">
             {unlocked.map((a) => (
               <div className="list-item" key={a.id}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{a.title}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {a.description}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🏅</span>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{a.title}</div>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {a.description}
+                    </div>
                   </div>
                 </div>
                 <span className="badge badge-gold">Week {a.unlockedWeek}</span>
@@ -79,10 +93,13 @@ export function LegacyScreen() {
           <div className="list">
             {locked.map((a) => (
               <div className="list-item" key={a.id} style={{ opacity: 0.55 }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{a.title}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {a.description}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🔒</span>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{a.title}</div>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {a.description}
+                    </div>
                   </div>
                 </div>
               </div>
