@@ -38,56 +38,67 @@ export function DashboardScreen() {
   const overall = computeOverall(state.player.attributes, state.player.position);
   const nextGame = state.schedule.find((s) => s.week === state.weekInSeason && !s.played);
   const crestSeed = currentCrestSeed(state);
+  const showNextEvent = state.stage === "high_school" || state.stage === "college" || state.stage === "nfl_season" || state.stage === "nfl_offseason";
 
   return (
     <div>
-      <div className="player-hero card">
-        {crestSeed ? <TeamCrest seed={crestSeed.seed} label={crestSeed.label} size={56} /> : <PositionBadge position={state.player.position} size={56} />}
-        <div className="player-hero-ovr">
-          <div className="player-hero-ovr-number">
-            <AnimatedNumber value={overall} celebrate celebrateLabel="🏆 New Personal Best" />
+      {/* Command-center row: the player and "what do I do right now" side by
+          side, so both are visible at a glance instead of the player card
+          sitting alone above a wall of stats. Stacks on narrow screens. */}
+      <div className={showNextEvent ? "command-center-row" : undefined}>
+        <div className="player-hero card">
+          {crestSeed ? <TeamCrest seed={crestSeed.seed} label={crestSeed.label} size={56} /> : <PositionBadge position={state.player.position} size={56} />}
+          <div className="player-hero-ovr">
+            <div className="player-hero-ovr-number">
+              <AnimatedNumber value={overall} celebrate celebrateLabel="🏆 New Personal Best" />
+            </div>
+            <div className="player-hero-ovr-label">OVR</div>
           </div>
-          <div className="player-hero-ovr-label">OVR</div>
+          <div className="player-hero-info">
+            <div className="player-hero-name">
+              {state.player.bio.firstName} {state.player.bio.lastName}
+            </div>
+            <div className="player-hero-sub">
+              <span className="player-hero-pos">{state.player.position}</span>
+              {currentSchoolOrTeamLabel(state)} · Age {state.player.bio.age}
+            </div>
+            <span className="badge badge-accent" style={{ marginTop: 8, display: "inline-block" }}>
+              {STAGE_LABELS[state.stage] ?? state.stage}
+            </span>
+          </div>
         </div>
-        <div className="player-hero-info">
-          <div className="player-hero-name">
-            {state.player.bio.firstName} {state.player.bio.lastName}
-          </div>
-          <div className="player-hero-sub">
-            <span className="player-hero-pos">{state.player.position}</span>
-            {currentSchoolOrTeamLabel(state)} · Age {state.player.bio.age}
-          </div>
-          <span className="badge badge-accent" style={{ marginTop: 8, display: "inline-block" }}>
-            {STAGE_LABELS[state.stage] ?? state.stage}
-          </span>
-        </div>
+
+        {showNextEvent && <NextEventCard nextGame={nextGame} ownCrestSeed={crestSeed} />}
       </div>
 
       {state.stage !== "retired" && <CareerLadder state={state} />}
 
-      {(state.stage === "high_school" || state.stage === "college" || state.stage === "nfl_season" || state.stage === "nfl_offseason") && (
-        <NextEventCard nextGame={nextGame} ownCrestSeed={crestSeed} />
-      )}
-
-      <div className="grid grid-3" style={{ marginBottom: 22 }}>
+      {/* Only the numbers that actually matter day to day — not a wall of stats. */}
+      <div className="grid grid-4" style={{ marginBottom: 22 }}>
+        <div className="stat-tile">
+          <div className="value">
+            <AnimatedNumber value={Math.round(state.player.attributes.general.confidence)} />
+          </div>
+          <div className="label">⚡ Confidence</div>
+        </div>
         <div className="stat-tile">
           <div className="value">
             <AnimatedNumber value={Math.round(state.player.attributes.general.fame)} />
           </div>
-          <div className="label">Fame</div>
+          <div className="label">⭐ Fame</div>
+        </div>
+        <div className="stat-tile">
+          <div className="value">
+            <AnimatedNumber value={Math.round(state.finance.netWorth)} format={moneyCompact} />
+          </div>
+          <div className="label">💰 Net Worth</div>
         </div>
         <div className="stat-tile">
           <div className="value">
             {state.seasonRecord.wins}-{state.seasonRecord.losses}
             {state.seasonRecord.ties ? `-${state.seasonRecord.ties}` : ""}
           </div>
-          <div className="label">Season Record</div>
-        </div>
-        <div className="stat-tile">
-          <div className="value">
-            <AnimatedNumber value={Math.round(state.finance.netWorth)} format={moneyCompact} />
-          </div>
-          <div className="label">Net Worth</div>
+          <div className="label">🏆 Record</div>
         </div>
       </div>
 

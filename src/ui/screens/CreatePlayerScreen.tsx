@@ -1,12 +1,46 @@
 import { useState } from "react";
 import { gameStore } from "@store/gameStore";
 import { MVP_POSITIONS, type Hand, type PersonalityTrait, type Position } from "@engine/types";
-import { PERSONALITY_LABELS } from "@engine/player";
+import { PERSONALITY_LABELS, PERSONALITY_DESCRIPTIONS } from "@engine/player";
 import { POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS, previewPointBuyOverall } from "@engine/attributes";
 import { PositionBadge } from "@ui/components/PositionBadge";
 
 const PERSONALITY_OPTIONS = Object.keys(PERSONALITY_LABELS) as PersonalityTrait[];
 const US_STATES = ["TX", "CA", "FL", "OH", "GA", "PA", "NC", "MI", "LA", "AL", "TN", "AZ", "NY", "IL", "VA"];
+
+// Full name + one-line flavor for each playable "class" — the character
+// creator's position picker used to be a row of plain text pills; this is
+// what turns it into something that reads like choosing a class in an RPG.
+const POSITION_FULL_NAME: Record<string, string> = {
+  QB: "Quarterback",
+  RB: "Running Back",
+  WR: "Wide Receiver",
+  TE: "Tight End",
+  LB: "Linebacker",
+  CB: "Cornerback",
+};
+
+const POSITION_FLAVOR: Record<string, string> = {
+  QB: "The leader. Every play runs through you.",
+  RB: "Speed and power between the tackles.",
+  WR: "Get open, make the catch, take it to the house.",
+  TE: "Block like a lineman, catch like a receiver.",
+  LB: "The heartbeat of the defense.",
+  CB: "Shut down the league's best receivers, alone on an island.",
+};
+
+const PERSONALITY_ICON: Record<PersonalityTrait, string> = {
+  ambitious: "🎯",
+  loyal: "🤝",
+  disciplined: "🧠",
+  charismatic: "🎤",
+  aggressive: "🔥",
+  introvert: "🧘",
+  risk_taker: "😈",
+  family_oriented: "👨‍👩‍👧",
+  materialistic: "💰",
+  competitive: "💪",
+};
 
 export function CreatePlayerScreen() {
   const [step, setStep] = useState<"bio" | "attributes">("bio");
@@ -131,8 +165,40 @@ export function CreatePlayerScreen() {
   return (
     <div className="centered-page">
       <div className="onboarding-card card">
-        <div className="page-title">Create Your Player</div>
+        <div className="page-title">Create Your Legacy</div>
         <p className="page-subtitle">Freshman year, age 15. This is where your career begins.</p>
+
+        <div className="field">
+          <label>Position</label>
+          <div className="class-card-grid">
+            {MVP_POSITIONS.map((p) => (
+              <button key={p} type="button" className={`class-card ${position === p ? "selected" : ""}`} onClick={() => setPosition(p)}>
+                <PositionBadge position={p} size={40} />
+                <div className="class-card-code">{p}</div>
+                <div className="class-card-name">{POSITION_FULL_NAME[p] ?? p}</div>
+                <div className="class-card-flavor">{POSITION_FLAVOR[p] ?? ""}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="field">
+          <label>Personality — pick 1 to 3 traits</label>
+          <div className="trait-card-grid">
+            {PERSONALITY_OPTIONS.map((trait) => {
+              const selected = personality.includes(trait);
+              const selectedIndex = personality.indexOf(trait);
+              return (
+                <button key={trait} type="button" className={`trait-card ${selected ? "selected" : ""}`} onClick={() => togglePersonality(trait)}>
+                  {selected && <div className="trait-card-badge">{selectedIndex + 1}</div>}
+                  <div className="trait-card-icon">{PERSONALITY_ICON[trait]}</div>
+                  <div className="trait-card-label">{PERSONALITY_LABELS[trait]}</div>
+                  <div className="trait-card-desc">{PERSONALITY_DESCRIPTIONS[trait]}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="grid grid-2">
           <div className="field">
@@ -142,23 +208,6 @@ export function CreatePlayerScreen() {
           <div className="field">
             <label>Last name</label>
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Reed" maxLength={24} />
-          </div>
-        </div>
-
-        <div className="field">
-          <label>Position</label>
-          <div className="pill-select">
-            {MVP_POSITIONS.map((p) => (
-              <button
-                key={p}
-                className={`pill-option pill-option-position ${position === p ? "selected" : ""}`}
-                onClick={() => setPosition(p)}
-                type="button"
-              >
-                <PositionBadge position={p} size={22} />
-                {p}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -194,17 +243,6 @@ export function CreatePlayerScreen() {
           <div className="field">
             <label>Weight (lbs)</label>
             <input type="number" min={130} max={340} value={weightLbs} onChange={(e) => setWeightLbs(Number(e.target.value))} />
-          </div>
-        </div>
-
-        <div className="field">
-          <label>Personality — pick 1 to 3 traits</label>
-          <div className="pill-select">
-            {PERSONALITY_OPTIONS.map((trait) => (
-              <button key={trait} type="button" className={`pill-option ${personality.includes(trait) ? "selected" : ""}`} onClick={() => togglePersonality(trait)}>
-                {PERSONALITY_LABELS[trait]}
-              </button>
-            ))}
           </div>
         </div>
 
