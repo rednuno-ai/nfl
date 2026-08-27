@@ -161,4 +161,42 @@ describe("career state machine", () => {
     assert.equal(Number.isNaN(finalState.finance.netWorth), false);
     assert.equal(Number.isNaN(finalState.finance.cash), false);
   });
+
+  it("pays weekly NFL salary during the season, not just the signing bonus", () => {
+    let state = createCareer(baseInput());
+    let guard = 0;
+    while (!(state.stage === "nfl_season" && state.contract) && guard < 20000) {
+      if (state.interaction?.type === "decision") state = resolveDecision(state, state.interaction.decision.choices[0].id);
+      else if (state.interaction?.type === "training") state = chooseTrainingFocus(state, state.interaction.options[0].id);
+      else if (state.interaction?.type === "game") state = driveGameInteraction(state);
+      else if (state.recruitingReady) state = commitToCollege(state, state.recruitingOffers[0]?.collegeId ?? "college_1");
+      else if (state.freeAgencyOffers) state = signWithTeam(state, state.freeAgencyOffers[0].teamId);
+      else state = advanceWeek(state);
+      guard++;
+    }
+    assert.ok(state.stage === "nfl_season" && state.contract, "career never reached a signed NFL season within the iteration guard");
+
+    const earningsAtKickoff = state.finance.totalCareerEarnings;
+    const weekAtKickoff = state.weekInSeason;
+    // Drive forward several full in-season weeks (each game takes many
+    // decision-by-decision steps to finish, so bound this on weeks advanced
+    // rather than iteration count).
+    let stepGuard = 0;
+    while (state.stage === "nfl_season" && state.weekInSeason < weekAtKickoff + 3 && stepGuard < 5000) {
+      if (state.interaction?.type === "decision") state = resolveDecision(state, state.interaction.decision.choices[0].id);
+      else if (state.interaction?.type === "training") state = chooseTrainingFocus(state, state.interaction.options[0].id);
+      else if (state.interaction?.type === "game") state = driveGameInteraction(state);
+      else state = advanceWeek(state);
+      stepGuard++;
+    }
+    assert.ok(state.weekInSeason >= weekAtKickoff + 3 || state.stage !== "nfl_season", "did not advance three in-season weeks within the step guard");
+
+    // Salary should have been paid on top of whatever the signing bonus/prior
+    // earnings already were — a regression here (salary silently never being
+    // paid) would leave totalCareerEarnings essentially flat across a season.
+    assert.ok(
+      state.finance.totalCareerEarnings > earningsAtKickoff,
+      `expected totalCareerEarnings to grow from weekly salary (was ${earningsAtKickoff}, now ${state.finance.totalCareerEarnings})`
+    );
+  });
 });
