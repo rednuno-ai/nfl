@@ -11,8 +11,10 @@ import {
   retireCareer,
   canRetire,
   chooseTrainingFocus,
+  evaluateSeasonAwards,
   type CareerState,
 } from "../career";
+import { emptyStatLine } from "../types";
 
 /** Games now stay as the active interaction (see gameSim's play-by-play
  *  engine + GameDayView's real-time playback) until the UI explicitly
@@ -198,5 +200,31 @@ describe("career state machine", () => {
       state.finance.totalCareerEarnings > earningsAtKickoff,
       `expected totalCareerEarnings to grow from weekly salary (was ${earningsAtKickoff}, now ${state.finance.totalCareerEarnings})`
     );
+  });
+});
+
+describe("evaluateSeasonAwards", () => {
+  it("gives no honors for a short or mediocre season", () => {
+    const short = { ...emptyStatLine(1, "nfl", "team"), gamesPlayed: 3, passAttempts: 60, passCompletions: 40, passYards: 500, passTDs: 4 };
+    assert.deepEqual(evaluateSeasonAwards(short, "QB", 8), { proBowl: false, allPro: false, mvp: false });
+
+    const mediocre = { ...emptyStatLine(1, "nfl", "team"), gamesPlayed: 16, passAttempts: 500, passCompletions: 280, passYards: 3000, passTDs: 14, interceptionsThrown: 12 };
+    assert.deepEqual(evaluateSeasonAwards(mediocre, "QB", 7), { proBowl: false, allPro: false, mvp: false });
+  });
+
+  it("awards Pro Bowl and All-Pro for a strong full season, but MVP only with team success", () => {
+    const elite = { ...emptyStatLine(1, "nfl", "team"), gamesPlayed: 16, passAttempts: 550, passCompletions: 385, passYards: 4800, passTDs: 42, interceptionsThrown: 6 };
+    const withoutTeamSuccess = evaluateSeasonAwards(elite, "QB", 6);
+    assert.equal(withoutTeamSuccess.proBowl, true);
+    assert.equal(withoutTeamSuccess.allPro, true);
+    assert.equal(withoutTeamSuccess.mvp, false, "MVP should require real team success (wins), not just gaudy stats");
+
+    const withTeamSuccess = evaluateSeasonAwards(elite, "QB", 13);
+    assert.equal(withTeamSuccess.mvp, true);
+  });
+
+  it("returns no honors for non-skill positions the heuristic doesn't model", () => {
+    const stat = { ...emptyStatLine(1, "nfl", "team"), gamesPlayed: 16 };
+    assert.deepEqual(evaluateSeasonAwards(stat, "OL", 14), { proBowl: false, allPro: false, mvp: false });
   });
 });
