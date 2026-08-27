@@ -306,6 +306,9 @@ function bumpRelationship(state: CareerState, targetTag: string, delta: number):
     fans: "media",
     family: "family",
     partner: "partner",
+    friend: "friend",
+    agent: "agent",
+    booster: "booster",
   };
   const type = typeMap[targetTag];
   if (!type) return state.relationships;
@@ -748,6 +751,33 @@ function clampScore(v: number): number {
   return Math.max(-1, Math.min(1, v));
 }
 
+// Season-level version of scoreGamePerformance: same per-position shape, but
+// driven off full-season totals normalized by games played, so a great
+// four-game stretch doesn't read the same as a great full season.
+function seasonPerformanceScore(stat: StatLine, position: string): number {
+  const games = Math.max(1, stat.gamesPlayed);
+  if (position === "QB") {
+    const eff = stat.passAttempts > 0 ? stat.passCompletions / stat.passAttempts : 0.5;
+    return clampScore((eff - 0.6) * 2 + (stat.passTDs / games) * 0.5 - (stat.interceptionsThrown / games) * 0.4 + (stat.passYards / games / 300) * 0.4);
+  }
+  if (position === "RB") return clampScore((stat.rushYards / games) / 100 - 0.4 + (stat.rushTDs / games) * 0.5 - (stat.fumbles / games) * 0.4);
+  if (position === "WR" || position === "TE") return clampScore((stat.receivingYards / games) / 90 - 0.4 + (stat.receivingTDs / games) * 0.5);
+  if (position === "LB" || position === "CB") return clampScore((stat.tackles / games) / 8 - 0.3 + (stat.sacks / games) * 0.5 + (stat.interceptions / games) * 0.7);
+  return 0;
+}
+
+// Determines end-of-season honors (Pro Bowl / All-Pro / MVP) from the
+// season's aggregate stat line. Thresholds are deliberately steep — these
+// are supposed to be rare, career-defining honors, not annual formalities.
+export function evaluateSeasonAwards(stat: StatLine, position: string, teamWins: number): { proBowl: boolean; allPro: boolean; mvp: boolean } {
+  if (stat.gamesPlayed < 6) return { proBowl: false, allPro: false, mvp: false };
+  const score = seasonPerformanceScore(stat, position);
+  const proBowl = score >= 0.35;
+  const allPro = score >= 0.65;
+  const mvp = score >= 0.85 && teamWins >= 10;
+  return { proBowl, allPro, mvp };
+}
+
 // -----------------------------------------------------------------------------
 // End-of-week / end-of-season processing
 // -----------------------------------------------------------------------------
@@ -925,7 +955,7 @@ function handleCollegeSeasonEnd(state: CareerState): CareerState {
   for (const note of notes) next = log(next, note);
 
   const declaredEarly = next.tags.includes("declared_early");
-  const readyForDraft = yearsPlayed >= 3 || declaredEarly || yearsPlayed >= 4;
+  const readyForDraft = yearsPlayed >= 3 || declaredEarly;
 
   if (readyForDraft) {
     const combine = undefined;
@@ -1044,15 +1074,24 @@ export function signWithTeam(state: CareerState, teamId: string): CareerState {
 }
 
 function handleNFLSeasonEnd(state: CareerState): CareerState {
-  const seasonStat = seasonStatSummary(state, "nfl", state.team?.id ?? "unknown");
+  let seasonStat = seasonStatSummary(state, "nfl", state.team?.id ?? "unknown");
+
+  const awards = evaluateSeasonAwards(seasonStat, state.player.position, state.seasonRecord.wins);
+  seasonStat = { ...seasonStat, proBowl: awards.proBowl, allPro: awards.allPro, mvp: awards.mvp };
   let statHistory = [...state.statHistory, seasonStat];
 
   const careerSeasonsPlayed = state.careerSeasonsPlayed + 1;
   let achievements = checkSeasonsAchievement(state.achievements, state.totalWeek, careerSeasonsPlayed);
   achievements = checkCareerEarningsAchievement(achievements, state.totalWeek, state.finance.totalCareerEarnings);
   achievements = checkTeamHistoryAchievements(achievements, state.totalWeek, new Set(state.teamsPlayedFor), false);
+  if (awards.proBowl) achievements = unlock(achievements, "pro_bowl", state.totalWeek);
+  if (awards.allPro) achievements = unlock(achievements, "all_pro", state.totalWeek);
+  if (awards.mvp) achievements = unlock(achievements, "mvp", state.totalWeek);
 
   let next: CareerState = { ...state, statHistory, careerSeasonsPlayed, achievements, currentSeasonGameStats: [] };
+  if (awards.mvp) next = log(next, "Named league MVP! A season for the ages.");
+  else if (awards.allPro) next = log(next, "Named an All-Pro this season.");
+  else if (awards.proBowl) next = log(next, "Pro Bowl selection this season.");
 
   // Playoffs.
   const teamOverall = state.team ? (state.team.prestige + state.team.rosterStrength) / 2 : 50;
@@ -1150,6 +1189,9 @@ export function retireCareer(state: CareerState): CareerState {
   let achievements = state.achievements;
   if (legacy.tier === "hall_of_fame") achievements = unlock(achievements, "hall_of_famer", state.totalWeek);
   if (legacy.championships > 0) achievements = unlock(achievements, "super_bowl_champion", state.totalWeek);
+  const wentUndrafted = (state.draftResult?.round ?? 0) === 0;
+  const madeItBig = legacy.tier === "star" || legacy.tier === "superstar" || legacy.tier === "legend" || legacy.tier === "hall_of_fame";
+  if (wentUndrafted && madeItBig) achievements = unlock(achievements, "undrafted_to_superstar", state.totalWeek);
   achievements = checkTeamHistoryAchievements(achievements, state.totalWeek, new Set(state.teamsPlayedFor), true);
 
   return log({ ...state, retired: true, stage: "retired", legacy, achievements, interaction: null }, `Career complete. Legacy: ${legacy.summary}`);

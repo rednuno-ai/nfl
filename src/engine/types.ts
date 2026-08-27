@@ -362,7 +362,7 @@ export interface Injury {
 // Relationships
 // -----------------------------------------------------------------------------
 
-export type RelationshipType = "coach" | "teammate" | "family" | "friend" | "agent" | "partner" | "media";
+export type RelationshipType = "coach" | "teammate" | "family" | "friend" | "agent" | "partner" | "media" | "booster";
 
 export interface Relationship {
   id: string;
