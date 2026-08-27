@@ -4,6 +4,7 @@ import { STAGE_LABELS } from "../format";
 import { FREE_TIER_CAREER_LIMIT } from "@data/index";
 import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
 import { PositionBadge } from "@ui/components/PositionBadge";
+import { PlayerHeroArt } from "@ui/components/PlayerHeroArt";
 import { ConfirmModal } from "@ui/components/ConfirmModal";
 
 export function CareerSelectScreen() {
@@ -16,21 +17,53 @@ export function CareerSelectScreen() {
   }, []);
 
   const atLimit = careers.length >= FREE_TIER_CAREER_LIMIT;
+  const hasCareers = !loading && careers.length > 0;
+  const featured = hasCareers ? careers[0] : null;
 
   return (
-    <div className="centered-page">
-      <div className="onboarding-card">
-        <div className="brand" style={{ justifyContent: "center", fontSize: 26, marginBottom: 8 }}>
-          <span className="brand-mark">GL</span>
-          GRIDIRON LIFE
-        </div>
-        <p className="page-subtitle" style={{ textAlign: "center" }}>
-          Live an entire football career — from high school to the Hall of Fame.
-        </p>
+    <div className="homepage-shell">
+      <div className={`homepage-hero ${hasCareers ? "homepage-hero-compact" : ""}`}>
+        <PlayerHeroArt className="homepage-hero-art" />
+        <div className="homepage-hero-content">
+          <div className="brand" style={{ fontSize: 20, marginBottom: hasCareers ? 18 : 40 }}>
+            <span className="brand-mark">GL</span>
+            GRIDIRON LIFE
+          </div>
 
+          {!hasCareers ? (
+            <>
+              <div className="homepage-eyebrow">LIVE AN ENTIRE CAREER</div>
+              <h1 className="homepage-headline">
+                YOUR CAREER
+                <br />
+                AWAITS
+              </h1>
+              <p className="homepage-subtitle">From high school freshman to the Hall of Fame. Every decision is yours.</p>
+              <button
+                className="btn btn-primary btn-lg homepage-cta"
+                disabled={atLimit || loading}
+                onClick={() => gameStore.setState({ screen: "create-player" })}
+              >
+                {loading ? "Loading…" : "▶ START CAREER"}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="homepage-eyebrow">{featured?.playerName.toUpperCase()}</div>
+              <h1 className="homepage-headline homepage-headline-sm">
+                {STAGE_LABELS[featured!.stage] ?? featured!.stage}
+                <span className="homepage-headline-dot"> · </span>
+                OVR {featured!.overall}
+              </h1>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="homepage-body">
         {loading && <div className="faint" style={{ textAlign: "center" }}>Loading your careers…</div>}
 
-        {!loading && careers.length > 0 && (
+        {hasCareers && (
           <div className="list" style={{ marginBottom: 20 }}>
             {careers.map((c) => (
               <div key={c.id} className="card card-tight career-card" onClick={() => void gameStore.getState().openCareer(c.id)}>
@@ -57,16 +90,18 @@ export function CareerSelectScreen() {
           </div>
         )}
 
-        <button
-          className="btn btn-primary btn-block"
-          disabled={atLimit}
-          onClick={() => gameStore.setState({ screen: "create-player" })}
-        >
-          {atLimit ? `Free tier limit reached (${FREE_TIER_CAREER_LIMIT} careers)` : "Start a New Career"}
-        </button>
+        {hasCareers && (
+          <button
+            className="btn btn-primary btn-block"
+            disabled={atLimit}
+            onClick={() => gameStore.setState({ screen: "create-player" })}
+          >
+            {atLimit ? `Free tier limit reached (${FREE_TIER_CAREER_LIMIT} careers)` : "Start a New Career"}
+          </button>
+        )}
         {atLimit && <p className="faint" style={{ textAlign: "center", marginTop: 10 }}>Delete an existing career to start a new one.</p>}
 
-        <div style={{ marginTop: 24 }}>
+        <div style={{ marginTop: 24, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
           <InviteFriendsCard />
         </div>
       </div>
