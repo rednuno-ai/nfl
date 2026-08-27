@@ -59,7 +59,9 @@ export default function App() {
             onFinished={() => gameStore.getState().acknowledgeGameResult()}
           />
         ) : (
-          <ScreenRouter screen={screen} />
+          <div key={screen} className="screen-fade">
+            <ScreenRouter screen={screen} />
+          </div>
         )}
       </main>
       <MobileNav active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} />
