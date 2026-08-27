@@ -15,6 +15,7 @@ export function StatsScreen() {
 
   return (
     <div>
+      <div className="screen-eyebrow">🏋️ TRAINING</div>
       <div className="page-title">Career Stats</div>
       <p className="page-subtitle">Every season, tracked by level.</p>
 

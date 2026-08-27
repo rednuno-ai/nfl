@@ -11,6 +11,7 @@ export function LegacyScreen() {
 
   return (
     <div>
+      <div className="screen-eyebrow">🏆 LEGACY</div>
       <div className="page-title">Legacy</div>
       <p className="page-subtitle">{state.retired ? "How your career is remembered." : "What you're building toward."}</p>
 

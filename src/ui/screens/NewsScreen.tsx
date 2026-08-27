@@ -26,6 +26,7 @@ export function NewsScreen() {
 
   return (
     <div>
+      <div className="screen-eyebrow">📰 NEWS</div>
       <div className="page-title">News &amp; Media</div>
       <p className="page-subtitle">What the world is saying about you.</p>
 

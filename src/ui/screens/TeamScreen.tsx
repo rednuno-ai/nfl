@@ -8,6 +8,7 @@ export function TeamScreen() {
 
   return (
     <div>
+      <div className="screen-eyebrow">🏟️ STADIUM</div>
       <div className="page-title">Team</div>
       <p className="page-subtitle">Your program, coach, and schedule.</p>
 

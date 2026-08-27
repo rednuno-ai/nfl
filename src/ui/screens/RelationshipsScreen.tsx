@@ -30,6 +30,7 @@ export function RelationshipsScreen() {
 
   return (
     <div>
+      <div className="screen-eyebrow">🤝 PEOPLE</div>
       <div className="page-title">People</div>
       <p className="page-subtitle">The relationships shaping your career.</p>
 

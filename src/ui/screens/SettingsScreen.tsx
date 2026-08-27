@@ -10,6 +10,7 @@ export function SettingsScreen() {
 
   return (
     <div>
+      <div className="screen-eyebrow">👤 PROFILE</div>
       <div className="page-title">Settings</div>
       <p className="page-subtitle">Manage your account and this career.</p>
 

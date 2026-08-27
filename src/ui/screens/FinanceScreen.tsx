@@ -28,6 +28,7 @@ export function FinanceScreen() {
 
   return (
     <div>
+      <div className="screen-eyebrow">💼 FRONT OFFICE</div>
       <div className="page-title">Finance</div>
       <p className="page-subtitle">Every dollar, tracked.</p>
 
