@@ -1313,6 +1313,118 @@ h4 {
 }
 
 /* ---------------------------------------------------------------------------
+   Cinematic homepage hero — the "game cover" moment before/after a career
+   exists. All art here is procedural SVG (PlayerHeroArt) — no photography,
+   no real team/player likeness, per the project's no-real-trademarks rule.
+--------------------------------------------------------------------------- */
+
+.homepage-shell {
+  min-height: 100%;
+}
+
+.homepage-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 66vh;
+  display: flex;
+  align-items: center;
+  background: radial-gradient(900px 500px at 20% 0%, #171c28 0%, transparent 60%), var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.homepage-hero-compact {
+  min-height: 240px;
+}
+
+.homepage-hero-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 30%, black 55%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 30%, black 55%);
+  pointer-events: none;
+}
+
+.homepage-hero-content {
+  position: relative;
+  z-index: 1;
+  padding: 40px clamp(24px, 6vw, 72px);
+  max-width: 640px;
+  animation: card-in 0.5s ease both;
+}
+
+.homepage-eyebrow {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--accent-strong);
+  margin-bottom: 10px;
+}
+
+.homepage-headline {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 7vw, 76px);
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+}
+
+.homepage-headline-sm {
+  font-size: clamp(22px, 3vw, 30px);
+  text-transform: none;
+  color: var(--text-dim);
+}
+
+.homepage-headline-dot {
+  color: var(--text-faint);
+}
+
+.homepage-subtitle {
+  color: var(--text-dim);
+  font-size: 15px;
+  max-width: 420px;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+.homepage-cta {
+  font-size: 15px;
+  padding: 16px 32px;
+  letter-spacing: 0.04em;
+}
+
+.btn-lg {
+  padding: 15px 26px;
+  font-size: 15px;
+  border-radius: var(--radius-md);
+}
+
+.homepage-body {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px 60px;
+}
+
+@media (max-width: 640px) {
+  .homepage-hero {
+    min-height: 52vh;
+  }
+  .homepage-hero-art {
+    opacity: 0.55;
+    mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.5) 40%, black 70%);
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.5) 40%, black 70%);
+  }
+  .homepage-hero-content {
+    padding: 28px 20px;
+    max-width: 100%;
+  }
+}
+
+/* ---------------------------------------------------------------------------
    Toast
 --------------------------------------------------------------------------- */
 
