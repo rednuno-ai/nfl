@@ -7,6 +7,9 @@ import { money, moneyCompact, STAGE_LABELS } from "../format";
 import { weeklySalary } from "@engine/contracts";
 import { TeamCrest } from "@ui/components/TeamCrest";
 import { PositionBadge } from "@ui/components/PositionBadge";
+import { NextEventCard } from "@ui/components/NextEventCard";
+import { CareerLadder } from "@ui/components/CareerLadder";
+import { AnimatedNumber } from "@ui/components/AnimatedNumber";
 
 function currentSchoolOrTeamLabel(state: CareerState): string {
   if (state.stage === "high_school" || state.stage === "recruiting") return state.highSchool.schoolName;
@@ -41,7 +44,9 @@ export function DashboardScreen() {
       <div className="player-hero card">
         {crestSeed ? <TeamCrest seed={crestSeed.seed} label={crestSeed.label} size={56} /> : <PositionBadge position={state.player.position} size={56} />}
         <div className="player-hero-ovr">
-          <div className="player-hero-ovr-number">{overall}</div>
+          <div className="player-hero-ovr-number">
+            <AnimatedNumber value={overall} celebrate celebrateLabel="🏆 New Personal Best" />
+          </div>
           <div className="player-hero-ovr-label">OVR</div>
         </div>
         <div className="player-hero-info">
@@ -58,9 +63,17 @@ export function DashboardScreen() {
         </div>
       </div>
 
+      {state.stage !== "retired" && <CareerLadder state={state} />}
+
+      {(state.stage === "high_school" || state.stage === "college" || state.stage === "nfl_season" || state.stage === "nfl_offseason") && (
+        <NextEventCard nextGame={nextGame} ownCrestSeed={crestSeed} />
+      )}
+
       <div className="grid grid-3" style={{ marginBottom: 22 }}>
         <div className="stat-tile">
-          <div className="value">{Math.round(state.player.attributes.general.fame)}</div>
+          <div className="value">
+            <AnimatedNumber value={Math.round(state.player.attributes.general.fame)} />
+          </div>
           <div className="label">Fame</div>
         </div>
         <div className="stat-tile">
@@ -71,7 +84,9 @@ export function DashboardScreen() {
           <div className="label">Season Record</div>
         </div>
         <div className="stat-tile">
-          <div className="value">{moneyCompact(state.finance.netWorth)}</div>
+          <div className="value">
+            <AnimatedNumber value={Math.round(state.finance.netWorth)} format={moneyCompact} />
+          </div>
           <div className="label">Net Worth</div>
         </div>
       </div>
@@ -147,7 +162,9 @@ function AttributeSummary({ state }: { state: CareerState }) {
           <div className="attr-bar-track">
             <div className="attr-bar-fill" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
           </div>
-          <div className="attr-value">{Math.round(value)}</div>
+          <div className="attr-value">
+            <AnimatedNumber value={Math.round(value)} />
+          </div>
         </div>
       ))}
     </div>
