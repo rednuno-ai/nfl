@@ -54,7 +54,7 @@ export function AuthScreen() {
 
             <div className="field">
               <label>Username</label>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="adm" autoComplete="username" />
+              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Jordan_23" autoComplete="username" />
             </div>
 
             <div className="field">
@@ -63,7 +63,6 @@ export function AuthScreen() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••"
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
               />
             </div>

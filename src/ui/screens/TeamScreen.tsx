@@ -21,7 +21,10 @@ export function TeamScreen() {
                 {state.highSchool.schoolName} · {state.highSchool.city}, {state.highSchool.state}
               </p>
               <p className="faint">Coach: {state.highSchool.coachName}</p>
-              <p className="faint">Star Rating: {"★".repeat(state.highSchool.starRating)}{"☆".repeat(5 - state.highSchool.starRating)}</p>
+              <p className="faint">
+                Star Rating: {"★".repeat(state.highSchool.starRating)}
+                {"☆".repeat(5 - state.highSchool.starRating)} ({state.highSchool.starRating}/5)
+              </p>
             </div>
           </>
         ) : state.stage === "college" && college && state.college ? (

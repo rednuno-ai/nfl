@@ -15,6 +15,13 @@ const ASSET_ICON: Record<string, string> = {
   business: "🏢",
 };
 
+const ASSET_LABEL: Record<string, string> = {
+  house: "House",
+  car: "Car",
+  investment: "Investment",
+  business: "Business",
+};
+
 export function FinanceScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
   const f = state.finance;
@@ -51,7 +58,7 @@ export function FinanceScreen() {
       <div className="grid grid-2" style={{ alignItems: "start" }}>
         <div className="card">
           <div className="section-title">Assets</div>
-          {f.assets.length === 0 && <p className="faint">No assets yet.</p>}
+          {f.assets.length === 0 && <p className="faint">💼 No assets yet.</p>}
           <div className="list">
             {f.assets.map((a) => (
               <div className="list-item" key={a.id}>
@@ -64,7 +71,7 @@ export function FinanceScreen() {
                     </div>
                   </div>
                 </div>
-                <span className="badge">{a.type}</span>
+                <span className="badge">{ASSET_LABEL[a.type] ?? a.type}</span>
               </div>
             ))}
           </div>
@@ -84,7 +91,12 @@ export function FinanceScreen() {
                     </div>
                   </div>
                 </div>
-                <button className="btn btn-sm" disabled={f.cash < asset.value} onClick={() => gameStore.getState().purchaseAsset(asset)}>
+                <button
+                  className="btn btn-sm"
+                  disabled={f.cash < asset.value}
+                  title={f.cash < asset.value ? `Need ${money(asset.value - f.cash)} more` : undefined}
+                  onClick={() => gameStore.getState().purchaseAsset(asset)}
+                >
                   Buy
                 </button>
               </div>
@@ -94,7 +106,7 @@ export function FinanceScreen() {
 
         <div className="card">
           <div className="section-title">Sponsorships</div>
-          {f.sponsorships.length === 0 && <p className="faint">No active sponsorships. Build your fame to attract offers.</p>}
+          {f.sponsorships.length === 0 && <p className="faint">🤝 No active sponsorships. Build your fame to attract offers.</p>}
           <div className="list">
             {f.sponsorships.map((s) => (
               <div className="list-item" key={s.id}>

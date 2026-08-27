@@ -14,6 +14,13 @@ const TONE_ICON: Record<string, string> = {
   neutral: "📰",
 };
 
+const TONE_LABEL: Record<string, string> = {
+  positive: "Positive",
+  negative: "Negative",
+  controversial: "Controversial",
+  neutral: "Neutral",
+};
+
 export function NewsScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
 
@@ -33,7 +40,7 @@ export function NewsScreen() {
                   {n.headline}
                 </div>
                 <div className="news-meta">
-                  {n.source} · Week {n.week} · <span className={`badge ${TONE_BADGE[n.tone]}`}>{n.tone}</span>
+                  {n.source} · Week {n.week} · <span className={`badge ${TONE_BADGE[n.tone]}`}>{TONE_LABEL[n.tone] ?? n.tone}</span>
                 </div>
                 <div className="news-body">{n.body}</div>
                 {n.requiresResponse && !n.responded && (
@@ -43,7 +50,7 @@ export function NewsScreen() {
                 )}
               </div>
             ))}
-            {state.news.length === 0 && <p className="faint">No coverage yet — keep playing to build a story.</p>}
+            {state.news.length === 0 && <p className="faint">📰 No coverage yet — keep playing to build a story.</p>}
           </div>
         </div>
 
@@ -61,7 +68,7 @@ export function NewsScreen() {
                 </div>
               </div>
             ))}
-            {state.socialFeed.length === 0 && <p className="faint">Nothing trending yet.</p>}
+            {state.socialFeed.length === 0 && <p className="faint">💬 Nothing trending yet.</p>}
           </div>
         </div>
       </div>

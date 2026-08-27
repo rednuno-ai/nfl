@@ -45,10 +45,12 @@ export function CreatePlayerScreen() {
 
   function goToAttributes() {
     if (!canSubmitBio) return;
-    // Points spent on the previous position (if the player went back and
-    // changed position) don't carry over cleanly onto a different attribute
-    // set, so reset the allocation whenever attributes step is (re)entered
-    // for a position that has no matching slots recorded yet.
+    // No reset needed here: pointsSpent/applyPointBuy only ever read the
+    // *current* position's own slots (see POINT_BUY_SLOTS[position] above),
+    // so a leftover allocation keyed to a different position's path is just
+    // inert data — and if the new position happens to share a path with the
+    // old one (e.g. "physical.speed" on both RB and WR), carrying that
+    // allocation over is the correct, expected behavior, not a bug.
     setStep("attributes");
   }
 
