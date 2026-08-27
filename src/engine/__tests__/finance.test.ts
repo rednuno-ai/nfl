@@ -41,4 +41,22 @@ describe("finance", () => {
     const { state: withAsset } = purchaseAsset(funded, { name: "House", type: "house", value: 500_000, weeklyUpkeep: 200, weeklyReturn: 0 }, 1);
     assert.equal(withAsset.netWorth, withAsset.cash + 500_000 - withAsset.debt);
   });
+
+  it("routes a cash shortfall into debt instead of letting cash go negative", () => {
+    const state = { ...emptyFinanceState(), cash: 30 }; // weeklyExpenses: 50, so this tick runs a 20 shortfall
+    const { state: next, log } = weeklyFinanceTick(state);
+    assert.equal(next.cash, 0, "cash should floor at 0, never go negative");
+    assert.equal(next.debt, 20, "the shortfall should be recorded as debt");
+    assert.ok(log.some((l) => l.toLowerCase().includes("debt")));
+    // Net worth math must be identical to the old behavior (cash going to -20,
+    // debt staying 0) — moving the shortfall into debt is a pure relabeling.
+    assert.equal(next.netWorth, -20);
+  });
+
+  it("does not touch debt when cash comfortably covers expenses", () => {
+    const state = emptyFinanceState();
+    const { state: next } = weeklyFinanceTick(state);
+    assert.equal(next.debt, 0);
+    assert.ok(next.cash >= 0);
+  });
 });
