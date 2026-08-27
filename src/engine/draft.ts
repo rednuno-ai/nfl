@@ -58,8 +58,11 @@ export function resolveDraft(projection: DraftProjection, year: number, rng: RNG
     return { year, round: 0, pick: 0, teamId: null };
   }
 
-  // Map stock roll (12-100) onto overall pick 1-262 (32 teams x ~7-8 rounds incl. compensatory).
-  const overallPick = Math.max(1, Math.round(262 - (stockRoll / 100) * 262));
+  // Map stock roll (12-100) onto overall pick 1-224 (32 teams x 7 rounds).
+  // Keep this in sync with the /32 below — a wider pick range with the round
+  // still clamped to 7 used to let picks past 224 report a round number that
+  // didn't actually match their own pick number (e.g. "Round 7, Pick 231").
+  const overallPick = Math.max(1, Math.round(224 - (stockRoll / 100) * 224));
   const round = Math.min(7, Math.max(1, Math.ceil(overallPick / 32)));
   const teamPool = projection.interestedTeamIds.length > 0 ? projection.interestedTeamIds : TEAMS.map((t) => t.id);
   const teamId = rng.pick(teamPool);

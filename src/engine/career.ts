@@ -1096,7 +1096,7 @@ function handleNFLSeasonEnd(state: CareerState): CareerState {
   // Playoffs.
   const teamOverall = state.team ? (state.team.prestige + state.team.rosterStrength) / 2 : 50;
   if (state.team && qualifiesForPlayoffsWrapper(next)) {
-    const { result: playoff, rngState } = withRng(next, (rng) => simulatePlayoffRun(teamOverall, rng));
+    const { result: playoff, rngState } = withRng(next, (rng) => simulatePlayoffRun(teamOverall, rng, overall(next.player)));
     next = { ...next, rngState, playoffResult: playoff };
     if (playoff.wonSuperBowl) {
       statHistory = statHistory.map((s, i) => (i === statHistory.length - 1 ? { ...s, championshipWon: true } : s));
