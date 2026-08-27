@@ -50,6 +50,19 @@ export default function App() {
     <div className="app-shell">
       <Sidebar active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} onExit={() => gameStore.getState().backToCareerSelect()} />
       <main className="app-main">
+        <header className="season-hud" aria-label="Career status">
+          <div className="season-hud-title">
+            <span className="season-hud-live" aria-hidden="true" />
+            LIVE CAREER
+          </div>
+          <div className="season-hud-status">
+            <span>{activeCareer.seasonYear} SEASON</span>
+            <span className="season-hud-divider" aria-hidden="true">•</span>
+            <span>WEEK {activeCareer.weekInSeason}</span>
+            <span className="season-hud-divider" aria-hidden="true">•</span>
+            <span className="season-hud-screen">{screen.replace("-", " ")}</span>
+          </div>
+        </header>
         {interaction?.type === "game" ? (
           <GameDayView
             game={interaction.game}

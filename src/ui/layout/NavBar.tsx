@@ -11,7 +11,7 @@ interface NavEntry {
 // pass so the sidebar reads like an organization instead of a settings menu.
 export const NAV_ENTRIES: NavEntry[] = [
   { id: "dashboard", label: "Home", icon: "🏠" },
-  { id: "stats", label: "Training", icon: "🏋️" },
+  { id: "stats", label: "Stats", icon: "📊" },
   { id: "team", label: "Stadium", icon: "🏟️" },
   { id: "finance", label: "Front Office", icon: "💼" },
   { id: "relationships", label: "People", icon: "🤝" },

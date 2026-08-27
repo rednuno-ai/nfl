@@ -42,6 +42,19 @@ export function DashboardScreen() {
 
   return (
     <div>
+      <div className="dashboard-intro">
+        <div>
+          <div className="screen-eyebrow">CAREER COMMAND CENTER</div>
+          <div className="dashboard-intro-copy">Your next rep can change the whole story.</div>
+        </div>
+        <div className="dashboard-intro-record" aria-label={`Season record ${state.seasonRecord.wins} wins, ${state.seasonRecord.losses} losses`}>
+          <span>SEASON RECORD</span>
+          <strong>
+            {state.seasonRecord.wins}-{state.seasonRecord.losses}
+            {state.seasonRecord.ties ? `-${state.seasonRecord.ties}` : ""}
+          </strong>
+        </div>
+      </div>
       {/* Command-center row: the player and "what do I do right now" side by
           side, so both are visible at a glance instead of the player card
           sitting alone above a wall of stats. Stacks on narrow screens. */}
