@@ -92,6 +92,19 @@ function buildGameStory(log: GameSimState["log"], teamLabel: string, opponentLab
   return lines;
 }
 
+// "Feel the rewards": when a just-revealed log entry is a player scoring
+// play, we pop a short-lived celebration banner. It only ever shows numbers
+// that are already real (the score before/after that log entry) — no
+// fabricated XP or overall-rating bump, since neither actually changes
+// mid-play in this engine. The celebration is purely presentational sugar
+// on top of state that was already true.
+interface Celebration {
+  key: number;
+  headline: string;
+  scoreBefore: number;
+  scoreAfter: number;
+}
+
 export function GameDayView({
   game,
   opponentLabel,
@@ -108,7 +121,10 @@ export function GameDayView({
   const [revealedCount, setRevealedCount] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [paused, setPaused] = useState(false);
+  const [celebration, setCelebration] = useState<Celebration | null>(null);
   const finishedNotifiedRef = useRef(false);
+  const prevRevealedRef = useRef(0);
+  const celebrationSeqRef = useRef(0);
 
   const gameKey = `${game.week}-${game.teamId}-${game.opponentId}`;
   const gameKeyRef = useRef(gameKey);
@@ -116,8 +132,10 @@ export function GameDayView({
     if (gameKeyRef.current !== gameKey) {
       gameKeyRef.current = gameKey;
       finishedNotifiedRef.current = false;
+      prevRevealedRef.current = 0;
       setRevealedCount(0);
       setPaused(false);
+      setCelebration(null);
     }
   }, [gameKey]);
 
@@ -130,6 +148,42 @@ export function GameDayView({
     const id = setTimeout(() => setRevealedCount((c) => Math.min(c + 1, totalEntries)), SPEED_MS[speed]);
     return () => clearTimeout(id);
   }, [paused, caughtUp, revealedCount, speed, totalEntries]);
+
+  // Whenever the reveal cursor moves forward, check the newly-revealed slice
+  // for a player touchdown — that's the one moment worth interrupting the
+  // ticker for. Runs off revealedCount (not a per-entry effect) so it fires
+  // exactly once per reveal step, matching the pace the play-by-play itself
+  // advances at.
+  useEffect(() => {
+    const from = prevRevealedRef.current;
+    prevRevealedRef.current = revealedCount;
+    if (revealedCount <= from) return;
+    // Search from the end so, if several entries land in one reveal step
+    // (e.g. after a speed change), the most recent touchdown wins.
+    let foundIndex = -1;
+    for (let i = revealedCount - 1; i >= from; i--) {
+      const e = game.log[i];
+      if (e.scoringPlay && e.possession === "player" && e.text.toLowerCase().includes("touchdown")) {
+        foundIndex = i;
+        break;
+      }
+    }
+    if (foundIndex === -1) return;
+    const scoreBefore = foundIndex > 0 ? game.log[foundIndex - 1].scorePlayerAfter : 0;
+    celebrationSeqRef.current += 1;
+    setCelebration({
+      key: celebrationSeqRef.current,
+      headline: "🔥 TOUCHDOWN!",
+      scoreBefore,
+      scoreAfter: game.log[foundIndex].scorePlayerAfter,
+    });
+  }, [revealedCount, game.log]);
+
+  useEffect(() => {
+    if (!celebration) return;
+    const id = setTimeout(() => setCelebration(null), 2200);
+    return () => clearTimeout(id);
+  }, [celebration]);
 
   // Once the reveal has caught up to a finished game, fold the result into
   // the career exactly once.
@@ -161,7 +215,16 @@ export function GameDayView({
     latest && latest.down >= 1 ? clamp(possessionIsPlayer ? ballDisplay + latest.distance : ballDisplay - latest.distance, 0, 100) : null;
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
+      {celebration && (
+        <div className="td-celebration" key={celebration.key}>
+          <div className="td-celebration-headline">{celebration.headline}</div>
+          <div className="td-celebration-score">
+            {celebration.scoreBefore} → {celebration.scoreAfter}
+          </div>
+        </div>
+      )}
+
       <div className="page-title">Game Day</div>
       <div className="page-subtitle">
         Week {game.week} · vs {opponentLabel}
