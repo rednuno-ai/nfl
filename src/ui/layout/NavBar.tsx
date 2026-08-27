@@ -6,15 +6,18 @@ interface NavEntry {
   icon: string;
 }
 
+// Reframed as "departments" of the player's world rather than app menu items
+// — same screens, same routing (ScreenId is untouched), just a label/icon
+// pass so the sidebar reads like an organization instead of a settings menu.
 export const NAV_ENTRIES: NavEntry[] = [
-  { id: "dashboard", label: "Home", icon: "🏈" },
-  { id: "team", label: "Team", icon: "🛡" },
-  { id: "stats", label: "Stats", icon: "📊" },
-  { id: "finance", label: "Finance", icon: "💰" },
+  { id: "dashboard", label: "Home", icon: "🏠" },
+  { id: "stats", label: "Training", icon: "🏋️" },
+  { id: "team", label: "Stadium", icon: "🏟️" },
+  { id: "finance", label: "Front Office", icon: "💼" },
   { id: "relationships", label: "People", icon: "🤝" },
   { id: "news", label: "News", icon: "📰" },
   { id: "legacy", label: "Legacy", icon: "🏆" },
-  { id: "settings", label: "Settings", icon: "⚙" },
+  { id: "settings", label: "Profile", icon: "👤" },
 ];
 
 export function Sidebar({ active, onNavigate, onExit }: { active: ScreenId; onNavigate: (id: ScreenId) => void; onExit: () => void }) {
