@@ -1,13 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGameStore, gameStore } from "@store/gameStore";
 import { STAGE_LABELS } from "../format";
 import { FREE_TIER_CAREER_LIMIT } from "@data/index";
 import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
 import { PositionBadge } from "@ui/components/PositionBadge";
+import { ConfirmModal } from "@ui/components/ConfirmModal";
 
 export function CareerSelectScreen() {
   const careers = useGameStore((s) => s.careers);
   const loading = useGameStore((s) => s.loading);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; playerName: string } | null>(null);
 
   useEffect(() => {
     void gameStore.getState().refreshCareers();
@@ -45,9 +47,7 @@ export function CareerSelectScreen() {
                   className="btn btn-sm btn-ghost"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Delete ${c.playerName}'s career permanently? This can't be undone.`)) {
-                      void gameStore.getState().deleteCareer(c.id);
-                    }
+                    setPendingDelete({ id: c.id, playerName: c.playerName });
                   }}
                 >
                   Delete
@@ -70,6 +70,20 @@ export function CareerSelectScreen() {
           <InviteFriendsCard />
         </div>
       </div>
+
+      {pendingDelete && (
+        <ConfirmModal
+          title="Delete this career?"
+          body={`This permanently deletes ${pendingDelete.playerName}'s career — every season, stat, and save. This can't be undone.`}
+          confirmLabel="Delete Career"
+          danger
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            void gameStore.getState().deleteCareer(pendingDelete.id);
+            setPendingDelete(null);
+          }}
+        />
+      )}
     </div>
   );
 }

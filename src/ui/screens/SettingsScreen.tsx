@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useGameStore, gameStore } from "@store/gameStore";
 import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
+import { ConfirmModal } from "@ui/components/ConfirmModal";
 
 export function SettingsScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
   const session = useGameStore((s) => s.session);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   return (
     <div>
@@ -27,21 +30,28 @@ export function SettingsScreen() {
 
       <div className="card">
         <div className="section-title">⚠️ Danger Zone</div>
-        <button
-          className="btn"
-          onClick={() => {
-            if (confirm("Delete this career permanently?")) {
-              void gameStore.getState().deleteCareer(state.id);
-              gameStore.getState().backToCareerSelect();
-            }
-          }}
-        >
+        <button className="btn" onClick={() => setConfirmingDelete(true)}>
           Delete This Career
         </button>
         <button className="btn btn-ghost" style={{ marginLeft: 10 }} onClick={() => gameStore.getState().backToCareerSelect()}>
           Switch Career
         </button>
       </div>
+
+      {confirmingDelete && (
+        <ConfirmModal
+          title="Delete this career?"
+          body={`This permanently deletes ${state.player.bio.firstName} ${state.player.bio.lastName}'s career — every season, stat, and save. This can't be undone.`}
+          confirmLabel="Delete Career"
+          danger
+          onCancel={() => setConfirmingDelete(false)}
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            void gameStore.getState().deleteCareer(state.id);
+            gameStore.getState().backToCareerSelect();
+          }}
+        />
+      )}
     </div>
   );
 }
