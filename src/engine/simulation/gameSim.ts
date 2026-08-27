@@ -1754,6 +1754,7 @@ function applyStatFromPlay(state: GameSimState, position: Position, offenseIsPla
           if (touchdown) stat.passTDs += 1;
         }
         if (interception) stat.interceptionsThrown += 1;
+        if (fumble) stat.fumbles += 1;
       }
     } else if (position === "RB") {
       if (playType === "run") {
