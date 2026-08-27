@@ -1402,3 +1402,253 @@ h4 {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
+
+/* -----------------------------------------------------------------------
+   "NEXT EVENT" card — the Dashboard's first decision point, above stats
+----------------------------------------------------------------------- */
+
+.next-event-card {
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(255, 90, 54, 0.14), transparent 60%), var(--bg-card);
+  border: 1px solid var(--border-strong);
+}
+
+.next-event-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--accent-strong);
+  margin-bottom: 12px;
+}
+
+.next-event-matchup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.next-event-matchup-plain {
+  align-items: center;
+}
+
+.next-event-vs {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-faint);
+}
+
+.next-event-opponent-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+.next-event-crest-placeholder {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.next-event-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.next-event-training-icon {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.next-event-training-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.next-event-cta {
+  font-weight: 800;
+}
+
+/* -----------------------------------------------------------------------
+   Career ladder — a constant "am I climbing?" strip above the next event
+----------------------------------------------------------------------- */
+
+.career-ladder {
+  margin: 4px 0 20px;
+}
+
+.career-ladder-track {
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  padding-top: 22px;
+}
+
+.career-ladder-stop {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+}
+
+.career-ladder-stop:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.career-ladder-stop.is-done:not(:last-child)::after {
+  background: var(--green);
+}
+
+.career-ladder-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-strong);
+  position: relative;
+  z-index: 1;
+}
+
+.career-ladder-stop.is-done .career-ladder-dot {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.career-ladder-stop.is-active .career-ladder-dot {
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 4px rgba(255, 90, 54, 0.22);
+}
+
+.career-ladder-label {
+  margin-top: 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.career-ladder-stop.is-done .career-ladder-label {
+  color: var(--text-dim);
+}
+
+.career-ladder-stop.is-active .career-ladder-label {
+  color: var(--accent-strong);
+}
+
+.career-ladder-you-are-here {
+  position: absolute;
+  top: -2px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--accent-strong);
+  white-space: nowrap;
+  animation: you-are-here-bounce 1.8s ease-in-out infinite;
+}
+
+@keyframes you-are-here-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.career-ladder-caption {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+
+/* -----------------------------------------------------------------------
+   Animated numbers — a stat that just changed briefly shows its delta and,
+   optionally, celebrates a new session-best (see AnimatedNumber.tsx)
+----------------------------------------------------------------------- */
+
+.animated-number {
+  position: relative;
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+.animated-number-delta {
+  position: absolute;
+  left: 100%;
+  top: -1px;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 5px;
+  white-space: nowrap;
+  animation: stat-delta-pop 1.8s ease forwards;
+  pointer-events: none;
+}
+
+.animated-number-delta.is-up {
+  background: rgba(62, 207, 142, 0.18);
+  color: var(--green);
+}
+
+.animated-number-delta.is-down {
+  background: rgba(239, 87, 87, 0.18);
+  color: var(--red);
+}
+
+@keyframes stat-delta-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.animated-number-best {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--gold);
+  background: rgba(232, 179, 74, 0.16);
+  border: 1px solid rgba(232, 179, 74, 0.4);
+  border-radius: 999px;
+  padding: 2px 8px;
+  animation: stat-delta-pop 2.4s ease forwards;
+  pointer-events: none;
+}
