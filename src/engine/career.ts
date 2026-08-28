@@ -54,7 +54,7 @@ import {
 import { beginGame, advanceGame, type BeginGameInput, type GameSimState } from "./simulation/gameSim";
 import { generateCombineScores, generateDraftProjection, resolveDraft, rookieContractValue } from "./draft";
 import { advanceContractYear, buildContract, checkPerformanceRelease, generateFreeAgencyOffers, isContractExpired, weeklySalary, type FreeAgencyOffer } from "./contracts";
-import { emptyFinanceState, applyIncome, weeklyFinanceTick, purchaseAsset, addSponsorship, generateSponsorshipOffer } from "./finance";
+import { emptyFinanceState, applyIncome, weeklyFinanceTick, purchaseAsset, addSponsorship, generateSponsorshipOffer, MAX_ACTIVE_SPONSORSHIPS } from "./finance";
 import { generatePerformanceNews, generateSocialPost } from "./news";
 import { rollForInjury, tickInjuryRecovery, injuryTagFor } from "./injury";
 import { addStatLine, sumStatLines } from "./stats";
@@ -68,10 +68,14 @@ export const NFL_SEASON_WEEKS = 17;
 export const NFL_OFFSEASON_WEEKS = 6;
 
 export interface TrainingFocusChoice {
-  id: TrainingFocus;
+  id: TrainingSelection;
   label: string;
   description: string;
 }
+
+/** Training is always a player choice. "skip" means no attribute gain this
+ * week, preserving the trade-off instead of forcing a workout every turn. */
+export type TrainingSelection = TrainingFocus | "skip";
 
 // Every trainable week the player picks how to spend their practice time
 // before the rest of the week (narrative event / game / offseason work)
@@ -85,6 +89,7 @@ export const TRAINING_FOCUS_CHOICES: TrainingFocusChoice[] = [
   { id: "mental", label: "Film Room", description: "Focuses on decision-making, composure, and handling pressure." },
   { id: "position_specific", label: "Position-Specific Work", description: "Focuses on your position's key attributes." },
   { id: "recovery", label: "Active Recovery", description: "Reduces fatigue and injury risk; slower attribute gains." },
+  { id: "skip", label: "Skip Training", description: "Take the week for life off the field. No attribute gain this week." },
 ];
 
 export type Interaction =
@@ -138,7 +143,7 @@ export interface CareerState {
   eventMemory: { firedAt: [string, number][]; firedOnce: string[] };
   narrativeRolledForWeek: number;
   trainingFocusChosenForWeek: number;
-  pendingTrainingFocus: TrainingFocus | null;
+  pendingTrainingFocus: TrainingSelection | null;
   interaction: Interaction;
   decisionHistory: ResolvedDecision[];
   achievements: Achievement[];
@@ -398,7 +403,7 @@ export function resolveDecision(state: CareerState, choiceId: string): CareerSta
 // -----------------------------------------------------------------------------
 
 export interface AdvanceWeekOptions {
-  trainingFocus?: TrainingFocus;
+  trainingFocus?: TrainingSelection;
 }
 
 const TRAINABLE_STAGES: CareerStage[] = ["high_school", "college", "nfl_season", "nfl_offseason"];
@@ -439,7 +444,9 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
   // 3) Off week: apply training, then finish the week.
   let next = state;
   if (state.stage !== "draft" && state.stage !== "recruiting") {
-    next = applyTrainingTick(next, options.trainingFocus ?? state.pendingTrainingFocus ?? "recovery");
+    const selection = options.trainingFocus ?? state.pendingTrainingFocus ?? "recovery";
+    if (selection !== "skip") next = applyTrainingTick(next, selection);
+    else next = log(next, "Skipped training this week to focus on life off the field.");
   }
   return finishWeekProcessing(next, isGameStage && !!scheduleEntry === false);
 }
@@ -447,7 +454,7 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
 /** Resolves the weekly "training" interaction, then immediately continues
  *  the rest of that week's processing (narrative roll / game / off week)
  *  with the chosen focus in effect. */
-export function chooseTrainingFocus(state: CareerState, focus: TrainingFocus): CareerState {
+export function chooseTrainingFocus(state: CareerState, focus: TrainingSelection): CareerState {
   if (!state.interaction || state.interaction.type !== "training") return state;
   const next: CareerState = {
     ...state,
@@ -677,12 +684,14 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
     const college = state.stage === "college" && state.college ? getCollege(state.college.collegeId) : null;
     const devRate = college ? college.developmentRate : 1;
     const focus = state.pendingTrainingFocus ?? "position_specific";
-    const { result: practiceResult, rngState: rngState3 } = withRng({ ...state, rngState: rngState2 }, (rng) =>
-      applyTraining(player.attributes, focus, 0.5, devRate, rng, positionSpecificPaths(player))
-    );
-    const attributes = applyAttributeDelta(practiceResult.attributes, "general.morale", practiceResult.moraleDelta * 0.5);
-    player = { ...player, attributes };
-    finalRngState = rngState3;
+    if (focus !== "skip") {
+      const { result: practiceResult, rngState: rngState3 } = withRng({ ...state, rngState: rngState2 }, (rng) =>
+        applyTraining(player.attributes, focus, 0.5, devRate, rng, positionSpecificPaths(player))
+      );
+      const attributes = applyAttributeDelta(practiceResult.attributes, "general.morale", practiceResult.moraleDelta * 0.5);
+      player = { ...player, attributes };
+      finalRngState = rngState3;
+    }
   }
 
   // In-game injury risk. Narrative-event injuryChance consequences (see
@@ -1118,9 +1127,11 @@ function handleNFLSeasonEnd(state: CareerState): CareerState {
 
   // Sponsorship opportunity check.
   if (next.player.attributes.general.fame >= 20) {
-    const { result: sponsorship, rngState } = withRng(next, (rng) => generateSponsorshipOffer(next.player.attributes.general.fame, next.player.attributes.general.reputation, rng));
+    const { result: sponsorship, rngState } = withRng(next, (rng) =>
+      generateSponsorshipOffer(next.player.attributes.general.fame, next.player.attributes.general.reputation, rng, next.finance.sponsorships.map((s) => s.brand))
+    );
     next = { ...next, rngState };
-    if (sponsorship && next.finance.sponsorships.length < 3) {
+    if (sponsorship && next.finance.sponsorships.length < MAX_ACTIVE_SPONSORSHIPS) {
       next = { ...next, finance: addSponsorship(next.finance, sponsorship, next.totalWeek) };
       next = log(next, `New sponsorship deal with ${sponsorship.brand}.`);
     }
@@ -1205,7 +1216,56 @@ export function retireCareer(state: CareerState): CareerState {
 export function buyAsset(state: CareerState, asset: Parameters<typeof purchaseAsset>[1]): CareerState {
   const { state: finance, ok } = purchaseAsset(state.finance, asset, state.totalWeek);
   if (!ok) return state;
-  return log({ ...state, finance }, `Purchased ${asset.name} for $${asset.value.toLocaleString()}.`);
+  const tags = new Set(state.tags);
+  if (asset.type === "car") tags.add(asset.value >= 85_000 ? "owns_luxury_car" : "owns_car");
+  if (asset.type === "house") tags.add(asset.value >= 1_000_000 ? "owns_luxury_home" : "owns_house");
+  if (asset.type === "investment") tags.add("has_investments");
+  return log({ ...state, finance, tags: [...tags] }, `Purchased ${asset.name} for $${asset.value.toLocaleString()}.`);
+}
+
+const PARTNER_NAMES = ["Maya Brooks", "Avery Cole", "Jordan Ellis", "Riley Grant", "Morgan Hayes", "Taylor Monroe"];
+
+/** Player-led relationship decisions: a career never creates or replaces a
+ * partner automatically. The player explicitly starts, changes, or ends it. */
+export function startOrChangePartner(state: CareerState): CareerState {
+  if (state.player.bio.age < 17) return state;
+  const name = PARTNER_NAMES[state.totalWeek % PARTNER_NAMES.length];
+  const relationships = [
+    ...state.relationships.filter((r) => r.type !== "partner"),
+    { id: `rel_partner_${state.totalWeek}`, name, type: "partner" as const, value: 58, tags: ["player_choice"], history: [{ week: state.totalWeek, note: "You chose to begin a relationship." }] },
+  ];
+  const tags = Array.from(new Set([...state.tags.filter((t) => t !== "married"), "in_relationship"]));
+  return log({ ...state, relationships, tags }, `You chose to start a relationship with ${name}.`);
+}
+
+export function endPartnerRelationship(state: CareerState): CareerState {
+  const partner = state.relationships.find((r) => r.type === "partner");
+  if (!partner) return state;
+  return log(
+    { ...state, relationships: state.relationships.filter((r) => r.type !== "partner"), tags: state.tags.filter((t) => t !== "in_relationship" && t !== "married") },
+    `You chose to end your relationship with ${partner.name}.`
+  );
+}
+
+export function handlePaparazzi(state: CareerState, approach: "private" | "embrace"): CareerState {
+  const mediaDelta = approach === "private" ? -2 : 4;
+  const relationships = bumpRelationship(state, "media", mediaDelta);
+  const player = {
+    ...state.player,
+    attributes: applyAttributeDelta(state.player.attributes, "general.reputation", approach === "private" ? 1 : 3),
+  };
+  const item: NewsItem = {
+    id: `news_press_${state.totalWeek}`,
+    week: state.totalWeek,
+    headline: approach === "private" ? "Player keeps private life out of the spotlight" : "Player embraces the spotlight after a night out",
+    body: approach === "private" ? "A calm response cooled the story before it could grow." : "The appearance puts the player at the center of the week's conversation.",
+    tone: approach === "private" ? "neutral" : "controversial",
+    source: "Cityline Sports",
+    requiresResponse: false,
+    responded: false,
+    tags: ["paparazzi"],
+  };
+  return log({ ...state, player, relationships, news: [item, ...state.news].slice(0, 100) }, `You chose how to handle the paparazzi.`);
 }
 
 export function respondToNews(state: CareerState, newsId: string): CareerState {

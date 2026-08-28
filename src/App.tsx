@@ -16,6 +16,7 @@ import { TeamScreen } from "@ui/screens/TeamScreen";
 import { DecisionModal } from "@ui/components/DecisionModal";
 import { TrainingModal } from "@ui/components/TrainingModal";
 import { GameDayView } from "@ui/components/GameDayView";
+import { LifeCinematic } from "@ui/components/LifeCinematic";
 
 export default function App() {
   const session = useGameStore((s) => s.session);
@@ -23,6 +24,7 @@ export default function App() {
   const activeCareer = useGameStore((s) => s.activeCareer);
   const screen = useGameStore((s) => s.screen);
   const toast = useGameStore((s) => s.toast);
+  const cinematic = useGameStore((s) => s.cinematic);
 
   useEffect(() => {
     if (!toast) return;
@@ -83,6 +85,7 @@ export default function App() {
       {interaction?.type === "training" && (
         <TrainingModal week={interaction.week} options={interaction.options} onChoose={(focusId) => gameStore.getState().chooseTraining(focusId)} />
       )}
+      {cinematic && <LifeCinematic {...cinematic} onClose={() => gameStore.getState().dismissCinematic()} />}
 
       {toast && (
         <div className="toast" onClick={() => gameStore.getState().dismissToast()}>

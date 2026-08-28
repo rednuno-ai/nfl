@@ -20,14 +20,19 @@ import {
   retireCareer,
   signWithTeam,
   buyAsset,
+  endPartnerRelationship,
+  handlePaparazzi,
   respondToNews,
+  startOrChangePartner,
   chooseTrainingFocus,
+  type TrainingSelection,
   type AdvanceWeekOptions,
   type CareerState,
 } from "@engine/career";
 import type { CreatePlayerInput } from "@engine/player";
 import type { Asset } from "@engine/types";
-import type { TrainingFocus } from "@engine/aging";
+
+export type CinematicScene = "contract" | "garage" | "home" | "press";
 
 export type ScreenId =
   | "career-select"
@@ -53,6 +58,7 @@ export interface GameStoreState {
   loading: boolean;
   error: string | null;
   toast: string | null;
+  cinematic: { scene: CinematicScene; title: string; body: string } | null;
 
   registerAccount: (username: string, password: string, referralCode?: string) => Promise<void>;
   loginAccount: (username: string, password: string) => Promise<void>;
@@ -67,7 +73,7 @@ export interface GameStoreState {
 
   advance: (options?: AdvanceWeekOptions) => void;
   decide: (choiceId: string) => void;
-  chooseTraining: (focus: TrainingFocus) => void;
+  chooseTraining: (focus: TrainingSelection) => void;
   gameDecide: (optionId: string) => void;
   acknowledgeGameResult: () => void;
   commitCollege: (collegeId: string) => void;
@@ -75,6 +81,10 @@ export interface GameStoreState {
   retire: () => void;
   purchaseAsset: (asset: Omit<Asset, "id" | "purchasedWeek">) => void;
   respondNews: (newsId: string) => void;
+  startOrChangePartner: () => void;
+  endPartnerRelationship: () => void;
+  respondToPaparazzi: (approach: "private" | "embrace") => void;
+  dismissCinematic: () => void;
 
   navigate: (screen: ScreenId) => void;
   dismissToast: () => void;
@@ -136,6 +146,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   loading: false,
   error: null,
   toast: null,
+  cinematic: null,
 
   registerAccount: async (username, password, referralCode) => {
     set({ authBusy: true, authError: null });
@@ -242,7 +253,11 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   signFreeAgent: (teamId) => {
     const current = get().activeCareer;
     if (!current) return;
+    const team = current.freeAgencyOffers?.find((offer) => offer.teamId === teamId);
     applyCareer(get, set, signWithTeam(current, teamId));
+    if (team) {
+      set({ cinematic: { scene: "contract", title: "Deal Signed", body: `${team.contract.years} years. ${team.contract.totalValue.toLocaleString()} total value. Your next chapter starts now.` } });
+    }
   },
 
   retire: () => {
@@ -256,6 +271,15 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const current = get().activeCareer;
     if (!current) return;
     applyCareer(get, set, buyAsset(current, asset));
+    if (current.finance.cash >= asset.value && (asset.type === "car" || asset.type === "house")) {
+      set({
+        cinematic: {
+          scene: asset.type === "car" ? "garage" : "home",
+          title: asset.type === "car" ? "New Keys" : "Welcome Home",
+          body: `${asset.name} is now part of your life off the field.`,
+        },
+      });
+    }
   },
 
   respondNews: (newsId) => {
@@ -263,6 +287,34 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     if (!current) return;
     applyCareer(get, set, respondToNews(current, newsId));
   },
+
+  startOrChangePartner: () => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, startOrChangePartner(current));
+    set({ cinematic: { scene: "press", title: "Life, On Your Terms", body: "Your relationship choices belong to you — not the headlines." } });
+  },
+
+  endPartnerRelationship: () => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, endPartnerRelationship(current));
+  },
+
+  respondToPaparazzi: (approach) => {
+    const current = get().activeCareer;
+    if (!current) return;
+    applyCareer(get, set, handlePaparazzi(current, approach));
+    set({
+      cinematic: {
+        scene: "press",
+        title: approach === "private" ? "Hold The Line" : "Own The Moment",
+        body: approach === "private" ? "You kept the attention at a distance." : "You chose to control the story, not hide from it.",
+      },
+    });
+  },
+
+  dismissCinematic: () => set({ cinematic: null }),
 
   navigate: (screen) => {
     // While a game is live, GameDayView occupies the main area regardless of

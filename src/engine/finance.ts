@@ -107,17 +107,33 @@ export function recomputeNetWorth(state: FinanceState): FinanceState {
 }
 
 /** Suggested sponsorship offers scale with fame/reputation/performance. */
-export function generateSponsorshipOffer(fame: number, reputation: number, rng: { next: () => number }): Sponsorship | null {
+// Original fictional partners. The player can build a broad business portfolio
+// without the game needing real-world trademarks, logos, or endorsement deals.
+export const SPONSOR_BRANDS = [
+  "Apex Gear", "Ridgeline Motors", "Northstar Bank", "Voltix Energy", "Summit Eyewear", "Cinderfalls Grill", "Blaze Sportswear", "Ironclad Watches", "Crestline Mobile", "Sunbeam Coffee",
+  "Harbor & Pine", "Orbit Wireless", "Peak Protein", "Monarch Audio", "Rally Hydration", "Copperline Denim", "TrueNorth Travel", "Vanta Footwear", "Atlas Freight", "Brightline Insurance",
+  "Granite Tools", "Silverwing Air", "Everlane Outdoors", "Pulse Recovery", "Cobalt Home", "Wildwood Foods", "NovaPay", "Slate Grooming", "Arcade Auto", "Redwood Realty",
+  "Stadium Snacks", "Fable Media", "Momentum Fitness", "Lumen Skincare", "Crosswind Bikes", "Horizon Hotels", "Signal Sportsbook", "Fieldhouse Furniture", "Glacier Water", "Oxbow Workwear",
+  "Rocket Meal Kits", "Foundry Tech", "Kinetic Gaming", "Anchor Security", "Drift Travel", "Highline Nutrition", "Keystone Credit", "OpenRoad Electric", "Golden Hour Films", "Canyon Outdoors",
+] as const;
+
+export const MAX_ACTIVE_SPONSORSHIPS = 50;
+
+export function generateSponsorshipOffer(fame: number, reputation: number, rng: { next: () => number }, activeBrands: readonly string[] = []): Sponsorship | null {
   if (fame < 20) return null;
-  const brands = ["Apex Gear", "Ridgeline Motors", "Northstar Bank", "Voltix Energy", "Summit Eyewear", "Cinderfalls Grill", "Blaze Sportswear"];
-  const brand = brands[Math.floor(rng.next() * brands.length)];
+  const availableBrands = SPONSOR_BRANDS.filter((brand) => !activeBrands.includes(brand));
+  if (availableBrands.length === 0) return null;
+  const brand = availableBrands[Math.floor(rng.next() * availableBrands.length)];
   const scale = (fame * 0.7 + reputation * 0.3) / 100;
   const weeklyValue = Math.round(200 + scale * 4800 * (0.7 + rng.next() * 0.6));
   return {
     id: "",
     brand,
     weeklyValue,
-    weeksRemaining: 12 + Math.floor(rng.next() * 20),
+    // A single partner can arrive per career week. A 52-week term makes the
+    // 50-partner portfolio reachable instead of leaving the advertised cap
+    // mathematically impossible with short-lived deals.
+    weeksRemaining: 52,
     requiresFame: 20,
   };
 }
