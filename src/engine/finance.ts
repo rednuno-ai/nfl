@@ -8,8 +8,8 @@ import type { Asset, FinanceState, Sponsorship } from "./types";
 
 export function emptyFinanceState(): FinanceState {
   return {
-    cash: 500,
-    netWorth: 500,
+    cash: 1_000,
+    netWorth: 1_000,
     weeklyExpenses: 50,
     totalCareerEarnings: 0,
     totalTaxesPaid: 0,
