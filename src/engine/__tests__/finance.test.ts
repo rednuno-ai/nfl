@@ -3,6 +3,12 @@ import assert from "node:assert/strict";
 import { emptyFinanceState, applyIncome, purchaseAsset, weeklyFinanceTick, addSponsorship } from "../finance";
 
 describe("finance", () => {
+  it("starts a new career with the promised $1,000 budget", () => {
+    const state = emptyFinanceState();
+    assert.equal(state.cash, 1_000);
+    assert.equal(state.netWorth, 1_000);
+  });
+
   it("applies income net of a flat tax rate", () => {
     const state = emptyFinanceState();
     const { state: next, taxed, net } = applyIncome(state, 100_000, "test");

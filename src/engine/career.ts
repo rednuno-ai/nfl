@@ -52,6 +52,7 @@ import {
   type SeasonRecord,
 } from "./simulation/season";
 import { beginGame, advanceGame, type BeginGameInput, type GameSimState } from "./simulation/gameSim";
+import { getGameDayObjective, isGameDayObjectiveComplete } from "./gameObjectives";
 import { generateCombineScores, generateDraftProjection, resolveDraft, rookieContractValue } from "./draft";
 import { advanceContractYear, buildContract, checkPerformanceRelease, generateFreeAgencyOffers, isContractExpired, weeklySalary, type FreeAgencyOffer } from "./contracts";
 import { emptyFinanceState, applyIncome, weeklyFinanceTick, purchaseAsset, addSponsorship, generateSponsorshipOffer, MAX_ACTIVE_SPONSORSHIPS } from "./finance";
@@ -666,9 +667,14 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
   if (social) socialFeed = [social, ...socialFeed].slice(0, 100);
 
   const confidenceDelta = performanceScore >= 0.35 ? 4 : performanceScore <= -0.35 ? -4 : 0;
+  const gameDayObjective = getGameDayObjective(state.player.position, state.totalWeek);
+  const objectiveCompleted = isGameDayObjectiveComplete(gameDayObjective, game.stat, game.result);
   let player: Player = {
     ...state.player,
-    attributes: applyAttributeDeltas(state.player.attributes, [{ path: "general.confidence", delta: confidenceDelta }]),
+    attributes: applyAttributeDeltas(state.player.attributes, [
+      { path: "general.confidence", delta: confidenceDelta + (objectiveCompleted ? 3 : 0) },
+      ...(objectiveCompleted ? [{ path: "general.fame" as const, delta: 1 }] : []),
+    ]),
   };
 
   // Weekly practice: every scheduled week is a game day at every level (HS,
@@ -736,6 +742,10 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
     },
     logMsg
   );
+
+  if (objectiveCompleted) {
+    next = log(next, `Game Day Mission complete: ${gameDayObjective.title} (${gameDayObjective.rewardLabel}).`);
+  }
 
   if (injuries.length > state.injuries.length) {
     next = log(next, `Injury: ${injuries[injuries.length - 1].type} (out an estimated ${injuries[injuries.length - 1].recoveryWeeks} week(s)).`);

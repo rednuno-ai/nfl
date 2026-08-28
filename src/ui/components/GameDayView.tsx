@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameSimState, KeyMomentPrompt } from "@engine/simulation/gameSim";
+import { isGameDayObjectiveComplete, objectiveProgress, type GameDayObjective } from "@engine/gameObjectives";
 import { TeamCrest } from "@ui/components/TeamCrest";
 
 // =============================================================================
@@ -109,12 +110,14 @@ export function GameDayView({
   game,
   opponentLabel,
   teamLabel,
+  objective,
   onChoose,
   onFinished,
 }: {
   game: GameSimState;
   opponentLabel: string;
   teamLabel: string;
+  objective: GameDayObjective;
   onChoose: (optionId: string) => void;
   onFinished: () => void;
 }) {
@@ -200,6 +203,8 @@ export function GameDayView({
     () => (game.finished ? buildGameStory(game.log, teamLabel || "You", opponentLabel) : []),
     [game.finished, game.log, teamLabel, opponentLabel]
   );
+  const objectiveComplete = game.finished && isGameDayObjectiveComplete(objective, game.stat, game.result);
+  const objectiveValue = objective.id === "team_finish" ? (objectiveComplete ? objective.target : 0) : objectiveProgress(objective, game.stat);
 
   const decision = game.pendingDecision;
   const showDecision = caughtUp && !!decision;
@@ -230,6 +235,13 @@ export function GameDayView({
       <div className="page-title">Game Day</div>
       <div className="page-subtitle">
         Week {game.week} · vs {opponentLabel}
+      </div>
+
+      <div className={`gameday-objective ${objectiveComplete ? "is-complete" : ""}`} aria-label={`Game Day Mission: ${objective.title}`}>
+        <div className="gameday-objective-topline"><span>GAME DAY MISSION</span><strong>{objectiveComplete ? "COMPLETE" : `${objectiveValue}/${objective.target}`}</strong></div>
+        <div className="gameday-objective-title">{objective.title}</div>
+        <div className="gameday-objective-copy">{objective.description} <em>{objective.rewardLabel}</em></div>
+        <div className="gameday-objective-track"><div style={{ width: `${Math.min(100, (objectiveValue / objective.target) * 100)}%` }} /></div>
       </div>
 
       <div className="scoreboard">

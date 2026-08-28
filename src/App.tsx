@@ -17,6 +17,7 @@ import { DecisionModal } from "@ui/components/DecisionModal";
 import { TrainingModal } from "@ui/components/TrainingModal";
 import { GameDayView } from "@ui/components/GameDayView";
 import { LifeCinematic } from "@ui/components/LifeCinematic";
+import { getGameDayObjective } from "@engine/gameObjectives";
 
 export default function App() {
   const session = useGameStore((s) => s.session);
@@ -70,6 +71,7 @@ export default function App() {
             game={interaction.game}
             opponentLabel={interaction.game.opponentName}
             teamLabel={activeCareer.team ? `${activeCareer.team.city} ${activeCareer.team.name}` : "Your Team"}
+            objective={getGameDayObjective(activeCareer.player.position, activeCareer.totalWeek)}
             onChoose={(optionId) => gameStore.getState().gameDecide(optionId)}
             onFinished={() => gameStore.getState().acknowledgeGameResult()}
           />

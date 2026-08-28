@@ -10,6 +10,7 @@ import { PositionBadge } from "@ui/components/PositionBadge";
 import { NextEventCard } from "@ui/components/NextEventCard";
 import { CareerLadder } from "@ui/components/CareerLadder";
 import { AnimatedNumber } from "@ui/components/AnimatedNumber";
+import { getCareerJourney } from "@engine/careerJourney";
 
 function currentSchoolOrTeamLabel(state: CareerState): string {
   if (state.stage === "high_school" || state.stage === "recruiting") return state.highSchool.schoolName;
@@ -39,6 +40,7 @@ export function DashboardScreen() {
   const nextGame = state.schedule.find((s) => s.week === state.weekInSeason && !s.played);
   const crestSeed = currentCrestSeed(state);
   const showNextEvent = state.stage === "high_school" || state.stage === "college" || state.stage === "nfl_season" || state.stage === "nfl_offseason";
+  const journey = getCareerJourney(state);
 
   return (
     <div>
@@ -114,6 +116,22 @@ export function DashboardScreen() {
           <div className="label">🏆 Record</div>
         </div>
       </div>
+
+      <section className="card career-journey-card">
+        <div className="career-journey-heading">
+          <div><div className="life-card-kicker">CAREER JOURNEY</div><div className="section-title">{journey.chapter}</div></div>
+          <p>{journey.nextStep}</p>
+        </div>
+        <div className="career-pillars">
+          {journey.pillars.map((pillar) => (
+            <div className="career-pillar" key={pillar.label}>
+              <div className="career-pillar-label"><span>{pillar.label}</span><strong>{pillar.value}</strong></div>
+              <div className="career-pillar-track"><div style={{ width: `${pillar.value}%` }} /></div>
+              <small>{pillar.description}</small>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {state.stage === "recruiting" && <RecruitingBoard state={state} />}
       {state.stage === "draft" && <DraftRoom state={state} />}
