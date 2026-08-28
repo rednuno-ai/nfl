@@ -215,7 +215,9 @@ export function GameDayView({
     latest && latest.down >= 1 ? clamp(possessionIsPlayer ? ballDisplay + latest.distance : ballDisplay - latest.distance, 0, 100) : null;
 
   return (
-    <div style={{ position: "relative" }}>
+    <div className="game-day-cinematic" style={{ position: "relative" }}>
+      <div className="game-day-cinematic-art" aria-hidden="true" />
+      <div className="game-day-cinematic-content">
       {celebration && (
         <div className="td-celebration" key={celebration.key}>
           <div className="td-celebration-headline">{celebration.headline}</div>
@@ -367,6 +369,7 @@ export function GameDayView({
           </div>
         ))}
         {revealed.length === 0 && <div className="faint">Kickoff is coming up...</div>}
+      </div>
       </div>
     </div>
   );

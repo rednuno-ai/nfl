@@ -30,6 +30,13 @@ export function NewsScreen() {
       <div className="page-title">News &amp; Media</div>
       <p className="page-subtitle">What the world is saying about you.</p>
 
+      <div className="news-hero-art" aria-label="Original career editorial artwork">
+        <div className="news-hero-art-copy">
+          <span>THE STORY SO FAR</span>
+          <strong>Your career is bigger than the box score.</strong>
+        </div>
+      </div>
+
       <div className="grid grid-2" style={{ alignItems: "start" }}>
         <div className="card">
           <div className="section-title">Press</div>
