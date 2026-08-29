@@ -75,8 +75,9 @@ export default function App() {
     <div className="app-shell">
       <a className="skip-link" href="#game-main">Skip to game content</a>
       <Sidebar active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} onExit={() => gameStore.getState().backToCareerSelect()} />
-      <main id="game-main" className="app-main" tabIndex={-1}>
-        <header className="season-hud" aria-label="Career status">
+      <div className="app-content">
+        <main id="game-main" className="app-main" tabIndex={-1}>
+          <header className="season-hud" aria-label="Career status">
           <div className="season-hud-title">
             <span className="season-hud-live" aria-hidden="true" />
             LIVE CAREER
@@ -89,7 +90,7 @@ export default function App() {
             <span className="season-hud-screen">{screen.replace("-", " ")}</span>
           </div>
         </header>
-        {interaction?.type === "game" ? (
+          {interaction?.type === "game" ? (
           <GameDayView
             game={interaction.game}
             opponentLabel={interaction.game.opponentName}
@@ -100,17 +101,18 @@ export default function App() {
             onChoose={(optionId) => gameStore.getState().gameDecide(optionId)}
             onFinished={() => gameStore.getState().acknowledgeGameResult()}
           />
-        ) : (
+          ) : (
           <div key={screen} className="screen-fade">
             <ScreenRouter screen={screen} />
           </div>
-        )}
-      </main>
+          )}
+        </main>
+        <footer className="app-footer">
+          GRIDIRON LIFE · Original football fiction
+          <button type="button" onClick={() => gameStore.getState().navigate("settings")}>Privacy & account controls</button>
+        </footer>
+      </div>
       <MobileNav active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} />
-      <footer className="app-footer">
-        GRIDIRON LIFE · Original football fiction
-        <button type="button" onClick={() => gameStore.getState().navigate("settings")}>Privacy & account controls</button>
-      </footer>
 
       {interaction?.type === "decision" && <DecisionModal decision={interaction.decision} onChoose={(choiceId) => gameStore.getState().decide(choiceId)} />}
       {interaction?.type === "training" && (
