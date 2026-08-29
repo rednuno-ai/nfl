@@ -66,7 +66,20 @@ export function CareerSelectScreen() {
         {hasCareers && (
           <div className="list" style={{ marginBottom: 20 }}>
             {careers.map((c) => (
-              <div key={c.id} className="card card-tight career-card" onClick={() => void gameStore.getState().openCareer(c.id)}>
+              <div
+                key={c.id}
+                className="card card-tight career-card"
+                role="button"
+                tabIndex={0}
+                aria-label={`Continue ${c.playerName}'s career, ${STAGE_LABELS[c.stage] ?? c.stage}, overall ${c.overall}`}
+                onClick={() => void gameStore.getState().openCareer(c.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    void gameStore.getState().openCareer(c.id);
+                  }
+                }}
+              >
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <PositionBadge position={c.position} size={48} />
                   <div>
@@ -78,6 +91,7 @@ export function CareerSelectScreen() {
                 </div>
                 <button
                   className="btn btn-sm btn-ghost"
+                  aria-label={`Delete ${c.playerName}'s career`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setPendingDelete({ id: c.id, playerName: c.playerName });

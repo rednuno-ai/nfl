@@ -71,6 +71,8 @@ export default function App() {
             game={interaction.game}
             opponentLabel={interaction.game.opponentName}
             teamLabel={activeCareer.team ? `${activeCareer.team.city} ${activeCareer.team.name}` : "Your Team"}
+            playerName={`${activeCareer.player.bio.firstName[0]}. ${activeCareer.player.bio.lastName}`}
+            playerPosition={activeCareer.player.position}
             objective={getGameDayObjective(activeCareer.player.position, activeCareer.totalWeek)}
             onChoose={(optionId) => gameStore.getState().gameDecide(optionId)}
             onFinished={() => gameStore.getState().acknowledgeGameResult()}

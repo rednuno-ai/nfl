@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { ScreenId } from "@store/gameStore";
 
 interface NavEntry {
@@ -43,15 +44,30 @@ export function Sidebar({ active, onNavigate, onExit }: { active: ScreenId; onNa
 }
 
 export function MobileNav({ active, onNavigate }: { active: ScreenId; onNavigate: (id: ScreenId) => void }) {
-  const entries = NAV_ENTRIES.slice(0, 5);
+  const entries = NAV_ENTRIES.slice(0, 4);
+  const secondary = NAV_ENTRIES.slice(4);
+  const [open, setOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, [open]);
   return (
-    <nav className="mobile-nav">
+    <nav className="mobile-nav" ref={navRef} aria-label="Career navigation">
+      {open && <div className="mobile-nav-more" role="menu">
+        {secondary.map((entry) => <button key={entry.id} role="menuitem" className={active === entry.id ? "active" : ""} onClick={() => { onNavigate(entry.id); setOpen(false); }}><span aria-hidden="true">{entry.icon}</span>{entry.label}</button>)}
+      </div>}
       {entries.map((entry) => (
-        <button key={entry.id} className={`mobile-nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
-          <span className="icon">{entry.icon}</span>
+        <button key={entry.id} aria-current={active === entry.id ? "page" : undefined} className={`mobile-nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
+          <span className="icon" aria-hidden="true">{entry.icon}</span>
           {entry.label}
         </button>
       ))}
+      <button className={`mobile-nav-item ${secondary.some((entry) => entry.id === active) ? "active" : ""}`} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((value) => !value)}><span className="icon" aria-hidden="true">•••</span>More</button>
     </nav>
   );
 }

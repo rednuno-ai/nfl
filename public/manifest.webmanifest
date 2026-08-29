@@ -1,0 +1,10 @@
+{
+  "name": "GRIDIRON LIFE",
+  "short_name": "GRIDIRON",
+  "description": "A football career and life simulator from freshman year to the hall of fame.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07090d",
+  "theme_color": "#0b0d12",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
