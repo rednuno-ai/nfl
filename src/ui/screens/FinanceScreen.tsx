@@ -34,7 +34,7 @@ export function FinanceScreen() {
         <div className="life-finance-hero-art" aria-hidden="true" />
         <div className="life-finance-hero-copy">
           <div className="screen-eyebrow">OFF-FIELD EMPIRE</div>
-          <div className="page-title">Your Lifestyle</div>
+          <h1 className="page-title">Your Lifestyle</h1>
           <p className="page-subtitle">Spend smart.</p>
         </div>
         <div className="life-finance-hero-chip">{moneyCompact(f.netWorth)} net worth</div>

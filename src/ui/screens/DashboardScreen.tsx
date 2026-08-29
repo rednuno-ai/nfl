@@ -44,6 +44,7 @@ export function DashboardScreen() {
 
   return (
     <div>
+      <h1 className="sr-only">Career HQ</h1>
       <div className="dashboard-intro">
         <div>
           <div className="screen-eyebrow">CAREER COMMAND CENTER</div>
@@ -82,7 +83,7 @@ export function DashboardScreen() {
           </div>
         </div>
 
-        {showNextEvent && <NextEventCard nextGame={nextGame} ownCrestSeed={crestSeed} />}
+        {showNextEvent && <NextEventCard nextGame={nextGame} ownCrestSeed={crestSeed} state={state} />}
       </div>
 
       {state.stage !== "retired" && <CareerLadder state={state} />}

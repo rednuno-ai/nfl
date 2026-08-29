@@ -34,7 +34,7 @@ import type {
 import { emptyStatLine } from "./types";
 import { RNG, type RNGState, createSeed, clamp } from "./rng";
 import { createPlayer, type CreatePlayerInput } from "./player";
-import { applyAttributeDelta, applyAttributeDeltas, computeOverall } from "./attributes";
+import { applyAttributeDelta, applyAttributeDeltas, computeOverall, POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS } from "./attributes";
 import { applySeasonalAging, applyTraining, type TrainingFocus } from "./aging";
 import { ALL_EVENTS } from "./events/data";
 import { createEmptyEventMemory, isEligible, markFired, rollEligibleEvents, selectWeeklyEvents, type EventEngineContext } from "./events/engine";
@@ -185,6 +185,7 @@ const HS_NAMES = ["Riverdale High", "Central High", "Lincoln High", "Jefferson H
 const HS_COACHES = ["Coach Reilly", "Coach Bannister", "Coach Delgado", "Coach Whitmore", "Coach Alvarez"];
 
 export function createCareer(input: CreatePlayerInput): CareerState {
+  validatePointBuy(input);
   const seed = createSeed();
   let rng = new RNG(seed);
   const player = createPlayer(input, rng);
@@ -254,6 +255,24 @@ export function createCareer(input: CreatePlayerInput): CareerState {
   };
 
   return state;
+}
+
+/** The creator is not the only caller of the engine (tests and future API
+ * clients can call it too), so enforce the complete point-buy contract at the
+ * state-machine boundary as well as disabling the UI button. Older callers
+ * that omit allocations intentionally keep the procedural starting build. */
+function validatePointBuy(input: CreatePlayerInput): void {
+  if (!input.attributeAllocations) return;
+  const slots = POINT_BUY_SLOTS[input.position] ?? [];
+  const allowed = new Set(slots.map((slot) => slot.path));
+  let spent = 0;
+  for (const [path, points] of Object.entries(input.attributeAllocations)) {
+    if (!allowed.has(path) || !Number.isInteger(points) || points < 0 || points > POINT_BUY_MAX - POINT_BUY_BASELINE) {
+      throw new Error("Invalid attribute allocation.");
+    }
+    spent += points;
+  }
+  if (spent !== POINT_BUY_POOL) throw new Error(`Spend all ${POINT_BUY_POOL} attribute points before starting a career.`);
 }
 
 // -----------------------------------------------------------------------------

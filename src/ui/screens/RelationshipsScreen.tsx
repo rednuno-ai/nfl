@@ -19,7 +19,7 @@ export function RelationshipsScreen() {
         <div className="life-people-hero-art" aria-hidden="true" />
         <div className="life-people-hero-copy">
           <div className="screen-eyebrow">OFF THE FIELD</div>
-          <div className="page-title">Your Circle</div>
+          <h1 className="page-title">Your Circle</h1>
           <p className="page-subtitle">Your people. Your call.</p>
         </div>
       </div>

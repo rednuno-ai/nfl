@@ -16,7 +16,7 @@ export function StatsScreen() {
   return (
     <div>
       <div className="screen-eyebrow">📊 PERFORMANCE</div>
-      <div className="page-title">Career Stats</div>
+      <h1 className="page-title">Career Stats</h1>
 
       <div className="grid grid-4" style={{ marginBottom: 22 }}>
         {position === "QB" && (
@@ -54,38 +54,25 @@ export function StatsScreen() {
         <StatTile label="Games Played" value={totals.gamesPlayed} />
       </div>
 
-      <div className="section-title">Season by Season</div>
-      <div className="card" style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+      <h2 className="section-title">Season by Season</h2>
+      <div className="card stats-table-card">
+        <div className="stats-table-scroll" tabIndex={0} role="region" aria-label="Season by season stats table. Swipe or scroll sideways to view every stat.">
+        <table className="stats-table">
+          <caption className="sr-only">Season by season statistics. Scroll horizontally on smaller screens for all columns.</caption>
           <thead>
             <tr style={{ textAlign: "left", color: "var(--text-faint)" }}>
-              <th style={{ padding: "6px 10px" }}>Season</th>
-              <th style={{ padding: "6px 10px" }}>Level</th>
-              <th style={{ padding: "6px 10px" }}>G</th>
-              <th style={{ padding: "6px 10px" }}>Pass Yds</th>
-              <th style={{ padding: "6px 10px" }}>Rush Yds</th>
-              <th style={{ padding: "6px 10px" }}>Rec Yds</th>
-              <th style={{ padding: "6px 10px" }}>Tackles</th>
-              <th style={{ padding: "6px 10px" }}>Sacks</th>
-              <th style={{ padding: "6px 10px" }}>INT</th>
-              <th style={{ padding: "6px 10px" }}>Awards</th>
+              <th scope="col">Season</th><th scope="col">Level</th><th scope="col">G</th><th scope="col">Pass Yds</th><th scope="col">Rush Yds</th><th scope="col">Rec Yds</th><th scope="col">Tackles</th><th scope="col">Sacks</th><th scope="col">INT</th><th scope="col">Awards</th>
             </tr>
           </thead>
           <tbody>
             {[...seasons, ...(currentSeason ? [currentSeason] : [])].map((s, i) => (
               <tr key={i} style={{ borderTop: "1px solid var(--border)" }}>
-                <td style={{ padding: "8px 10px" }}>{s.season || "current"}</td>
-                <td style={{ padding: "8px 10px" }}>
+                <th scope="row">{s.season || "current"}</th>
+                <td>
                   {LEVEL_ICON[s.level] ?? "🏈"} {LEVEL_LABELS[s.level] ?? s.level}
                 </td>
-                <td style={{ padding: "8px 10px" }}>{s.gamesPlayed}</td>
-                <td style={{ padding: "8px 10px" }}>{s.passYards}</td>
-                <td style={{ padding: "8px 10px" }}>{s.rushYards}</td>
-                <td style={{ padding: "8px 10px" }}>{s.receivingYards}</td>
-                <td style={{ padding: "8px 10px" }}>{s.tackles}</td>
-                <td style={{ padding: "8px 10px" }}>{s.sacks}</td>
-                <td style={{ padding: "8px 10px" }}>{s.interceptions}</td>
-                <td style={{ padding: "8px 10px" }}>
+                <td>{s.gamesPlayed}</td><td>{s.passYards}</td><td>{s.rushYards}</td><td>{s.receivingYards}</td><td>{s.tackles}</td><td>{s.sacks}</td><td>{s.interceptions}</td>
+                <td>
                   {s.mvp && <span className="badge badge-gold">MVP</span>} {s.allPro && <span className="badge badge-accent">All-Pro</span>}{" "}
                   {s.proBowl && <span className="badge">Pro Bowl</span>} {s.championshipWon && <span className="badge badge-green">Champion</span>}
                 </td>
@@ -93,13 +80,14 @@ export function StatsScreen() {
             ))}
             {seasons.length === 0 && !currentSeason && (
               <tr>
-                <td colSpan={10} className="faint" style={{ padding: "14px 10px" }}>
+                <td colSpan={10} className="faint">
                   No completed seasons yet.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

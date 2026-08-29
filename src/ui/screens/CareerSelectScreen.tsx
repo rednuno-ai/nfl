@@ -21,7 +21,7 @@ export function CareerSelectScreen() {
   const featured = hasCareers ? careers[0] : null;
 
   return (
-    <div className="homepage-shell">
+    <main className="homepage-shell" id="career-select-main">
       <div className={`homepage-hero ${hasCareers ? "homepage-hero-compact" : ""}`}>
         <PlayerHeroArt className="homepage-hero-art" />
         <div className="homepage-hero-content">
@@ -112,9 +112,11 @@ export function CareerSelectScreen() {
         )}
         {atLimit && <p className="faint" style={{ textAlign: "center", marginTop: 10 }}>Delete an existing career to start a new one.</p>}
 
-        <div style={{ marginTop: 24, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
-          <InviteFriendsCard />
-        </div>
+        {careers.some((career) => career.referralUnlocked) && (
+          <div style={{ marginTop: 24, maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
+            <InviteFriendsCard />
+          </div>
+        )}
       </div>
 
       {pendingDelete && (
@@ -130,6 +132,6 @@ export function CareerSelectScreen() {
           }}
         />
       )}
-    </div>
+    </main>
   );
 }

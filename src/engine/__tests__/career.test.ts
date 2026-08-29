@@ -15,6 +15,7 @@ import {
   type CareerState,
 } from "../career";
 import { emptyStatLine } from "../types";
+import { POINT_BUY_POOL } from "../attributes";
 
 /** Games now stay as the active interaction (see gameSim's play-by-play
  *  engine + GameDayView's real-time playback) until the UI explicitly
@@ -77,6 +78,14 @@ describe("career state machine", () => {
     assert.equal(state.player.bio.age, 15);
     assert.equal(state.retired, false);
     assert.equal(state.interaction, null);
+  });
+
+  it("rejects an incomplete point-buy allocation before a career can start", () => {
+    assert.throws(
+      () => createCareer(baseInput({ attributeAllocations: { "position.QB.shortAccuracy": 2 } })),
+      /Spend all 24 attribute points/
+    );
+    assert.doesNotThrow(() => createCareer(baseInput({ attributeAllocations: { "position.QB.shortAccuracy": POINT_BUY_POOL } })));
   });
 
   it("advances a week and eventually plays a scheduled game", () => {

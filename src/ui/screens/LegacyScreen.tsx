@@ -12,7 +12,7 @@ export function LegacyScreen() {
   return (
     <div>
       <div className="screen-eyebrow">🏆 LEGACY</div>
-      <div className="page-title">Legacy</div>
+      <h1 className="page-title">Legacy</h1>
 
       {state.legacy && (
         <div className="card" style={{ marginBottom: 22 }}>

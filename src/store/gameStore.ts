@@ -5,8 +5,11 @@ import {
   getCurrentUser,
   register as authRegister,
   login as authLogin,
+  recoverPassword as authRecoverPassword,
   logout as authLogout,
   activateSubscriptionDemo,
+  resetDemoAccount as authResetDemoAccount,
+  deleteAccount as authDeleteAccount,
   type AuthSession,
   type AuthUser,
 } from "@data/auth";
@@ -62,7 +65,10 @@ export interface GameStoreState {
 
   registerAccount: (username: string, password: string, referralCode?: string) => Promise<void>;
   loginAccount: (username: string, password: string) => Promise<void>;
+  recoverAccount: (username: string, recoveryKey: string, password: string) => Promise<void>;
+  resetDemoProfile: () => Promise<void>;
   logoutAccount: () => void;
+  deleteCurrentAccount: () => void;
   subscribe: () => void;
 
   refreshCareers: () => Promise<void>;
@@ -172,9 +178,34 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     await get().refreshCareers();
   },
 
+  recoverAccount: async (username, recoveryKey, password) => {
+    set({ authBusy: true, authError: null });
+    const result = await authRecoverPassword(username, recoveryKey, password);
+    if (!result.ok) {
+      set({ authBusy: false, authError: result.error ?? "Couldn't reset the password." });
+      return;
+    }
+    const session = getSession();
+    set({ authBusy: false, session, userId: session?.username ?? "", currentUser: getCurrentUser() });
+    await get().refreshCareers();
+  },
+
+  resetDemoProfile: async () => {
+    set({ authBusy: true, authError: null });
+    const result = await authResetDemoAccount();
+    set({ authBusy: false, authError: result.ok ? null : result.error ?? "Couldn't reset the demo profile.", session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
+  },
+
   logoutAccount: () => {
     authLogout();
     set({ session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
+  },
+
+  deleteCurrentAccount: () => {
+    const session = get().session;
+    if (!session) return;
+    authDeleteAccount(session.username);
+    set({ session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select", toast: null });
   },
 
   subscribe: () => {

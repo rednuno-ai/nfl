@@ -40,6 +40,9 @@ export interface AuthUser {
   referredBy: string | null;
   /** How many other accounts registered using this account's referral code. */
   referralCount: number;
+  /** One-time recovery code shown to the player in Profile. Local-only until
+   * authentication moves to a server-backed provider. */
+  recoveryKey: string;
 }
 
 export interface AuthSession {
@@ -56,10 +59,20 @@ const USERS_KEY = "nfl-life:auth:users";
 const SESSION_KEY = "nfl-life:auth:session";
 const DEFAULT_ADMIN_USERNAME = "adm";
 const DEFAULT_ADMIN_PASSWORD = "adm";
+const DEFAULT_ADMIN_RECOVERY_KEY = "DEMO-2026";
 
 function loadUsers(): Record<string, AuthUser> {
   try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) ?? "{}");
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) ?? "{}") as Record<string, AuthUser>;
+    let migrated = false;
+    for (const user of Object.values(users)) {
+      if (!user.recoveryKey) {
+        user.recoveryKey = createRecoveryKey();
+        migrated = true;
+      }
+    }
+    if (migrated) saveUsers(users);
+    return users;
   } catch {
     return {};
   }
@@ -75,6 +88,10 @@ function normalizeUsername(username: string): string {
 
 function normalizeReferralCode(code: string): string {
   return code.trim().toUpperCase();
+}
+
+function normalizeRecoveryKey(code: string): string {
+  return code.trim().toUpperCase().replace(/\s+/g, "");
 }
 
 const REFERRAL_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid ambiguity
@@ -115,6 +132,15 @@ function randomToken(byteLength = 16): string {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+function createRecoveryKey(): string {
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  const fragment = Array.from(bytes)
+    .map((byte) => REFERRAL_CODE_ALPHABET[byte % REFERRAL_CODE_ALPHABET.length])
+    .join("");
+  return `GL-${fragment.slice(0, 2)}${fragment.slice(2)}`;
 }
 
 async function hashPassword(password: string, salt: string): Promise<string> {
@@ -178,6 +204,7 @@ export async function register(usernameRaw: string, password: string, referralCo
     referralCode,
     referredBy: referrer?.username ?? null,
     referralCount: 0,
+    recoveryKey: createRecoveryKey(),
   };
   if (referrer) {
     users[referrer.username] = { ...referrer, referralCount: referrer.referralCount + 1 };
@@ -195,6 +222,83 @@ export async function login(usernameRaw: string, password: string): Promise<Auth
   const hash = await hashPassword(password, user.salt);
   if (hash !== user.passwordHash) return { ok: false, error: "Incorrect password." };
   startSession(username);
+  return { ok: true };
+}
+
+/** Resets a password only when the player provides the recovery key they were
+ * shown in Profile. A production build must replace this local-only flow with
+ * verified email recovery. */
+export async function recoverPassword(usernameRaw: string, recoveryKeyRaw: string, password: string): Promise<AuthResult> {
+  const username = normalizeUsername(usernameRaw);
+  if (password.length < 3) return { ok: false, error: "New password is too short (minimum 3 characters)." };
+  const users = loadUsers();
+  const user = users[username];
+  if (!user || normalizeRecoveryKey(user.recoveryKey) !== normalizeRecoveryKey(recoveryKeyRaw)) {
+    return { ok: false, error: "That username and recovery code do not match." };
+  }
+  const salt = randomToken();
+  users[username] = { ...user, salt, passwordHash: await hashPassword(password, salt) };
+  saveUsers(users);
+  startSession(username);
+  return { ok: true };
+}
+
+/** Deletes an account and every career stored for it on this device. The UI
+ * always confirms this destructive action before calling it. */
+export function deleteAccount(usernameRaw: string): void {
+  const username = normalizeUsername(usernameRaw);
+  const careerIds = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(`nfl-life:index:${username}`) ?? "[]") as string[];
+    } catch {
+      return [] as string[];
+    }
+  })();
+  for (const careerId of careerIds) {
+    localStorage.removeItem(`nfl-life:career:${careerId}`);
+    localStorage.removeItem(`nfl-life:career-updated:${careerId}`);
+  }
+  localStorage.removeItem(`nfl-life:index:${username}`);
+  const users = loadUsers();
+  delete users[username];
+  saveUsers(users);
+  logout();
+}
+
+/** Rebuilds the professional demo profile from scratch, including deleting its
+ * saves. It is deliberately explicit: visitors can safely replay the sample
+ * flow without silently losing their own account data. */
+export async function resetDemoAccount(): Promise<AuthResult> {
+  const username = DEFAULT_ADMIN_USERNAME;
+  const careerIds = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(`nfl-life:index:${username}`) ?? "[]") as string[];
+    } catch {
+      return [] as string[];
+    }
+  })();
+  for (const careerId of careerIds) {
+    localStorage.removeItem(`nfl-life:career:${careerId}`);
+    localStorage.removeItem(`nfl-life:career-updated:${careerId}`);
+  }
+  localStorage.removeItem(`nfl-life:index:${username}`);
+
+  const users = loadUsers();
+  const salt = randomToken();
+  users[username] = {
+    username,
+    salt,
+    passwordHash: await hashPassword(DEFAULT_ADMIN_PASSWORD, salt),
+    createdAt: Date.now(),
+    subscriptionActive: true,
+    subscriptionStartedAt: Date.now(),
+    referralCode: "DEMO-GL",
+    referredBy: null,
+    referralCount: 0,
+    recoveryKey: DEFAULT_ADMIN_RECOVERY_KEY,
+  };
+  saveUsers(users);
+  logout();
   return { ok: true };
 }
 
@@ -225,10 +329,13 @@ export function cancelSubscription(usernameRaw: string): void {
  *  screen is interactive. */
 export async function seedDefaultAccounts(): Promise<void> {
   const users = loadUsers();
-  if (Object.keys(users).length > 0) return;
+  if (users[DEFAULT_ADMIN_USERNAME]) return;
   const result = await register(DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD);
   if (result.ok) {
     activateSubscriptionDemo(DEFAULT_ADMIN_USERNAME);
+    const updatedUsers = loadUsers();
+    updatedUsers[DEFAULT_ADMIN_USERNAME] = { ...updatedUsers[DEFAULT_ADMIN_USERNAME], recoveryKey: DEFAULT_ADMIN_RECOVERY_KEY, referralCode: "DEMO-GL" };
+    saveUsers(updatedUsers);
     logout(); // don't auto-login; the seeded account still goes through the normal login screen
   }
 }

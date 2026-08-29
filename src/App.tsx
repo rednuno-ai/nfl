@@ -107,6 +107,10 @@ export default function App() {
         )}
       </main>
       <MobileNav active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} />
+      <footer className="app-footer">
+        GRIDIRON LIFE · Original football fiction
+        <button type="button" onClick={() => gameStore.getState().navigate("settings")}>Privacy & account controls</button>
+      </footer>
 
       {interaction?.type === "decision" && <DecisionModal decision={interaction.decision} onChoose={(choiceId) => gameStore.getState().decide(choiceId)} />}
       {interaction?.type === "training" && (

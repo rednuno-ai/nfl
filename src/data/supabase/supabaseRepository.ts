@@ -51,6 +51,10 @@ export class SupabaseRepository implements Repository {
       overall: row.overall,
       updatedAt: new Date(row.updated_at).getTime(),
       seed: row.state.seed,
+      referralUnlocked:
+        row.state.currentSeasonGameStats.some((line) => line.gamesPlayed > 0) ||
+        row.state.statHistory.some((line) => line.gamesPlayed > 0) ||
+        row.state.achievements.some((achievement) => achievement.unlockedWeek !== null),
     }));
   }
 

@@ -27,7 +27,7 @@ export function NewsScreen() {
   return (
     <div>
       <div className="screen-eyebrow">📰 NEWS</div>
-      <div className="page-title">News &amp; Media</div>
+      <h1 className="page-title">News &amp; Media</h1>
 
       <div className="news-hero-art" aria-label="Original career editorial artwork">
         <div className="news-hero-art-copy">

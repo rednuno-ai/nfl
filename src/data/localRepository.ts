@@ -48,6 +48,10 @@ export class LocalRepository implements Repository {
         overall: computeOverall(state.player.attributes, state.player.position),
         updatedAt,
         seed: state.seed,
+        referralUnlocked:
+          state.currentSeasonGameStats.some((line) => line.gamesPlayed > 0) ||
+          state.statHistory.some((line) => line.gamesPlayed > 0) ||
+          state.achievements.some((achievement) => achievement.unlockedWeek !== null),
       });
     }
     return summaries.sort((a, b) => b.updatedAt - a.updatedAt);

@@ -22,6 +22,8 @@ export interface CareerSummary {
   overall: number;
   updatedAt: number;
   seed: number;
+  /** Invite sharing is a post-play reward, not an immediate account prompt. */
+  referralUnlocked: boolean;
 }
 
 export interface Repository {
