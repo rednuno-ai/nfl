@@ -10,7 +10,6 @@ export function TeamScreen() {
     <div>
       <div className="screen-eyebrow">🏟️ STADIUM</div>
       <div className="page-title">Team</div>
-      <p className="page-subtitle">Your program, coach, and schedule.</p>
 
       <div className="card" style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
         {state.stage === "high_school" || state.stage === "recruiting" ? (

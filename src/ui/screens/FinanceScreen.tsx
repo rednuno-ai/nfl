@@ -35,7 +35,7 @@ export function FinanceScreen() {
         <div className="life-finance-hero-copy">
           <div className="screen-eyebrow">OFF-FIELD EMPIRE</div>
           <div className="page-title">Your Lifestyle</div>
-          <p className="page-subtitle">Choose what the career pays for: a first set of keys, a home base, or a lasting portfolio.</p>
+          <p className="page-subtitle">Spend smart.</p>
         </div>
         <div className="life-finance-hero-chip">{moneyCompact(f.netWorth)} net worth</div>
       </div>
@@ -50,13 +50,11 @@ export function FinanceScreen() {
       <div className="life-market-grid">
         <section className="card life-market-card life-market-card--garage">
           <div className="life-card-heading"><div><div className="life-card-kicker">THE SHOWROOM</div><div className="section-title">Build your garage</div></div><span className="life-card-count">{f.assets.filter((a) => a.type === "car").length} owned</span></div>
-          <p className="faint life-card-description">Start modest or save for a halo car. Every model is an original, unbranded in-game design.</p>
           <div className="life-shop-list">{VEHICLE_CATALOG.map((asset) => <ShopRow asset={asset} cash={f.cash} key={asset.name} />)}</div>
         </section>
 
         <section className="card life-market-card life-market-card--home">
           <div className="life-card-heading"><div><div className="life-card-kicker">THE PROPERTY DESK</div><div className="section-title">Choose your home base</div></div><span className="life-card-count">{f.assets.filter((a) => a.type === "house").length} owned</span></div>
-          <p className="faint life-card-description">From a room of your own to a private estate. Where you live is entirely your call.</p>
           <div className="life-shop-list">{HOME_CATALOG.map((asset) => <ShopRow asset={asset} cash={f.cash} key={asset.name} />)}</div>
         </section>
       </div>
@@ -64,7 +62,7 @@ export function FinanceScreen() {
       <div className="grid grid-2" style={{ alignItems: "start", marginTop: 18 }}>
         <section className="card">
           <div className="life-card-heading"><div><div className="life-card-kicker">OWNED</div><div className="section-title">Your portfolio</div></div></div>
-          {f.assets.length === 0 && <p className="faint">No assets yet. Your first major payday opens the door.</p>}
+          {f.assets.length === 0 && <p className="faint">No assets yet.</p>}
           <div className="list">
             {f.assets.map((asset) => (
               <div className="list-item" key={asset.id}>
@@ -79,8 +77,7 @@ export function FinanceScreen() {
 
         <section className="card life-sponsor-card">
           <div className="life-card-heading"><div><div className="life-card-kicker">COMMERCIAL DESK</div><div className="section-title">Sponsorships</div></div><span className="life-card-count">{f.sponsorships.length} / 50</span></div>
-          <p className="faint life-card-description">Your profile can support up to 50 fictional partner deals. New offers arrive as fame and reputation grow.</p>
-          {f.sponsorships.length === 0 && <p className="faint">No active partners yet. Keep performing and let your name travel.</p>}
+          {f.sponsorships.length === 0 && <p className="faint">No active partners.</p>}
           <div className="list">
             {f.sponsorships.map((s) => (
               <div className="list-item" key={s.id}>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { gameStore } from "@store/gameStore";
 import { MVP_POSITIONS, type Hand, type PersonalityTrait, type Position } from "@engine/types";
-import { PERSONALITY_LABELS, PERSONALITY_DESCRIPTIONS } from "@engine/player";
+import { PERSONALITY_LABELS } from "@engine/player";
 import { POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS, previewPointBuyOverall } from "@engine/attributes";
 import { PositionBadge } from "@ui/components/PositionBadge";
 
@@ -18,15 +18,6 @@ const POSITION_FULL_NAME: Record<string, string> = {
   TE: "Tight End",
   LB: "Linebacker",
   CB: "Cornerback",
-};
-
-const POSITION_FLAVOR: Record<string, string> = {
-  QB: "The leader. Every play runs through you.",
-  RB: "Speed and power between the tackles.",
-  WR: "Get open, make the catch, take it to the house.",
-  TE: "Block like a lineman, catch like a receiver.",
-  LB: "The heartbeat of the defense.",
-  CB: "Shut down the league's best receivers, alone on an island.",
 };
 
 const PERSONALITY_ICON: Record<PersonalityTrait, string> = {
@@ -112,10 +103,7 @@ export function CreatePlayerScreen() {
       <div className="centered-page">
         <div className="onboarding-card card">
           <div className="page-title">Build Your Player</div>
-          <p className="page-subtitle">
-            Distribute {POINT_BUY_POOL} points across your {position}'s standout attributes. Everything else is rolled at random,
-            same as any prospect.
-          </p>
+          <p className="page-subtitle">Spend {POINT_BUY_POOL} points on your {position} strengths.</p>
 
           <div className="ovr-preview-card">
             <div className="ovr-preview-label">OVERALL</div>
@@ -165,8 +153,8 @@ export function CreatePlayerScreen() {
   return (
     <div className="centered-page">
       <div className="onboarding-card card">
-        <div className="page-title">Create Your Legacy</div>
-        <p className="page-subtitle">Freshman year, age 15. This is where your career begins.</p>
+        <div className="page-title">Build Your Player</div>
+        <p className="page-subtitle">Age 15 · Freshman year</p>
 
         <div className="field">
           <label>Position</label>
@@ -176,7 +164,6 @@ export function CreatePlayerScreen() {
                 <PositionBadge position={p} size={40} />
                 <div className="class-card-code">{p}</div>
                 <div className="class-card-name">{POSITION_FULL_NAME[p] ?? p}</div>
-                <div className="class-card-flavor">{POSITION_FLAVOR[p] ?? ""}</div>
               </button>
             ))}
           </div>
@@ -193,7 +180,6 @@ export function CreatePlayerScreen() {
                   {selected && <div className="trait-card-badge">{selectedIndex + 1}</div>}
                   <div className="trait-card-icon">{PERSONALITY_ICON[trait]}</div>
                   <div className="trait-card-label">{PERSONALITY_LABELS[trait]}</div>
-                  <div className="trait-card-desc">{PERSONALITY_DESCRIPTIONS[trait]}</div>
                 </button>
               );
             })}

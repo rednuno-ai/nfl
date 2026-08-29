@@ -12,7 +12,6 @@ export function SettingsScreen() {
     <div>
       <div className="screen-eyebrow">👤 PROFILE</div>
       <div className="page-title">Settings</div>
-      <p className="page-subtitle">Manage your account and this career.</p>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="section-title">👤 Account</div>

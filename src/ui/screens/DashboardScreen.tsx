@@ -47,7 +47,6 @@ export function DashboardScreen() {
       <div className="dashboard-intro">
         <div>
           <div className="screen-eyebrow">CAREER COMMAND CENTER</div>
-          <div className="dashboard-intro-copy">Your next rep can change the whole story.</div>
         </div>
         <div className="dashboard-intro-record" aria-label={`Season record ${state.seasonRecord.wins} wins, ${state.seasonRecord.losses} losses`}>
           <span>SEASON RECORD</span>
@@ -333,7 +332,7 @@ function RecentEvents({ state }: { state: CareerState }) {
     <div className="card" style={{ marginTop: 20 }}>
       <div className="section-title">Recent Events</div>
       <div className="list">
-        {state.log.slice(0, 8).map((entry, i) => (
+        {state.log.slice(0, 4).map((entry, i) => (
           <div className="faint" key={i} style={{ fontSize: 13, display: "flex", gap: 8, alignItems: "flex-start" }}>
             <span>{eventIcon(entry)}</span>
             <span>{entry}</span>

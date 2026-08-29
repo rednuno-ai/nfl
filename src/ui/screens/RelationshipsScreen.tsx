@@ -20,7 +20,7 @@ export function RelationshipsScreen() {
         <div className="life-people-hero-copy">
           <div className="screen-eyebrow">OFF THE FIELD</div>
           <div className="page-title">Your Circle</div>
-          <p className="page-subtitle">Family, friendships, relationships and the attention around them evolve through your choices.</p>
+          <p className="page-subtitle">Your people. Your call.</p>
         </div>
       </div>
 
@@ -28,21 +28,19 @@ export function RelationshipsScreen() {
         <section className="card life-choice-card">
           <div className="life-card-kicker">PERSONAL LIFE</div>
           <div className="section-title">{partner ? partner.name : "Write your own story"}</div>
-          <p className="faint life-card-description">
-            {partner ? `Your relationship is at ${partner.value}/100. You decide whether it grows, changes, or stays private.` : "A relationship is optional. Meet someone when it feels right, or keep the focus entirely on football."}
-          </p>
+          <p className="faint life-card-description">{partner ? `Connection ${partner.value}/100` : "Optional."}</p>
           {canDate ? (
             <div className="life-action-row">
               <button className="btn btn-primary" onClick={() => gameStore.getState().startOrChangePartner()}>{partner ? "Meet someone new" : "Meet someone"}</button>
               {partner && <button className="btn" onClick={() => gameStore.getState().endPartnerRelationship()}>End relationship</button>}
             </div>
-          ) : <p className="faint">Personal-life choices unlock at age 17.</p>}
+          ) : <p className="faint">Available at 17.</p>}
         </section>
 
         <section className="card life-choice-card life-press-choice">
           <div className="life-card-kicker">THE HEADLINES</div>
           <div className="section-title">Paparazzi outside</div>
-          <p className="faint life-card-description">A camera crew catches your night out. Set a boundary or own the moment — media chemistry and reputation respond either way.</p>
+          <p className="faint life-card-description">Choose the headline.</p>
           <div className="life-action-row">
             <button className="btn" onClick={() => gameStore.getState().respondToPaparazzi("private")}>Keep it private</button>
             <button className="btn btn-primary" onClick={() => gameStore.getState().respondToPaparazzi("embrace")}>Own the moment</button>
@@ -60,7 +58,7 @@ export function RelationshipsScreen() {
       <section className="card">
         <div className="life-milestones">
           {milestones.map((tag) => <span className="badge badge-accent" key={tag}>{MILESTONE_LABELS[tag] ?? tag.replace(/_/g, " ")}</span>)}
-          {milestones.length === 0 && <span className="faint">Nothing yet — life off the field is just getting started.</span>}
+          {milestones.length === 0 && <span className="faint">No milestones yet.</span>}
         </div>
       </section>
     </div>

@@ -28,12 +28,11 @@ export function NewsScreen() {
     <div>
       <div className="screen-eyebrow">📰 NEWS</div>
       <div className="page-title">News &amp; Media</div>
-      <p className="page-subtitle">What the world is saying about you.</p>
 
       <div className="news-hero-art" aria-label="Original career editorial artwork">
         <div className="news-hero-art-copy">
           <span>THE STORY SO FAR</span>
-          <strong>Your career is bigger than the box score.</strong>
+          <strong>OWN THE STORY.</strong>
         </div>
       </div>
 

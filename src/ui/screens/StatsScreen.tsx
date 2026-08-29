@@ -17,7 +17,6 @@ export function StatsScreen() {
     <div>
       <div className="screen-eyebrow">📊 PERFORMANCE</div>
       <div className="page-title">Career Stats</div>
-      <p className="page-subtitle">Every season, tracked by level.</p>
 
       <div className="grid grid-4" style={{ marginBottom: 22 }}>
         {position === "QB" && (
