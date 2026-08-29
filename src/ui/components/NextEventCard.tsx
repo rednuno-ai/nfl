@@ -40,7 +40,7 @@ export function NextEventCard({
               Week {nextGame.week} · {nextGame.isHome ? "Home" : "Away"}
             </span>
           </div>
-          <WeeklyPlan needsWeeklyPlan={needsWeeklyPlan} onChoose={choosePlan} />
+          <WeeklyPlan state={state} needsWeeklyPlan={needsWeeklyPlan} onChoose={choosePlan} />
           {needsWeeklyPlan ? (
             <div className="next-event-locked" role="status">Choose a weekly focus to unlock Game Day.</div>
           ) : (
@@ -58,7 +58,7 @@ export function NextEventCard({
               <div className="faint">No game this week — build your attributes and stay ready.</div>
             </div>
           </div>
-          <WeeklyPlan needsWeeklyPlan={needsWeeklyPlan} onChoose={choosePlan} />
+          <WeeklyPlan state={state} needsWeeklyPlan={needsWeeklyPlan} onChoose={choosePlan} />
           {needsWeeklyPlan ? (
             <div className="next-event-locked" role="status">Choose a weekly focus to continue.</div>
           ) : (
@@ -72,7 +72,9 @@ export function NextEventCard({
   );
 }
 
-function WeeklyPlan({ needsWeeklyPlan, onChoose }: { needsWeeklyPlan: boolean; onChoose: (focus: TrainingSelection) => void }) {
+function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; needsWeeklyPlan: boolean; onChoose: (focus: TrainingSelection) => void }) {
+  const resilience = Math.round((state.player.attributes.physical.durability + state.player.attributes.general.discipline) / 2);
+  const injuryOutlook = resilience >= 75 ? "lower" : resilience >= 55 ? "moderate" : "elevated";
   if (!needsWeeklyPlan) {
     return <div className="weekly-plan-status"><span aria-hidden="true">✓</span> Weekly focus selected. Your next decision is ready.</div>;
   }
@@ -98,8 +100,9 @@ function WeeklyPlan({ needsWeeklyPlan, onChoose }: { needsWeeklyPlan: boolean; o
       </div>
       <div className="weekly-plan-links" aria-label="Off-field decisions">
         <button type="button" onClick={() => gameStore.getState().navigate("relationships")}>People <span>Relationships & media choices</span></button>
-        <button type="button" onClick={() => gameStore.getState().navigate("news")}>Reputation <span>Review active headlines</span></button>
+        <button type="button" onClick={() => gameStore.getState().navigate("news")}>Reputation <span>Review active headlines · {Math.round(state.player.attributes.general.reputation)}/100</span></button>
       </div>
+      <div className="weekly-risk-note"><strong>Injury outlook: {injuryOutlook}</strong><span>Durability and discipline currently set your game-day risk baseline ({resilience}/100).</span></div>
     </section>
   );
 }
