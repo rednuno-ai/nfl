@@ -23,20 +23,20 @@ export const NAV_ENTRIES: NavEntry[] = [
 
 export function Sidebar({ active, onNavigate, onExit }: { active: ScreenId; onNavigate: (id: ScreenId) => void; onExit: () => void }) {
   return (
-    <nav className="app-sidebar">
+    <nav className="app-sidebar" aria-label="Career navigation">
       <div className="brand">
         <span className="brand-mark">GL</span>
         GRIDIRON LIFE
       </div>
       {NAV_ENTRIES.map((entry) => (
-        <button key={entry.id} className={`nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
-          <span className="icon">{entry.icon}</span>
+        <button key={entry.id} type="button" aria-current={active === entry.id ? "page" : undefined} className={`nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
+          <span className="icon" aria-hidden="true">{entry.icon}</span>
           {entry.label}
         </button>
       ))}
       <div style={{ flex: 1 }} />
-      <button className="nav-item" onClick={onExit}>
-        <span className="icon">⏏</span>
+      <button type="button" className="nav-item" onClick={onExit}>
+        <span className="icon" aria-hidden="true">⏏</span>
         Switch Career
       </button>
     </nav>
@@ -59,15 +59,15 @@ export function MobileNav({ active, onNavigate }: { active: ScreenId; onNavigate
   return (
     <nav className="mobile-nav" ref={navRef} aria-label="Career navigation">
       {open && <div className="mobile-nav-more" role="menu">
-        {secondary.map((entry) => <button key={entry.id} role="menuitem" className={active === entry.id ? "active" : ""} onClick={() => { onNavigate(entry.id); setOpen(false); }}><span aria-hidden="true">{entry.icon}</span>{entry.label}</button>)}
+        {secondary.map((entry) => <button key={entry.id} type="button" role="menuitem" aria-current={active === entry.id ? "page" : undefined} className={active === entry.id ? "active" : ""} onClick={() => { onNavigate(entry.id); setOpen(false); }}><span aria-hidden="true">{entry.icon}</span>{entry.label}</button>)}
       </div>}
       {entries.map((entry) => (
-        <button key={entry.id} aria-current={active === entry.id ? "page" : undefined} className={`mobile-nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
+        <button key={entry.id} type="button" aria-current={active === entry.id ? "page" : undefined} className={`mobile-nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
           <span className="icon" aria-hidden="true">{entry.icon}</span>
           {entry.label}
         </button>
       ))}
-      <button className={`mobile-nav-item ${secondary.some((entry) => entry.id === active) ? "active" : ""}`} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((value) => !value)}><span className="icon" aria-hidden="true">•••</span>More</button>
+      <button type="button" className={`mobile-nav-item ${secondary.some((entry) => entry.id === active) ? "active" : ""}`} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((value) => !value)}><span className="icon" aria-hidden="true">•••</span>More</button>
     </nav>
   );
 }

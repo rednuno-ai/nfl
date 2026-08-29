@@ -38,16 +38,17 @@ export function ConfirmModal({
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" style={{ width: "min(420px, 100%)" }} role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-title">{title}</div>
-        <div className="modal-body" style={{ marginBottom: 22 }}>
+      <div className="modal" style={{ width: "min(420px, 100%)" }} role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-description" onClick={(e) => e.stopPropagation()}>
+        <div id="confirm-modal-title" className="modal-title">{title}</div>
+        <div id="confirm-modal-description" className="modal-body" style={{ marginBottom: 22 }}>
           {body}
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button className="btn btn-ghost" onClick={onCancel}>
+          <button type="button" className="btn btn-ghost" onClick={onCancel} autoFocus>
             {cancelLabel}
           </button>
           <button
+            type="button"
             className="btn"
             style={danger ? { background: "#e5484d", borderColor: "transparent", color: "#fff" } : undefined}
             onClick={onConfirm}

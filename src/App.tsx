@@ -19,6 +19,19 @@ import { GameDayView } from "@ui/components/GameDayView";
 import { LifeCinematic } from "@ui/components/LifeCinematic";
 import { getGameDayObjective } from "@engine/gameObjectives";
 
+const SCREEN_TITLES: Record<ScreenId, string> = {
+  dashboard: "Career HQ",
+  stats: "Stats",
+  team: "Stadium",
+  finance: "Front Office",
+  relationships: "People",
+  news: "News",
+  legacy: "Legacy",
+  settings: "Profile",
+  "career-select": "Choose a Career",
+  "create-player": "Create a Player",
+};
+
 export default function App() {
   const session = useGameStore((s) => s.session);
   const currentUser = useGameStore((s) => s.currentUser);
@@ -32,6 +45,15 @@ export default function App() {
     const timer = setTimeout(() => gameStore.getState().dismissToast(), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    const title = !session
+      ? "Sign in"
+      : !currentUser?.subscriptionActive
+        ? "Membership"
+        : SCREEN_TITLES[screen];
+    document.title = `${title} | GRIDIRON LIFE`;
+  }, [currentUser?.subscriptionActive, screen, session]);
 
   // Registration wall: no gameplay is reachable without an account.
   if (!session) {
@@ -51,8 +73,9 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#game-main">Skip to game content</a>
       <Sidebar active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} onExit={() => gameStore.getState().backToCareerSelect()} />
-      <main className="app-main">
+      <main id="game-main" className="app-main" tabIndex={-1}>
         <header className="season-hud" aria-label="Career status">
           <div className="season-hud-title">
             <span className="season-hud-live" aria-hidden="true" />
@@ -92,9 +115,9 @@ export default function App() {
       {cinematic && <LifeCinematic {...cinematic} onClose={() => gameStore.getState().dismissCinematic()} />}
 
       {toast && (
-        <div className="toast" onClick={() => gameStore.getState().dismissToast()}>
+        <button type="button" className="toast" aria-label="Dismiss notification" onClick={() => gameStore.getState().dismissToast()}>
           {toast}
-        </div>
+        </button>
       )}
     </div>
   );

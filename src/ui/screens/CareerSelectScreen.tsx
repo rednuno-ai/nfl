@@ -66,40 +66,37 @@ export function CareerSelectScreen() {
         {hasCareers && (
           <div className="list" style={{ marginBottom: 20 }}>
             {careers.map((c) => (
-              <div
+              <article
                 key={c.id}
                 className="card card-tight career-card"
-                role="button"
-                tabIndex={0}
-                aria-label={`Continue ${c.playerName}'s career, ${STAGE_LABELS[c.stage] ?? c.stage}, overall ${c.overall}`}
-                onClick={() => void gameStore.getState().openCareer(c.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    void gameStore.getState().openCareer(c.id);
-                  }
-                }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <PositionBadge position={c.position} size={48} />
-                  <div>
-                    <div style={{ fontWeight: 700 }}>{c.playerName}</div>
-                    <div className="faint" style={{ fontSize: 12.5 }}>
-                      {STAGE_LABELS[c.stage] ?? c.stage} · Age {c.age} · OVR {c.overall}
+                <button
+                  type="button"
+                  className="career-card-open"
+                  aria-label={`Continue ${c.playerName}'s career, ${STAGE_LABELS[c.stage] ?? c.stage}, overall ${c.overall}`}
+                  onClick={() => void gameStore.getState().openCareer(c.id)}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <PositionBadge position={c.position} size={48} />
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{c.playerName}</div>
+                      <div className="faint" style={{ fontSize: 12.5 }}>
+                        {STAGE_LABELS[c.stage] ?? c.stage} · Age {c.age} · OVR {c.overall}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </button>
                 <button
+                  type="button"
                   className="btn btn-sm btn-ghost"
                   aria-label={`Delete ${c.playerName}'s career`}
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={() => {
                     setPendingDelete({ id: c.id, playerName: c.playerName });
                   }}
                 >
                   Delete
                 </button>
-              </div>
+              </article>
             ))}
           </div>
         )}
