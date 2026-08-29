@@ -2,6 +2,7 @@
   "name": "nfl-life",
   "version": "0.1.2",
   "private": true,
+  "packageManager": "pnpm@10.11.1",
   "description": "GRIDIRON LIFE — a football career & life simulator. Create an athlete, live High School through retirement, and build your legacy.",
   "type": "module",
   "scripts": {
@@ -34,6 +35,7 @@
     "tsx": "^4.21.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x",
+    "pnpm": "10.11.1"
   }
 }
