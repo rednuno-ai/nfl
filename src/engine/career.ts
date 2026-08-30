@@ -51,7 +51,7 @@ import {
   type ScheduleEntry,
   type SeasonRecord,
 } from "./simulation/season";
-import { beginGame, advanceGame, type BeginGameInput, type GameSimState } from "./simulation/gameSim";
+import { beginGame, advanceGame, simulateGameToCompletion, type BeginGameInput, type GameSimState } from "./simulation/gameSim";
 import { getGameDayObjective, isGameDayObjectiveComplete } from "./gameObjectives";
 import { generateCombineScores, generateDraftProjection, resolveDraft, rookieContractValue } from "./draft";
 import { advanceContractYear, buildContract, checkPerformanceRelease, generateFreeAgencyOffers, isContractExpired, weeklySalary, type FreeAgencyOffer } from "./contracts";
@@ -647,6 +647,30 @@ export function resolveGameDecision(state: CareerState, optionId: string): Caree
   // happens later, via acknowledgeFinishedGame, once the UI has finished
   // playing out the last plays.
   return { ...state, interaction: { type: "game", game } };
+}
+
+/** Simulates the current saved game with the same engine used for manual
+ * Game Day. Unlike advancing a week, this is an explicit player choice to
+ * skip the interactive cards and accept the coordinator's calls. */
+export function simulateActiveGame(state: CareerState): CareerState {
+  if (!state.interaction || state.interaction.type !== "game") return state;
+  const priorGame = state.interaction.game;
+
+  const entry = state.schedule.find((s) => s.week === state.weekInSeason)!;
+  const ownTeam = buildOwnTeamForGame(state);
+  const opponentTeam = (state.stage === "nfl_season" && getTeam(entry.opponentId)) || opponentTeamStub(entry.opponentLabel, entry.week);
+  const input: BeginGameInput = {
+    player: state.player,
+    overall: overall(state.player),
+    team: ownTeam,
+    opponent: opponentTeam,
+    week: entry.week,
+    season: state.seasonYear,
+    homeAdvantage: entry.isHome,
+  };
+
+  const { result: game, rngState } = withRng(state, (rng) => simulateGameToCompletion(priorGame, input, rng));
+  return acknowledgeFinishedGame({ ...state, rngState, interaction: { type: "game", game } });
 }
 
 /** Called by the UI once it has finished visually playing out a completed

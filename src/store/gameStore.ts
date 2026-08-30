@@ -19,6 +19,7 @@ import {
   createCareer,
   resolveDecision,
   resolveGameDecision,
+  simulateActiveGame,
   acknowledgeFinishedGame,
   retireCareer,
   signWithTeam,
@@ -91,6 +92,7 @@ export interface GameStoreState {
   decide: (choiceId: string) => void;
   chooseTraining: (focus: TrainingSelection) => void;
   gameDecide: (optionId: string) => void;
+  simulateGame: () => void;
   acknowledgeGameResult: () => void;
   resumeGame: () => void;
   commitCollege: (collegeId: string) => void;
@@ -299,6 +301,22 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const current = get().activeCareer;
     if (!current) return;
     applyCareer(get, set, resolveGameDecision(current, optionId));
+  },
+
+  simulateGame: () => {
+    const current = get().activeCareer;
+    if (!current || current.interaction?.type !== "game") {
+      set({ toast: "There is no live game to simulate." });
+      return;
+    }
+    const game = current.interaction.game;
+    const firstCareerGame = current.currentSeasonGameStats.length === 0;
+    const next = simulateActiveGame(current);
+    if (firstCareerGame) recordFirstGameCompleted();
+    applyCareer(get, set, next, `Game simulated: ${game.opponentName} is now in your career record.`);
+    set({ screen: "dashboard" });
+    const cinematic = cinematicForGameResult(game.result);
+    if (cinematic) set({ cinematic });
   },
 
   acknowledgeGameResult: () => {

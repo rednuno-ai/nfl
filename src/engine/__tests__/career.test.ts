@@ -5,6 +5,7 @@ import {
   advanceWeek,
   resolveDecision,
   resolveGameDecision,
+  simulateActiveGame,
   acknowledgeFinishedGame,
   commitToCollege,
   signWithTeam,
@@ -127,6 +128,24 @@ describe("career state machine", () => {
     const frozen = advanceWeek(state);
     assert.equal(frozen, state, "advanceWeek is a no-op while the saved game awaits player input");
     assert.equal(JSON.stringify(frozen.interaction?.type === "game" ? frozen.interaction.game : null), before);
+  });
+
+  it("can skip a live game while preserving its real result, stats and schedule progress", () => {
+    let state = createCareer(baseInput());
+    for (let i = 0; i < 30 && state.interaction?.type !== "game"; i++) {
+      if (state.interaction?.type === "decision") state = resolveDecision(state, state.interaction.decision.choices[0].id);
+      else if (state.interaction?.type === "training") state = chooseTrainingFocus(state, state.interaction.options[0].id);
+      else state = advanceWeek(state);
+    }
+
+    assert.equal(state.interaction?.type, "game");
+    const gameWeek = state.weekInSeason;
+    const simulated = simulateActiveGame(state);
+
+    assert.equal(simulated.interaction, null);
+    assert.equal(simulated.schedule.find((entry) => entry.week === gameWeek)?.played, true);
+    assert.equal(simulated.currentSeasonGameStats.length, 1);
+    assert.equal(simulated.currentSeasonGameStats[0].gamesPlayed, 1);
   });
 
   it("progresses through the entire career loop to retirement and produces a legacy", () => {

@@ -250,6 +250,37 @@ export function advanceGame(state: GameSimState, input: BeginGameInput, rng: RNG
   return runLoop(next, input, rng);
 }
 
+/**
+ * Completes a saved game without asking the player to work through every
+ * key-moment card. It deliberately still travels through `advanceGame`, so a
+ * skipped game uses the exact same down-by-down engine, stats, fatigue and
+ * RNG as a manually played game. The automatic coordinator favours stable
+ * calls and the fourth-down analyst; it does not invent a separate result.
+ */
+export function simulateGameToCompletion(state: GameSimState, input: BeginGameInput, rng: RNG): GameSimState {
+  let next = state;
+  const maxSteps = 2000;
+
+  for (let step = 0; !next.finished && step < maxSteps; step += 1) {
+    const choiceId = next.pendingDecision ? automaticChoice(next.pendingDecision) : undefined;
+    next = advanceGame(next, input, rng, choiceId);
+  }
+
+  if (!next.finished) throw new Error("Game simulation exceeded its safety limit.");
+  return next;
+}
+
+function automaticChoice(decision: KeyMomentPrompt): string {
+  const has = (id: string) => decision.options.some((option) => option.id === id);
+  if (decision.kind === "fourth_down_approach" && has("trust_analyst")) return "trust_analyst";
+  if (decision.kind === "defense_look" && has("look_snap")) return "look_snap";
+  if (decision.kind === "target_priority" && has("target_qb")) return "target_qb";
+  if (decision.kind === "two_point" && has("two_kick")) return "two_kick";
+  if (decision.kind === "defense_call" && has("def_cover3")) return "def_cover3";
+  if (decision.kind === "play_call" && has("play_short")) return "play_short";
+  return decision.options.find((option) => option.riskLevel === "balanced")?.id ?? decision.options[0].id;
+}
+
 // =============================================================================
 // Main loop — advances real plays until a decision is needed or time expires.
 // =============================================================================
@@ -364,11 +395,15 @@ function resolveDecision(
   decision: KeyMomentPrompt,
   optionId: string
 ): { next: GameSimState; continueLoop: boolean } {
+  // Choices come from the current prompt only. Rejecting an unknown id keeps
+  // a malformed UI/client request from silently turning into a default play.
+  const selectedOption = decision.options.find((option) => option.id === optionId);
+  if (!selectedOption) return { next: state, continueLoop: false };
   let next = { ...state };
 
   if (decision.kind === "play_call") {
-    const playType = PLAY_CALL_TAGS[optionId] ?? "run";
-    const riskLevel = decision.options.find((o) => o.id === optionId)?.riskLevel ?? "balanced";
+    const playType = PLAY_CALL_TAGS[optionId];
+    const riskLevel = selectedOption.riskLevel;
     // Roll the defense's call now and reveal it to the player before the play
     // actually happens — a real pre-snap read, with a chance to check out of a
     // bad matchup, instead of the defense being a hidden dice roll.
@@ -413,9 +448,9 @@ function resolveDecision(
   }
 
   if (decision.kind === "target_priority") {
-    const target = TARGET_TAGS[optionId] ?? "let_qb_decide";
+    const target = TARGET_TAGS[optionId];
     const playType = next.carriedPlayType ?? "short_pass";
-    const riskLevel = decision.options.find((o) => o.id === optionId)?.riskLevel ?? "balanced";
+    const riskLevel = selectedOption.riskLevel;
     const defenseCall = next.carriedDefenseCall;
     next.carriedPlayType = null;
     next.carriedDefenseCall = null;
@@ -427,8 +462,8 @@ function resolveDecision(
   }
 
   if (decision.kind === "defense_call") {
-    const defenseCall = DEFENSE_TAGS[optionId] ?? "cover3";
-    const riskLevel = decision.options.find((o) => o.id === optionId)?.riskLevel ?? "balanced";
+    const defenseCall = DEFENSE_TAGS[optionId];
+    const riskLevel = selectedOption.riskLevel;
     next = executePlayerDefensePlay(next, input, rng, defenseCall, riskLevel);
     next.pendingDecision = null;
     next.keyMomentsResolved += 1;
@@ -748,7 +783,7 @@ function buildDefenseCallPrompt(state: GameSimState, input: BeginGameInput, rng:
     timeoutsOpponent: state.timeoutsOpponent,
     side: "defense",
     situation: baseSituation(state),
-    options: DEFENSE_OPTIONS,
+    options: defenseCallOptions(state),
     analystNote,
   };
 }
@@ -905,16 +940,41 @@ const FOURTH_DOWN_TAGS: Record<string, "field_goal" | "go_for_it" | "punt" | "fa
   fourth_fake: "fake",
 };
 
-const DEFENSE_OPTIONS: KeyMomentOption[] = [
-  { id: "def_cover2", label: "Cover 2", description: "Two deep safeties — protects against the long ball.", riskLevel: "safe", icon: "🟦" },
-  { id: "def_cover3", label: "Cover 3", description: "Balanced zone coverage.", riskLevel: "balanced", icon: "🟩" },
-  { id: "def_man", label: "Man Coverage", description: "Lock down their guys, one-on-one. Aggressive.", riskLevel: "balanced", icon: "🟨" },
-  { id: "def_blitz", label: "Blitz", description: "Bring extra pressure on the quarterback.", riskLevel: "aggressive", icon: "🟥" },
-  { id: "def_double", label: "Double Team WR1", description: "Two defenders on their top target.", riskLevel: "balanced", icon: "🟪" },
-];
+function offensePlayOptions(position: Position, state: GameSimState, _rng: RNG): KeyMomentOption[] {
+  const shortYardage = state.distance <= 3;
+  const longYardage = state.distance >= 8;
+  const redZone = state.ballOn >= 80;
+  const lateAndTrailing = (state.quarter >= 4 || state.overtime) && state.secondsRemaining <= 300 && state.scorePlayer < state.scoreOpponent;
 
-function offensePlayOptions(position: Position, _state: GameSimState, _rng: RNG): KeyMomentOption[] {
   if (position === "QB") {
+    if (redZone) {
+      return [
+        { id: "play_run_inside", label: "Power Run", description: "Lean on the line near the goal line. A compact, lower-risk call.", riskLevel: "safe", icon: "🟢" },
+        { id: "play_short", label: "Quick Goal-Line Pass", description: "A fast read to the flat or underneath window before coverage closes.", riskLevel: "safe", icon: "🔵" },
+        { id: "play_pa", label: "Play-Action Boot", description: "Sell the run, then attack the space the linebackers leave behind.", riskLevel: "balanced", icon: "🟠" },
+        { id: "play_scramble", label: "QB Keep", description: "Use agility to escape or take it yourself. Pressure raises the cost.", riskLevel: "aggressive", icon: "🔴" },
+        { id: "play_deep", label: "Corner Fade", description: "A one-on-one end-zone shot with touchdown upside and a tight window.", riskLevel: "aggressive", icon: "🟣" },
+      ];
+    }
+    if (shortYardage) {
+      return [
+        { id: "play_run_inside", label: "Power Run", description: "Attack the interior for the short conversion. Reliable if the front holds.", riskLevel: "safe", icon: "🟢" },
+        { id: "play_short", label: "Quick Game", description: "Get the ball out fast and move the chains before pressure arrives.", riskLevel: "safe", icon: "🔵" },
+        { id: "play_screen", label: "RB Screen", description: "Invite pressure, then release behind blockers for space.", riskLevel: "balanced", icon: "🟦" },
+        { id: "play_pa", label: "Bootleg", description: "Use the short-yardage run threat to create a clean edge read.", riskLevel: "balanced", icon: "🟠" },
+        { id: "play_scramble", label: "QB Keep", description: "Take the conversion yourself if a lane opens; contact is the trade-off.", riskLevel: "aggressive", icon: "🔴" },
+      ];
+    }
+    if (longYardage || lateAndTrailing) {
+      return [
+        { id: "play_short", label: "Chain Mover", description: "Target the sticks with a controlled throw; accuracy and awareness set the floor.", riskLevel: "balanced", icon: "🔵" },
+        { id: "play_screen", label: "Screen & Blocks", description: "Let the rush overcommit, then make a receiver create yards after the catch.", riskLevel: "safe", icon: "🟦" },
+        { id: "play_deep", label: "Deep Cross", description: "Stretch the secondary for the explosive gain. Misses and pressure carry real downside.", riskLevel: "aggressive", icon: "🟣" },
+        { id: "play_pa", label: "Max-Protect Shot", description: "Keep extra blockers in and buy time for a deeper route to develop.", riskLevel: "balanced", icon: "🟠" },
+        { id: "play_scramble", label: "Move the Pocket", description: "Change the launch point and choose throw or run on the move.", riskLevel: "balanced", icon: "🔴" },
+        { id: "play_trick", label: "Gadget Play", description: "A misdirection call for a sudden swing. It can also waste a crucial down.", riskLevel: "aggressive", icon: "⚡" },
+      ];
+    }
     return [
       { id: "play_run", label: "Run", description: "Trust the line and run game. A steadier floor, but a loaded box can stop it cold.", riskLevel: "balanced", icon: "🟢" },
       { id: "play_short", label: "Safe Pass", description: "Short accuracy and awareness protect the ball; smaller gains, stronger completion floor.", riskLevel: "safe", icon: "🔵" },
@@ -925,6 +985,14 @@ function offensePlayOptions(position: Position, _state: GameSimState, _rng: RNG)
     ];
   }
   if (position === "RB") {
+    if (shortYardage || redZone) {
+      return [
+        { id: "play_run_inside", label: "Power Through", description: "Lower your pads and attack the interior for the conversion.", riskLevel: "safe", icon: "🟢" },
+        { id: "play_screen", label: "Leak Out", description: "Release late as the safe outlet once the rush commits.", riskLevel: "safe", icon: "🔵" },
+        { id: "play_pa_rb", label: "Play-Action Release", description: "Sell the handoff, then uncover behind the linebackers.", riskLevel: "balanced", icon: "🟠" },
+        { id: "play_run_outside", label: "Bounce Outside", description: "Trust speed on the edge; pursuit can turn it into a loss.", riskLevel: "aggressive", icon: "🟢" },
+      ];
+    }
     return [
       { id: "play_run_inside", label: "Run — Inside", description: "Grind it up the middle for a reliable gain.", riskLevel: "safe", icon: "🟢" },
       { id: "play_run_outside", label: "Run — Outside", description: "Bounce it to the edge looking for a crease.", riskLevel: "balanced", icon: "🟢" },
@@ -933,6 +1001,14 @@ function offensePlayOptions(position: Position, _state: GameSimState, _rng: RNG)
     ];
   }
   if (position === "WR" || position === "TE") {
+    if (longYardage || lateAndTrailing) {
+      return [
+        { id: "play_route_short", label: "Sit at the Sticks", description: "Find the first-down window and secure the catch through contact.", riskLevel: "safe", icon: "🔵" },
+        { id: "play_route_deep", label: "Deep Over", description: "Run across the field behind coverage for a high-upside chunk play.", riskLevel: "aggressive", icon: "🟣" },
+        { id: "play_pa_wr", label: "Double Move", description: "Sell the short break, then turn upfield if the defender bites.", riskLevel: "aggressive", icon: "🟠" },
+        { id: "play_jet", label: "Jet Motion", description: "Take the handoff in motion and race the edge before pursuit arrives.", riskLevel: "balanced", icon: "🟢" },
+      ];
+    }
     return [
       { id: "play_route_short", label: "Short Route", description: "Get open underneath and secure the catch.", riskLevel: "safe", icon: "🔵" },
       { id: "play_route_deep", label: "Go Route", description: "Sell out for the deep ball.", riskLevel: "aggressive", icon: "🟣" },
@@ -940,9 +1016,44 @@ function offensePlayOptions(position: Position, _state: GameSimState, _rng: RNG)
       { id: "play_jet", label: "Jet Sweep", description: "Take the handoff in motion.", riskLevel: "aggressive", icon: "🟢" },
     ];
   }
+  if (shortYardage || redZone) {
+    return [
+      { id: "play_execute", label: "Win the Interior", description: "Set the physical tone and create a clean short-yardage lane.", riskLevel: "safe", icon: "🟢" },
+      { id: "play_extra", label: "Second-Level Block", description: "Release to the next defender to turn a short gain into more.", riskLevel: "aggressive", icon: "🔴" },
+    ];
+  }
   return [
     { id: "play_execute", label: "Execute the Called Play", description: "Do your job, nothing fancy.", riskLevel: "safe", icon: "🟢" },
     { id: "play_extra", label: "Give Extra Effort", description: "Push for more than the play calls for.", riskLevel: "aggressive", icon: "🔴" },
+  ];
+}
+
+function defenseCallOptions(state: GameSimState): KeyMomentOption[] {
+  const shortYardage = state.distance <= 3 || state.ballOn >= 80;
+  const longYardage = state.distance >= 8;
+  if (shortYardage) {
+    return [
+      { id: "def_blitz", label: "Run Blitz", description: "Fill every gap quickly. Pressure can leave a fast throw exposed.", riskLevel: "aggressive", icon: "🟥" },
+      { id: "def_man", label: "Press Man", description: "Challenge every release and force a contested throw.", riskLevel: "balanced", icon: "🟨" },
+      { id: "def_cover3", label: "Goal-Line Zone", description: "Keep eyes on the backfield while protecting the middle of the field.", riskLevel: "balanced", icon: "🟩" },
+      { id: "def_cover2", label: "Two-High Shell", description: "Prevent a quick scoring shot, even if a short gain is available.", riskLevel: "safe", icon: "🟦" },
+    ];
+  }
+  if (longYardage) {
+    return [
+      { id: "def_cover3", label: "Drop-Eight Zone", description: "Protect the sticks with layered defenders in front of the first-down line.", riskLevel: "safe", icon: "🟩" },
+      { id: "def_cover2", label: "Two-High Shell", description: "Keep both safeties over the deep routes and make them settle underneath.", riskLevel: "safe", icon: "🟦" },
+      { id: "def_double", label: "Bracket Their Star", description: "Take away their top target and dare another receiver to win.", riskLevel: "balanced", icon: "🟪" },
+      { id: "def_man", label: "Press Man", description: "Disrupt timing at the line. One lost rep can become a big gain.", riskLevel: "aggressive", icon: "🟨" },
+      { id: "def_blitz", label: "Simulated Pressure", description: "Threaten pressure without selling out every defender; timing is everything.", riskLevel: "aggressive", icon: "🟥" },
+    ];
+  }
+  return [
+    { id: "def_cover3", label: "Balanced Zone", description: "Keep eyes on the quarterback and protect the middle of the field.", riskLevel: "balanced", icon: "🟩" },
+    { id: "def_man", label: "Press Man", description: "Challenge each route at the line and trust one-on-one technique.", riskLevel: "balanced", icon: "🟨" },
+    { id: "def_blitz", label: "Timed Blitz", description: "Bring extra pressure for a possible negative play; it opens space behind it.", riskLevel: "aggressive", icon: "🟥" },
+    { id: "def_cover2", label: "Two-High Shell", description: "Protect against the deep ball and force the offense to be patient.", riskLevel: "safe", icon: "🟦" },
+    { id: "def_double", label: "Bracket Their Star", description: "Dedicate two defenders to their primary threat and accept the trade-off elsewhere.", riskLevel: "balanced", icon: "🟪" },
   ];
 }
 

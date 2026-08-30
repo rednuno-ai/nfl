@@ -126,6 +126,7 @@ export function GameDayView({
   playerPosition,
   objective,
   onChoose,
+  onSimulate,
   onFinished,
 }: {
   game: GameSimState;
@@ -135,6 +136,7 @@ export function GameDayView({
   playerPosition: string;
   objective: GameDayObjective;
   onChoose: (optionId: string) => void;
+  onSimulate: () => void;
   onFinished: () => void;
 }) {
   const [revealedCount, setRevealedCount] = useState(0);
@@ -296,6 +298,15 @@ export function GameDayView({
       <div className="speed-controls">
         <button type="button" className={`speed-btn game-resume-control ${paused ? "active" : ""}`} onClick={() => setPaused((p) => !p)} aria-pressed={!paused}>
           {paused ? "▶ Resume Game" : "❚❚ Pause Game"}
+        </button>
+        <button
+          type="button"
+          className="speed-btn game-simulate-control"
+          onClick={onSimulate}
+          disabled={game.finished}
+          aria-label="Skip manual play and simulate the rest of this game"
+        >
+          ⇥ Skip &amp; Simulate
         </button>
         {[1, 2, 3].map((s) => (
           <button

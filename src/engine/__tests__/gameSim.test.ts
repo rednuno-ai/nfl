@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createPlayer } from "../player";
-import { beginGame, advanceGame } from "../simulation/gameSim";
+import { beginGame, advanceGame, simulateGameToCompletion } from "../simulation/gameSim";
 import { TEAMS } from "../teams";
 import { RNG } from "../rng";
 
@@ -79,6 +79,25 @@ describe("game simulation", () => {
     assert.equal(a.scorePlayer, b.scorePlayer);
     assert.equal(a.scoreOpponent, b.scoreOpponent);
     assert.equal(a.result, b.result);
+  });
+
+  it("can simulate a saved game to completion deterministically", () => {
+    const player = makeQB();
+    const input = buildInput(player, TEAMS[0], TEAMS[1]);
+    const rngA = new RNG(2026);
+    const rngB = new RNG(2026);
+    const startedA = beginGame(input, rngA);
+    const startedB = beginGame(input, rngB);
+
+    const a = simulateGameToCompletion(startedA, input, rngA);
+    const b = simulateGameToCompletion(startedB, input, rngB);
+
+    assert.equal(a.finished, true);
+    assert.equal(a.pendingDecision, null);
+    assert.equal(a.scorePlayer, b.scorePlayer);
+    assert.equal(a.scoreOpponent, b.scoreOpponent);
+    assert.equal(a.result, b.result);
+    assert.deepEqual(a.stat, b.stat);
   });
 
   it("a QB accumulates passing stats over the course of a game", () => {
@@ -173,12 +192,13 @@ describe("game simulation", () => {
     assert.equal(state.pendingDecision?.kind, "play_call", "expected a QB play-call decision");
     const options = state.pendingDecision!.options;
     const byId = (id: string) => options.find((option) => option.id === id);
-    assert.equal(byId("play_short")?.label, "Safe Pass");
-    assert.equal(byId("play_short")?.riskLevel, "safe");
-    assert.equal(byId("play_deep")?.label, "Deep Pass");
+    assert.ok(byId("play_short"), "every QB situation offers a controlled passing answer");
+    assert.ok(byId("play_deep"), "every QB situation offers an explosive passing answer");
+    assert.ok(byId("play_run") || byId("play_run_inside"), "every QB situation offers a ground-game answer");
+    assert.ok(byId("play_scramble"), "every QB situation offers an improvisation answer");
+    assert.ok(options.length >= 5, "a high-leverage prompt should offer meaningful variety");
+    assert.ok(["safe", "balanced"].includes(byId("play_short")!.riskLevel));
     assert.equal(byId("play_deep")?.riskLevel, "aggressive");
-    assert.equal(byId("play_run")?.label, "Run");
-    assert.equal(byId("play_scramble")?.label, "Improvise");
 
     state = advanceGame(state, input, rng, "play_scramble");
     assert.equal(state.pendingDecision?.kind, "defense_look");

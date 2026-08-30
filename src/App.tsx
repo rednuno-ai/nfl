@@ -111,6 +111,7 @@ export default function App() {
             playerPosition={activeCareer.player.position}
             objective={getGameDayObjective(activeCareer.player.position, activeCareer.totalWeek)}
             onChoose={(optionId) => gameStore.getState().gameDecide(optionId)}
+            onSimulate={() => gameStore.getState().simulateGame()}
             onFinished={() => gameStore.getState().acknowledgeGameResult()}
           />
           ) : (
