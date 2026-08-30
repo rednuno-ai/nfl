@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGameStore, gameStore, type ScreenId } from "@store/gameStore";
 import { Sidebar, MobileNav } from "@ui/layout/NavBar";
 import { AuthScreen } from "@ui/screens/AuthScreen";
@@ -17,8 +17,10 @@ import { DecisionModal } from "@ui/components/DecisionModal";
 import { TrainingModal } from "@ui/components/TrainingModal";
 import { GameDayView } from "@ui/components/GameDayView";
 import { LifeCinematic } from "@ui/components/LifeCinematic";
+import { PrivacyAccountControlsDialog } from "@ui/components/PrivacyAccountControlsDialog";
 import { getGameDayObjective } from "@engine/gameObjectives";
 import { recordDailyReturn } from "@data/metrics";
+import type { CareerState } from "@engine/career";
 
 const SCREEN_TITLES: Record<ScreenId, string> = {
   dashboard: "Career HQ",
@@ -29,6 +31,7 @@ const SCREEN_TITLES: Record<ScreenId, string> = {
   news: "News",
   legacy: "Legacy",
   settings: "Profile",
+  "game-day": "Game Day",
   "career-select": "Choose a Career",
   "create-player": "Create a Player",
 };
@@ -40,6 +43,8 @@ export default function App() {
   const screen = useGameStore((s) => s.screen);
   const toast = useGameStore((s) => s.toast);
   const cinematic = useGameStore((s) => s.cinematic);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const privacyTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -52,7 +57,7 @@ export default function App() {
       ? "Sign in"
       : !currentUser?.subscriptionActive
         ? "Membership"
-        : activeCareer?.interaction?.type === "game"
+        : activeCareer?.interaction?.type === "game" && screen === "game-day"
           ? "Game Day"
           : SCREEN_TITLES[screen];
     document.title = `${title} | GRIDIRON LIFE`;
@@ -81,7 +86,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#game-main">Skip to game content</a>
-      <Sidebar active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} onExit={() => gameStore.getState().backToCareerSelect()} />
+      <Sidebar active={screen} gameAvailable={interactionIsGame(activeCareer)} onNavigate={(id) => gameStore.getState().navigate(id)} onExit={() => gameStore.getState().backToCareerSelect()} />
       <div className="app-content">
         <main id="game-main" className="app-main" tabIndex={-1}>
           <header className="season-hud" aria-label="Career status">
@@ -97,7 +102,7 @@ export default function App() {
             <span className="season-hud-screen">{screen.replace("-", " ")}</span>
           </div>
         </header>
-          {interaction?.type === "game" ? (
+          {interaction?.type === "game" && screen === "game-day" ? (
           <GameDayView
             game={interaction.game}
             opponentLabel={interaction.game.opponentName}
@@ -116,16 +121,27 @@ export default function App() {
         </main>
         <footer className="app-footer">
           GRIDIRON LIFE · Original football fiction
-          <button type="button" onClick={() => gameStore.getState().navigate("settings")}>Privacy & account controls</button>
+          <button ref={privacyTriggerRef} type="button" onClick={() => setPrivacyOpen(true)}>Privacy & account controls</button>
         </footer>
       </div>
-      <MobileNav active={screen} onNavigate={(id) => gameStore.getState().navigate(id)} />
+      <MobileNav active={screen} gameAvailable={interactionIsGame(activeCareer)} onNavigate={(id) => gameStore.getState().navigate(id)} />
 
       {interaction?.type === "decision" && <DecisionModal decision={interaction.decision} onChoose={(choiceId) => gameStore.getState().decide(choiceId)} />}
       {interaction?.type === "training" && (
         <TrainingModal week={interaction.week} options={interaction.options} onChoose={(focusId) => gameStore.getState().chooseTraining(focusId)} />
       )}
       {cinematic && <LifeCinematic {...cinematic} onClose={() => gameStore.getState().dismissCinematic()} />}
+      {privacyOpen && (
+        <PrivacyAccountControlsDialog
+          username={session.username}
+          returnFocusRef={privacyTriggerRef}
+          onClose={() => setPrivacyOpen(false)}
+          onOpenSettings={() => {
+            setPrivacyOpen(false);
+            gameStore.getState().navigate("settings");
+          }}
+        />
+      )}
 
       {toast && (
         <button type="button" className="toast" aria-label="Dismiss notification" onClick={() => gameStore.getState().dismissToast()}>
@@ -134,6 +150,10 @@ export default function App() {
       )}
     </div>
   );
+}
+
+function interactionIsGame(career: CareerState | null): boolean {
+  return career?.interaction?.type === "game";
 }
 
 function ScreenRouter({ screen }: { screen: ScreenId }) {

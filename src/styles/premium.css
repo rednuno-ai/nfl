@@ -82,6 +82,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .weekly-risk-note{display:flex;justify-content:space-between;gap:10px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07);color:var(--text-faint);font-size:10px;line-height:1.35}.weekly-risk-note strong{color:var(--text-dim);white-space:nowrap}.weekly-risk-note span{text-align:right}@media(max-width:480px){.weekly-risk-note{align-items:flex-start;flex-direction:column;gap:3px}.weekly-risk-note span{text-align:left}}
 .decision-context{display:grid;gap:3px;margin:10px 0 12px;padding:10px 11px;border:1px solid rgba(105,184,255,.2);border-radius:10px;background:rgba(69,137,210,.08);color:var(--text-faint);font-size:11px;line-height:1.4}.decision-context strong{color:#cce8ff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.gameday-objective-title,.keymoment-title,.section-title{font-weight:inherit}
 
+/* Paused games and the account-controls dialog use the established panel
+   language. These are functional states, not a separate visual redesign. */
+.game-resume-control{min-width:132px}.game-paused-card{align-content:start}.game-paused-card p{margin:7px 0 14px}.privacy-controls-dialog{width:min(520px,calc(100% - 32px))}.privacy-controls-list{display:grid;gap:8px;margin:14px 0 20px;padding-left:19px;color:var(--text-dim);font-size:12px;line-height:1.45}.modal-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px}.modal-actions .btn{min-height:44px}.app-footer button:focus-visible{outline:3px solid rgba(255,122,82,.72);outline-offset:4px}
+@media(max-width:480px){.speed-controls{justify-content:flex-start;flex-wrap:wrap}.game-resume-control{min-width:154px}.modal-actions .btn{flex:1}}
+
 /* Thirty contextual career-reel beats share these original first-person plates.
    Scene-specific camera timing keeps a focused training beat from feeling like
    a press scrum or a road-game arrival, without heavy video downloads. */

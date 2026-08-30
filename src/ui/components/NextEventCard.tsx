@@ -23,6 +23,19 @@ export function NextEventCard({
   const needsWeeklyPlan = state.trainingFocusChosenForWeek !== state.totalWeek;
   const choosePlan = (trainingFocus: TrainingSelection) => gameStore.getState().advance({ trainingFocus });
 
+  if (state.interaction?.type === "game") {
+    return (
+      <section className="next-event-card game-paused-card" aria-labelledby="paused-game-title">
+        <div className="next-event-eyebrow">⏸ GAME PAUSED</div>
+        <h2 id="paused-game-title" className="next-event-training-title">Your game is safely saved</h2>
+        <p className="faint">No plays or clock time advance until you choose Resume Game.</p>
+        <button type="button" className="btn btn-primary btn-block next-event-cta" onClick={() => gameStore.getState().resumeGame()}>
+          ▶ Resume Game
+        </button>
+      </section>
+    );
+  }
+
   return (
     <div className="next-event-card">
       <div className="next-event-eyebrow">🏟️ NEXT EVENT</div>

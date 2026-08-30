@@ -21,14 +21,19 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "settings", label: "Profile", icon: "👤" },
 ];
 
-export function Sidebar({ active, onNavigate, onExit }: { active: ScreenId; onNavigate: (id: ScreenId) => void; onExit: () => void }) {
+function visibleEntries(gameAvailable: boolean): NavEntry[] {
+  return gameAvailable ? [{ id: "game-day", label: "Game Day", icon: "🏈" }, ...NAV_ENTRIES] : NAV_ENTRIES;
+}
+
+export function Sidebar({ active, onNavigate, onExit, gameAvailable = false }: { active: ScreenId; onNavigate: (id: ScreenId) => void; onExit: () => void; gameAvailable?: boolean }) {
+  const entries = visibleEntries(gameAvailable);
   return (
     <nav className="app-sidebar" aria-label="Career navigation">
       <div className="brand">
         <span className="brand-mark">GL</span>
         GRIDIRON LIFE
       </div>
-      {NAV_ENTRIES.map((entry) => (
+      {entries.map((entry) => (
         <button key={entry.id} type="button" aria-current={active === entry.id ? "page" : undefined} className={`nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>
           <span className="icon" aria-hidden="true">{entry.icon}</span>
           {entry.label}
@@ -43,9 +48,10 @@ export function Sidebar({ active, onNavigate, onExit }: { active: ScreenId; onNa
   );
 }
 
-export function MobileNav({ active, onNavigate }: { active: ScreenId; onNavigate: (id: ScreenId) => void }) {
-  const entries = NAV_ENTRIES.slice(0, 4);
-  const secondary = NAV_ENTRIES.slice(4);
+export function MobileNav({ active, onNavigate, gameAvailable = false }: { active: ScreenId; onNavigate: (id: ScreenId) => void; gameAvailable?: boolean }) {
+  const visible = visibleEntries(gameAvailable);
+  const entries = visible.slice(0, 4);
+  const secondary = visible.slice(4);
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   useEffect(() => {

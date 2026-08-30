@@ -154,7 +154,7 @@ export function CreatePlayerScreen() {
 
           <div className="build-actions" role="group" aria-label="Attribute build shortcuts">
             <button type="button" className="btn btn-ghost" onClick={() => setAllocations(recommendedPointBuyAllocations(position))}>Recommended Build</button>
-            <button type="button" className="btn btn-ghost" onClick={() => setAllocations({})} disabled={pointsSpent === 0}>Reset allocation</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setAllocations({})} disabled={pointsSpent === 0}>Reset Attributes</button>
           </div>
 
           <div className="attribute-list">
@@ -163,7 +163,7 @@ export function CreatePlayerScreen() {
               return (
                 <div className="attribute-row" key={slot.path}>
                   <div className="attribute-row-label">{slot.label}</div>
-                  <button type="button" className="attribute-step" aria-label={`Remove two points from ${slot.label}`} onClick={() => adjustPoint(slot.path, -2)} disabled={(allocations[slot.path] ?? 0) <= 0}>
+                  <button type="button" className="attribute-step" aria-label={`Remove one point from ${slot.label}`} onClick={() => adjustPoint(slot.path, -1)} disabled={(allocations[slot.path] ?? 0) <= 0}>
                     −
                   </button>
                   <div className="attribute-bar-track">
@@ -173,8 +173,8 @@ export function CreatePlayerScreen() {
                   <button
                     type="button"
                     className="attribute-step"
-                    aria-label={`Add two points to ${slot.label}`}
-                    onClick={() => adjustPoint(slot.path, 2)}
+                    aria-label={`Add one point to ${slot.label}`}
+                    onClick={() => adjustPoint(slot.path, 1)}
                     disabled={pointsLeft <= 0 || value >= POINT_BUY_MAX}
                   >
                     +

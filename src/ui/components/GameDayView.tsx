@@ -139,7 +139,9 @@ export function GameDayView({
 }) {
   const [revealedCount, setRevealedCount] = useState(0);
   const [speed, setSpeed] = useState(1);
-  const [paused, setPaused] = useState(false);
+  // A saved game is never allowed to play itself on mount. This also applies
+  // when the player returns after visiting another screen or refreshing.
+  const [paused, setPaused] = useState(true);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
   const finishedNotifiedRef = useRef(false);
   const prevRevealedRef = useRef(0);
@@ -153,7 +155,7 @@ export function GameDayView({
       finishedNotifiedRef.current = false;
       prevRevealedRef.current = 0;
       setRevealedCount(0);
-      setPaused(false);
+      setPaused(true);
       setCelebration(null);
     }
   }, [gameKey]);
@@ -292,17 +294,14 @@ export function GameDayView({
       </div>
 
       <div className="speed-controls">
-        <button className={`speed-btn ${paused ? "active" : ""}`} onClick={() => setPaused((p) => !p)} aria-label={paused ? "Play" : "Pause"}>
-          {paused ? "▶" : "❚❚"}
+        <button type="button" className={`speed-btn game-resume-control ${paused ? "active" : ""}`} onClick={() => setPaused((p) => !p)} aria-pressed={!paused}>
+          {paused ? "▶ Resume Game" : "❚❚ Pause Game"}
         </button>
         {[1, 2, 3].map((s) => (
           <button
             key={s}
             className={`speed-btn ${!paused && speed === s ? "active" : ""}`}
-            onClick={() => {
-              setSpeed(s);
-              setPaused(false);
-            }}
+            onClick={() => setSpeed(s)}
           >
             {s}x
           </button>

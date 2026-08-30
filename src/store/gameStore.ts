@@ -55,7 +55,9 @@ export type ScreenId =
   | "news"
   | "legacy"
   | "settings"
-  | "team";
+  | "team"
+  /** A live game is a destination in its own right, never a fake active tab. */
+  | "game-day";
 
 export interface GameStoreState {
   userId: string;
@@ -90,6 +92,7 @@ export interface GameStoreState {
   chooseTraining: (focus: TrainingSelection) => void;
   gameDecide: (optionId: string) => void;
   acknowledgeGameResult: () => void;
+  resumeGame: () => void;
   commitCollege: (collegeId: string) => void;
   signFreeAgent: (teamId: string) => void;
   retire: () => void;
@@ -257,10 +260,15 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   advance: (options) => {
     const current = get().activeCareer;
     if (!current) return;
+    if (current.interaction?.type === "game") {
+      set({ toast: "Game paused. Select Resume Game when you are ready." });
+      return;
+    }
     const next = advanceWeek(current, options);
     if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
     applyCareer(get, set, next);
     if (next.interaction?.type === "game") {
+      set({ screen: "game-day" });
       const scheduledGame = current.schedule.find((entry) => entry.week === current.weekInSeason);
       const cinematic = cinematicForGameStart(scheduledGame?.isHome ?? true);
       if (cinematic) set({ cinematic });
@@ -282,6 +290,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const next = chooseTrainingFocus(current, focus);
     if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
     applyCareer(get, set, next);
+    if (next.interaction?.type === "game") set({ screen: "game-day" });
     const cinematic = cinematicForTraining(focus);
     if (cinematic) set({ cinematic });
   },
@@ -297,6 +306,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     if (!current) return;
     if (current.currentSeasonGameStats.length === 0 && current.interaction?.type === "game" && current.interaction.game.finished) recordFirstGameCompleted();
     applyCareer(get, set, acknowledgeFinishedGame(current));
+    set({ screen: "dashboard" });
     if (current.interaction?.type === "game" && current.interaction.game.finished) {
       const cinematic = cinematicForGameResult(current.interaction.game.result);
       if (cinematic) set({ cinematic });
@@ -375,14 +385,17 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
 
   dismissCinematic: () => set({ cinematic: null }),
 
+  resumeGame: () => {
+    if (get().activeCareer?.interaction?.type !== "game") {
+      set({ toast: "There is no paused game to resume." });
+      return;
+    }
+    set({ screen: "game-day", toast: null });
+  },
+
   navigate: (screen) => {
-    // While a game is live, GameDayView occupies the main area regardless of
-    // `screen` (see App.tsx). Changing `screen` here would desync the nav
-    // highlight from what's actually on screen — the tapped tab would light
-    // up while the game stays put, looking broken. Block it until the game
-    // resolves.
-    if (get().activeCareer?.interaction?.type === "game") return;
-    set({ screen });
+    const gameIsPaused = get().activeCareer?.interaction?.type === "game" && screen !== "game-day";
+    set({ screen, toast: gameIsPaused ? "Game paused. Resume it from the Game Day tab whenever you are ready." : get().toast });
   },
   dismissToast: () => set({ toast: null }),
 }));

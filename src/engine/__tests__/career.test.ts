@@ -114,6 +114,21 @@ describe("career state machine", () => {
     assert.equal(sawGame, true, "expected a game to begin within the first high school season");
   });
 
+  it("keeps a pending game frozen until a valid game decision is made", () => {
+    let state = createCareer(baseInput());
+    for (let i = 0; i < 30 && state.interaction?.type !== "game"; i++) {
+      if (state.interaction?.type === "decision") state = resolveDecision(state, state.interaction.decision.choices[0].id);
+      else if (state.interaction?.type === "training") state = chooseTrainingFocus(state, state.interaction.options[0].id);
+      else state = advanceWeek(state);
+    }
+
+    assert.equal(state.interaction?.type, "game");
+    const before = JSON.stringify(state.interaction?.game);
+    const frozen = advanceWeek(state);
+    assert.equal(frozen, state, "advanceWeek is a no-op while the saved game awaits player input");
+    assert.equal(JSON.stringify(frozen.interaction?.type === "game" ? frozen.interaction.game : null), before);
+  });
+
   it("progresses through the entire career loop to retirement and produces a legacy", () => {
     const state = createCareer(baseInput());
     const { state: finalState, iterations, stagesSeen } = autoplayUntilRetired(state);
