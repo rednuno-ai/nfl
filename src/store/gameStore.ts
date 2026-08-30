@@ -35,7 +35,7 @@ import {
 import type { CreatePlayerInput } from "@engine/player";
 import type { Asset } from "@engine/types";
 
-export type CinematicScene = "contract" | "garage" | "home" | "press";
+export type CinematicScene = "contract" | "garage" | "home" | "press" | "relationship";
 
 export type ScreenId =
   | "career-select"
@@ -323,7 +323,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const current = get().activeCareer;
     if (!current) return;
     applyCareer(get, set, startOrChangePartner(current));
-    set({ cinematic: { scene: "press", title: "Life, On Your Terms", body: "Your relationship choices belong to you — not the headlines." } });
+    set({ cinematic: { scene: "relationship", title: "Off The Clock", body: "Your relationship choices belong to you — not the headlines." } });
   },
 
   endPartnerRelationship: () => {

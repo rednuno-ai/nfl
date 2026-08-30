@@ -6,11 +6,12 @@ const SCENE_COPY: Record<CinematicScene, { eyebrow: string; action: string }> = 
   garage: { eyebrow: "CAREER REEL · THE GARAGE", action: "Take the keys" },
   home: { eyebrow: "CAREER REEL · HOME BASE", action: "Make it home" },
   press: { eyebrow: "CAREER REEL · AFTER THE WHISTLE", action: "Keep moving" },
+  relationship: { eyebrow: "CAREER REEL · OFF THE CLOCK", action: "Back to your story" },
 };
 
-/** A short, cinematic beat built from original still art and CSS camera motion.
- * It intentionally behaves like a game cutscene without shipping heavy video
- * files or relying on third-party footage. */
+/** A short, first-person cinematic beat built from original art and lightweight
+ * camera, grain and flash animation. It deliberately avoids third-party clips
+ * and large video downloads while retaining a cutscene-like feel. */
 export function LifeCinematic({ scene, title, body, onClose }: { scene: CinematicScene; title: string; body: string; onClose: () => void }) {
   const copy = SCENE_COPY[scene];
   useEffect(() => {
@@ -26,6 +27,7 @@ export function LifeCinematic({ scene, title, body, onClose }: { scene: Cinemati
       <section className={`life-cinematic life-cinematic--${scene}`} role="dialog" aria-modal="true" aria-labelledby="life-cinematic-title" aria-describedby="life-cinematic-description">
         <div className="life-cinematic-art" aria-hidden="true" />
         <div className="life-cinematic-grain" aria-hidden="true" />
+        <div className="life-cinematic-reel" aria-hidden="true"><span /></div>
         <div className="life-cinematic-copy">
           <div className="life-cinematic-eyebrow">{copy.eyebrow}</div>
           <h2 id="life-cinematic-title">{title}</h2>
