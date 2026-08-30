@@ -48,6 +48,37 @@ const PERSONALITY_ICON: Record<PersonalityTrait, string> = {
   competitive: "💪",
 };
 
+function buildForecast(
+  position: Position,
+  allocations: Record<string, number>,
+  personality: PersonalityTrait[],
+  heightInches: number,
+  weightLbs: number,
+  hand: Hand
+): { title: string; summary: string } {
+  const invested = (path: string) => allocations[path] ?? 0;
+  let archetype = "Balanced prospect";
+
+  if (position === "QB") {
+    if (invested("position.QB.deepAccuracy") + invested("position.QB.throwPower") >= 8) archetype = "Vertical creator";
+    else if (invested("position.QB.agility") + invested("mental.decisionMaking") >= 8) archetype = "Off-script playmaker";
+    else archetype = "Rhythm passer";
+  } else if (position === "RB") {
+    archetype = invested("physical.speed") + invested("physical.acceleration") >= 8 ? "Open-field runner" : "Chain-moving runner";
+  } else if (position === "WR" || position === "TE") {
+    archetype = invested("physical.speed") + invested("position.WR.routeRunning") >= 8 ? "Separation specialist" : "Reliable target";
+  } else if (position === "CB" || position === "LB") {
+    archetype = invested("physical.speed") >= 6 ? "Range defender" : "Physical defender";
+  }
+
+  const leadingTrait = personality[0] ? PERSONALITY_LABELS[personality[0]] : "your choices";
+  const body = getBuildEffects(heightInches, weightLbs);
+  return {
+    title: `${position} · ${archetype}`,
+    summary: `${leadingTrait} shapes your story opportunities; ${body.height.title.toLowerCase()} and ${body.weight.title.toLowerCase()} shape the physical trade-off. ${hand === "left" ? "Left" : "Right"}-handed is profile-only — no hidden OVR bonus.`,
+  };
+}
+
 function PlayerCreationFrame({ children }: { children: ReactNode }) {
   return (
     <div className="player-creation-page">
@@ -83,6 +114,7 @@ export function CreatePlayerScreen() {
   const pointsLeft = pointBuyPointsLeft(position, allocations);
   const previewOverall = previewPointBuyOverall(position, allocations, { heightInches, weightLbs });
   const buildEffects = getBuildEffects(heightInches, weightLbs);
+  const forecast = buildForecast(position, allocations, personality, heightInches, weightLbs, hand);
 
   useEffect(() => {
     setOnboardingStage(step);
@@ -152,8 +184,13 @@ export function CreatePlayerScreen() {
             <span>{POSITION_IMPACT[position]} Your six selected skills start at {POINT_BUY_BASELINE}; OVR is the position-weighted average of relevant skills after your allocation and body-profile trade-offs. Personality shapes events and does not add hidden OVR.</span>
           </aside>
 
+          <aside className="build-explainer build-forecast" aria-label="Projected player style">
+            <strong>Projected style · {forecast.title}</strong>
+            <span>{forecast.summary}</span>
+          </aside>
+
           <div className="build-actions" role="group" aria-label="Attribute build shortcuts">
-            <button type="button" className="btn btn-ghost" onClick={() => setAllocations(recommendedPointBuyAllocations(position))}>Recommended Build</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setAllocations(recommendedPointBuyAllocations(position))}>Recommended {position} Build</button>
             <button type="button" className="btn btn-ghost" onClick={() => setAllocations({})} disabled={pointsSpent === 0}>Reset Attributes</button>
           </div>
 
@@ -273,6 +310,7 @@ export function CreatePlayerScreen() {
               <option value="right">Right</option>
               <option value="left">Left</option>
             </select>
+            <p className="form-help">Stored for your player profile and storytelling; it does not secretly change ratings or OVR.</p>
           </div>
           <div className="field">
             <label htmlFor="player-height">Height (inches)</label>

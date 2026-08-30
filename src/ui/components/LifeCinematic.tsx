@@ -22,6 +22,7 @@ const SCENE_COPY: Record<CinematicScene, { eyebrow: string; action: string }> = 
  * and large video downloads while retaining a cutscene-like feel. */
 export function LifeCinematic({ scene, title, body, onClose }: { scene: CinematicScene; title: string; body: string; onClose: () => void }) {
   const copy = SCENE_COPY[scene];
+  const isGameIntro = scene === "tunnel" || scene === "travel";
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -40,9 +41,12 @@ export function LifeCinematic({ scene, title, body, onClose }: { scene: Cinemati
           <div className="life-cinematic-eyebrow">{copy.eyebrow}</div>
           <h2 id="life-cinematic-title">{title}</h2>
           <p id="life-cinematic-description">{body}</p>
-          <button className="btn btn-primary life-cinematic-action" onClick={onClose} autoFocus>
-            {copy.action} <span aria-hidden="true">→</span>
-          </button>
+          <div className="life-cinematic-actions">
+            {isGameIntro && <button type="button" className="btn btn-ghost life-cinematic-skip" onClick={onClose}>Skip intro</button>}
+            <button className="btn btn-primary life-cinematic-action" onClick={onClose} autoFocus>
+              {copy.action} <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
       </section>
     </div>
