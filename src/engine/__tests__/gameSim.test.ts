@@ -206,6 +206,32 @@ describe("game simulation", () => {
     assert.equal(state.carriedRiskLevel, "aggressive");
   });
 
+  it("varies a QB's play-call menu as down, distance and field position change", () => {
+    const player = makeQB();
+    const input = buildInput(player, TEAMS[2], TEAMS[3]);
+    const rng = new RNG(918);
+    let state = beginGame(input, rng);
+    const menus = new Set<string>();
+    let iterations = 0;
+
+    while (!state.finished && iterations < MAX_ITERATIONS) {
+      if (state.pendingDecision?.kind === "play_call") {
+        menus.add(state.pendingDecision.options.map((option) => option.label).join("|"));
+      }
+      state = state.pendingDecision
+        ? advanceGame(state, input, rng, state.pendingDecision.options[0].id)
+        : advanceGame(state, input, rng);
+      iterations += 1;
+    }
+
+    assert.equal(state.finished, true);
+    assert.ok(menus.size >= 2, "game situations should not repeat one static QB menu");
+    assert.ok(
+      [...menus].some((menu) => /Power Run|Quick Game|Chain Mover|Quick Goal-Line Pass/.test(menu)),
+      "expected at least one context-specific call menu"
+    );
+  });
+
   it("a defensive player gets defense_call decisions, not offensive play calls", () => {
     const player = makePlayer("CB");
     const input = buildInput(player, TEAMS[0], TEAMS[1]);
