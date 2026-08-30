@@ -227,6 +227,89 @@ export const POINT_BUY_POOL = 24;
 /** Ceiling a single point-buy attribute can reach (baseline + all spent there). */
 export const POINT_BUY_MAX = 85;
 
+/** A deliberately even split so the creator's two-point controls can freely
+ * move points after applying the recommendation. It is a useful default, not
+ * a hidden "best" build. */
+const RECOMMENDED_POINT_BUY_SPLIT = [6, 6, 4, 4, 2, 2];
+
+export interface BuildEffect {
+  title: string;
+  benefit: string;
+  drawback: string;
+  deltas: { path: string; delta: number }[];
+}
+
+/**
+ * Height and weight make a small, explicit trade-off to the starting profile.
+ * The effects are intentionally modest: a player should choose a body type
+ * for the athlete they want to role-play, not to find a mandatory meta build.
+ */
+export function getBuildEffects(heightInches: number, weightLbs: number): { height: BuildEffect; weight: BuildEffect } {
+  const height =
+    heightInches >= 76
+      ? {
+          title: "Tall build",
+          benefit: "+2 strength and +1 durability.",
+          drawback: "−1 agility; taller frames trade some change of direction for reach and resilience.",
+          deltas: [
+            { path: "physical.strength", delta: 2 },
+            { path: "physical.durability", delta: 1 },
+            { path: "physical.agility", delta: -1 },
+          ],
+        }
+      : heightInches <= 68
+        ? {
+            title: "Compact build",
+            benefit: "+2 agility.",
+            drawback: "−1 strength; compact frames gain change of direction but give up some power.",
+            deltas: [
+              { path: "physical.agility", delta: 2 },
+              { path: "physical.strength", delta: -1 },
+            ],
+          }
+        : {
+            title: "Balanced height",
+            benefit: "No height modifier.",
+            drawback: "No trade-off is applied at this range.",
+            deltas: [],
+          };
+  const weight =
+    weightLbs >= 225
+      ? {
+          title: "Power build",
+          benefit: "+2 strength and +1 durability.",
+          drawback: "−1 acceleration; added mass trades first-step burst for power.",
+          deltas: [
+            { path: "physical.strength", delta: 2 },
+            { path: "physical.durability", delta: 1 },
+            { path: "physical.acceleration", delta: -1 },
+          ],
+        }
+      : weightLbs <= 180
+        ? {
+            title: "Speed build",
+            benefit: "+2 acceleration.",
+            drawback: "−1 strength; a lighter frame gains burst but gives up power.",
+            deltas: [
+              { path: "physical.acceleration", delta: 2 },
+              { path: "physical.strength", delta: -1 },
+            ],
+          }
+        : {
+            title: "Balanced weight",
+            benefit: "No weight modifier.",
+            drawback: "No trade-off is applied at this range.",
+            deltas: [],
+          };
+  return { height, weight };
+}
+
+/** Applies the documented body-profile adjustments after point-buy values. */
+export function applyBuildEffects(attrs: Attributes, heightInches: number, weightLbs: number): Attributes {
+  const effects = getBuildEffects(heightInches, weightLbs);
+  return applyAttributeDeltas(attrs, [...effects.height.deltas, ...effects.weight.deltas]);
+}
+
 /** The six headline attributes exposed to the point-buy creator for each
  *  creatable position (see MVP_POSITIONS) — a curated subset of the full
  *  attribute tree chosen to read clearly to a new player and to visibly move
@@ -282,6 +365,22 @@ export const POINT_BUY_SLOTS: Partial<Record<Position, PointBuySlot[]>> = {
   ],
 };
 
+/** Remaining points based only on the current position's valid curated slots. */
+export function pointBuyPointsLeft(position: Position, allocations: Record<string, number>): number {
+  const allowed = new Set((POINT_BUY_SLOTS[position] ?? []).map((slot) => slot.path));
+  const spent = Object.entries(allocations).reduce((total, [path, points]) => total + (allowed.has(path) && Number.isFinite(points) ? points : 0), 0);
+  return POINT_BUY_POOL - spent;
+}
+
+/** Produces a legal, balanced, full 24-point build for the selected position. */
+export function recommendedPointBuyAllocations(position: Position): Record<string, number> {
+  const slots = POINT_BUY_SLOTS[position] ?? [];
+  return slots.reduce<Record<string, number>>((allocations, slot, index) => {
+    allocations[slot.path] = RECOMMENDED_POINT_BUY_SPLIT[index] ?? 0;
+    return allocations;
+  }, {});
+}
+
 /** Applies a point-buy allocation (path -> extra points, each 0..pool) on top
  *  of POINT_BUY_BASELINE, pinning those specific attributes to an absolute
  *  value. Any position without curated slots (not in MVP_POSITIONS) is a
@@ -299,7 +398,7 @@ export function applyPointBuy(attrs: Attributes, position: Position, allocations
  *  for every field, with the curated slots overridden by the given
  *  allocation — used purely to preview OVR live in the creator UI before the
  *  real (partly random) attribute roll happens at career creation. */
-export function previewPointBuyOverall(position: Position, allocations: Record<string, number>): number {
+export function previewPointBuyOverall(position: Position, allocations: Record<string, number>, body?: { heightInches: number; weightLbs: number }): number {
   const flat = (v: number) => ({ blocking: v, tackling: v, technique: v, specialTeams: v });
   const b = POINT_BUY_BASELINE;
   const baseline: Attributes = {
@@ -320,5 +419,6 @@ export function previewPointBuyOverall(position: Position, allocations: Record<s
       P: flat(b),
     },
   };
-  return computeOverall(applyPointBuy(baseline, position, allocations), position);
+  const pointBuyAttributes = applyPointBuy(baseline, position, allocations);
+  return computeOverall(body ? applyBuildEffects(pointBuyAttributes, body.heightInches, body.weightLbs) : pointBuyAttributes, position);
 }

@@ -57,7 +57,7 @@ export interface AuthResult {
 
 const USERS_KEY = "nfl-life:auth:users";
 const SESSION_KEY = "nfl-life:auth:session";
-const DEFAULT_ADMIN_USERNAME = "adm";
+export const DEMO_ACCOUNT_USERNAME = "adm";
 const DEFAULT_ADMIN_PASSWORD = "adm";
 const DEFAULT_ADMIN_RECOVERY_KEY = "DEMO-2026";
 
@@ -84,6 +84,11 @@ function saveUsers(users: Record<string, AuthUser>): void {
 
 function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
+}
+
+/** Only this seeded account is allowed to use the destructive demo reset. */
+export function isDemoAccount(username: string | null | undefined): boolean {
+  return normalizeUsername(username ?? "") === DEMO_ACCOUNT_USERNAME;
 }
 
 function normalizeReferralCode(code: string): string {
@@ -268,8 +273,9 @@ export function deleteAccount(usernameRaw: string): void {
 /** Rebuilds the professional demo profile from scratch, including deleting its
  * saves. It is deliberately explicit: visitors can safely replay the sample
  * flow without silently losing their own account data. */
-export async function resetDemoAccount(): Promise<AuthResult> {
-  const username = DEFAULT_ADMIN_USERNAME;
+export async function resetDemoAccount(usernameRaw: string): Promise<AuthResult> {
+  const username = normalizeUsername(usernameRaw);
+  if (!isDemoAccount(username)) return { ok: false, error: "Only the demo account can be reset." };
   const careerIds = (() => {
     try {
       return JSON.parse(localStorage.getItem(`nfl-life:index:${username}`) ?? "[]") as string[];
@@ -329,12 +335,12 @@ export function cancelSubscription(usernameRaw: string): void {
  *  screen is interactive. */
 export async function seedDefaultAccounts(): Promise<void> {
   const users = loadUsers();
-  if (users[DEFAULT_ADMIN_USERNAME]) return;
-  const result = await register(DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD);
+  if (users[DEMO_ACCOUNT_USERNAME]) return;
+  const result = await register(DEMO_ACCOUNT_USERNAME, DEFAULT_ADMIN_PASSWORD);
   if (result.ok) {
-    activateSubscriptionDemo(DEFAULT_ADMIN_USERNAME);
+    activateSubscriptionDemo(DEMO_ACCOUNT_USERNAME);
     const updatedUsers = loadUsers();
-    updatedUsers[DEFAULT_ADMIN_USERNAME] = { ...updatedUsers[DEFAULT_ADMIN_USERNAME], recoveryKey: DEFAULT_ADMIN_RECOVERY_KEY, referralCode: "DEMO-GL" };
+    updatedUsers[DEMO_ACCOUNT_USERNAME] = { ...updatedUsers[DEMO_ACCOUNT_USERNAME], recoveryKey: DEFAULT_ADMIN_RECOVERY_KEY, referralCode: "DEMO-GL" };
     saveUsers(updatedUsers);
     logout(); // don't auto-login; the seeded account still goes through the normal login screen
   }

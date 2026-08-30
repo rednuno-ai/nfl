@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGameStore, gameStore } from "@store/gameStore";
+import { isDemoAccount } from "@data/auth";
 import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
 import { ConfirmModal } from "@ui/components/ConfirmModal";
 
@@ -9,6 +10,8 @@ export function SettingsScreen() {
   const currentUser = useGameStore((s) => s.currentUser);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingAccountDelete, setConfirmingAccountDelete] = useState(false);
+  const [confirmingDemoReset, setConfirmingDemoReset] = useState(false);
+  const demoAccount = isDemoAccount(currentUser?.username);
   const referralUnlocked =
     state.currentSeasonGameStats.some((line) => line.gamesPlayed > 0) ||
     state.statHistory.some((line) => line.gamesPlayed > 0) ||
@@ -32,6 +35,14 @@ export function SettingsScreen() {
         <p className="muted">Keep this code private. It can reset this local account from the login screen.</p>
         <code>{currentUser?.recoveryKey ?? "Unavailable"}</code>
       </section>
+
+      {demoAccount && (
+        <section className="card demo-reset-card" aria-labelledby="demo-reset-title">
+          <h2 className="section-title" id="demo-reset-title">Demo account</h2>
+          <p className="muted">Reset Demo Account removes only the demo careers stored in this browser and returns the demo to a clean starting state. Normal accounts are never touched.</p>
+          <button className="btn btn-ghost" onClick={() => setConfirmingDemoReset(true)}>Reset Demo Account</button>
+        </section>
+      )}
 
       {referralUnlocked ? <InviteFriendsCard /> : (
         <section className="card referral-locked-card" aria-labelledby="referral-locked-title">
@@ -83,6 +94,19 @@ export function SettingsScreen() {
           onConfirm={() => {
             setConfirmingAccountDelete(false);
             gameStore.getState().deleteCurrentAccount();
+          }}
+        />
+      )}
+      {confirmingDemoReset && (
+        <ConfirmModal
+          title="Reset the demo account?"
+          body="This removes every demo career stored in this browser and signs out. It does not affect normal accounts. You can sign back in with adm / adm to start fresh."
+          confirmLabel="Reset Demo Account"
+          danger
+          onCancel={() => setConfirmingDemoReset(false)}
+          onConfirm={() => {
+            setConfirmingDemoReset(false);
+            void gameStore.getState().resetDemoProfile();
           }}
         />
       )}

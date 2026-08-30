@@ -192,7 +192,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
 
   resetDemoProfile: async () => {
     set({ authBusy: true, authError: null });
-    const result = await authResetDemoAccount();
+    const result = await authResetDemoAccount(get().session?.username ?? "");
     set({ authBusy: false, authError: result.ok ? null : result.error ?? "Couldn't reset the demo profile.", session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
   },
 

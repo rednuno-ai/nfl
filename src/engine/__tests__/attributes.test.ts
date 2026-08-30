@@ -13,6 +13,10 @@ import {
   POINT_BUY_BASELINE,
   POINT_BUY_POOL,
   POINT_BUY_MAX,
+  applyBuildEffects,
+  getBuildEffects,
+  pointBuyPointsLeft,
+  recommendedPointBuyAllocations,
 } from "../attributes";
 import { RNG } from "../rng";
 import type { Position } from "../types";
@@ -142,6 +146,30 @@ describe("attributes", () => {
       const zero = previewPointBuyOverall("WR", {});
       const boosted = previewPointBuyOverall("WR", { "position.WR.catching": 15, "position.WR.routeRunning": 9 });
       assert.ok(boosted > zero, "allocating points to relevant slots should raise the previewed overall");
+    });
+
+    it("tracks the exact 24, 1 and 0-point remaining states", () => {
+      assert.equal(pointBuyPointsLeft("QB", {}), 24);
+      assert.equal(pointBuyPointsLeft("QB", { "position.QB.shortAccuracy": 23 }), 1);
+      assert.equal(pointBuyPointsLeft("QB", { "position.QB.shortAccuracy": 24 }), 0);
+    });
+
+    it("generates a legal, complete recommended build", () => {
+      const allocations = recommendedPointBuyAllocations("WR");
+      assert.equal(pointBuyPointsLeft("WR", allocations), 0);
+      assert.equal(Object.values(allocations).reduce((sum, points) => sum + points, 0), POINT_BUY_POOL);
+      assert.ok(Object.values(allocations).every((points) => points >= 0 && points <= POINT_BUY_MAX - POINT_BUY_BASELINE));
+    });
+
+    it("uses the documented body-profile advantages and trade-offs", () => {
+      const attrs = generateInitialAttributes("QB", 0.5, new RNG(8));
+      const tall = applyBuildEffects(attrs, 76, 225);
+      assert.equal(tall.physical.strength, Math.min(100, attrs.physical.strength + 4));
+      assert.equal(tall.physical.durability, Math.min(100, attrs.physical.durability + 2));
+      assert.equal(tall.physical.agility, Math.max(0, attrs.physical.agility - 1));
+      assert.equal(tall.physical.acceleration, Math.max(0, attrs.physical.acceleration - 1));
+      assert.equal(getBuildEffects(72, 200).height.deltas.length, 0);
+      assert.equal(getBuildEffects(72, 200).weight.deltas.length, 0);
     });
   });
 });

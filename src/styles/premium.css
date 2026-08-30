@@ -89,3 +89,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 /* Standalone account and career-picker routes retain landmarks without
    competing with their established hero treatments. */
 .homepage-page,.subscription-page{min-height:100vh;display:flex;flex-direction:column}.homepage-page .homepage-body{flex:1}.homepage-footer,.subscription-footer{padding:16px;color:var(--text-faint);font-size:10px;font-weight:800;letter-spacing:.08em;text-align:center;text-transform:uppercase}.subscription-header{width:min(980px,calc(100% - 32px));margin:0 auto;padding:16px 0 0}.subscription-header .brand{padding:0}.subscription-page .centered-page{flex:1}.subscription-footer{padding-bottom:22px}
+
+/* Creator clarity: these controls reuse the existing card language rather than
+   introducing a new visual system. Personality and body effects stay visible
+   before the player commits to a build. */
+.onboarding-card .trait-card{min-height:132px!important}.onboarding-card .trait-card-desc{display:block}.build-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.build-actions .btn{min-height:44px}.body-build-explainer{margin-top:10px}.body-build-explainer span{display:block}.demo-reset-card{margin-bottom:20px;border-color:rgba(255,122,82,.28)}
+@media(max-width:760px){.onboarding-card .trait-card{min-height:112px!important}.build-actions .btn{flex:1}}

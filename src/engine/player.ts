@@ -1,5 +1,5 @@
 import type { Hand, PersonalityTrait, Player, PlayerBio, Position } from "./types";
-import { applyPointBuy, generateInitialAttributes } from "./attributes";
+import { applyBuildEffects, applyPointBuy, generateInitialAttributes } from "./attributes";
 import { RNG } from "./rng";
 
 export interface CreatePlayerInput {
@@ -14,8 +14,8 @@ export interface CreatePlayerInput {
   personality: PersonalityTrait[];
   currentYear: number;
   /** Point-buy allocation from the character creator (dotted attribute path
-   *  -> extra points above POINT_BUY_BASELINE). Optional so existing callers
-   *  (tests, older saves) keep working with a purely random roll. */
+   *  -> extra points above POINT_BUY_BASELINE). `createCareer` requires the
+   *  full pool; direct `createPlayer` callers may still omit it for fixtures. */
   attributeAllocations?: Record<string, number>;
 }
 
@@ -41,6 +41,7 @@ export function createPlayer(input: CreatePlayerInput, rng: RNG): Player {
   if (input.attributeAllocations) {
     attributes = applyPointBuy(attributes, input.position, input.attributeAllocations);
   }
+  attributes = applyBuildEffects(attributes, input.heightInches, input.weightLbs);
 
   return {
     id: createId("player", rng),

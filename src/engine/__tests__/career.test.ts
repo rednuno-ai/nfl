@@ -41,6 +41,7 @@ function baseInput(overrides: Partial<CreatePlayerInput> = {}): CreatePlayerInpu
     weightLbs: 218,
     personality: ["ambitious", "competitive"],
     currentYear: 2026,
+    attributeAllocations: { "position.QB.shortAccuracy": POINT_BUY_POOL },
     ...overrides,
   };
 }
@@ -80,10 +81,14 @@ describe("career state machine", () => {
     assert.equal(state.interaction, null);
   });
 
-  it("rejects an incomplete point-buy allocation before a career can start", () => {
+  it("requires the whole 24-point pool before a career can start", () => {
     assert.throws(
-      () => createCareer(baseInput({ attributeAllocations: { "position.QB.shortAccuracy": 2 } })),
+      () => createCareer(baseInput({ attributeAllocations: {} })),
       /Spend all 24 attribute points/
+    );
+    assert.throws(
+      () => createCareer(baseInput({ attributeAllocations: { "position.QB.shortAccuracy": POINT_BUY_POOL - 1 } })),
+      /Spend all 1 attribute points/
     );
     assert.doesNotThrow(() => createCareer(baseInput({ attributeAllocations: { "position.QB.shortAccuracy": POINT_BUY_POOL } })));
   });

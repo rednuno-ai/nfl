@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { gameStore } from "@store/gameStore";
 import { MVP_POSITIONS, type Hand, type PersonalityTrait, type Position } from "@engine/types";
 import { PERSONALITY_DESCRIPTIONS, PERSONALITY_LABELS } from "@engine/player";
-import { POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS, previewPointBuyOverall } from "@engine/attributes";
+import { getBuildEffects, pointBuyPointsLeft, POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS, previewPointBuyOverall, recommendedPointBuyAllocations } from "@engine/attributes";
 import { PositionBadge } from "@ui/components/PositionBadge";
 
 const PERSONALITY_OPTIONS = Object.keys(PERSONALITY_LABELS) as PersonalityTrait[];
@@ -79,8 +79,9 @@ export function CreatePlayerScreen() {
 
   const slots = POINT_BUY_SLOTS[position] ?? [];
   const pointsSpent = slots.reduce((sum, slot) => sum + (allocations[slot.path] ?? 0), 0);
-  const pointsLeft = POINT_BUY_POOL - pointsSpent;
-  const previewOverall = previewPointBuyOverall(position, allocations);
+  const pointsLeft = pointBuyPointsLeft(position, allocations);
+  const previewOverall = previewPointBuyOverall(position, allocations, { heightInches, weightLbs });
+  const buildEffects = getBuildEffects(heightInches, weightLbs);
 
   function togglePersonality(trait: PersonalityTrait) {
     setPersonality((prev) => (prev.includes(trait) ? prev.filter((t) => t !== trait) : prev.length < 3 ? [...prev, trait] : prev));
@@ -143,8 +144,13 @@ export function CreatePlayerScreen() {
 
           <aside className="build-explainer" aria-label="How your overall is calculated">
             <strong>How OVR works</strong>
-            <span>{POSITION_IMPACT[position]} Your six selected skills start at {POINT_BUY_BASELINE}; the final OVR is the position-weighted average of all relevant attributes after your allocation and the generated starting profile.</span>
+            <span>{POSITION_IMPACT[position]} Your six selected skills start at {POINT_BUY_BASELINE}; OVR is the position-weighted average of relevant skills after your allocation and body-profile trade-offs. Personality shapes events and does not add hidden OVR.</span>
           </aside>
+
+          <div className="build-actions" role="group" aria-label="Attribute build shortcuts">
+            <button type="button" className="btn btn-ghost" onClick={() => setAllocations(recommendedPointBuyAllocations(position))}>Recommended Build</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setAllocations({})} disabled={pointsSpent === 0}>Reset allocation</button>
+          </div>
 
           <div className="attribute-list">
             {slots.map((slot) => {
@@ -220,7 +226,7 @@ export function CreatePlayerScreen() {
                   {selected && <div className="trait-card-badge">{selectedIndex + 1}</div>}
                   <div className="trait-card-icon">{PERSONALITY_ICON[trait]}</div>
                   <div className="trait-card-label">{PERSONALITY_LABELS[trait]}</div>
-                  <span className="sr-only">{PERSONALITY_DESCRIPTIONS[trait]}</span>
+                  <div className="trait-card-desc">{PERSONALITY_DESCRIPTIONS[trait]}</div>
                 </button>
               );
             })}
@@ -272,7 +278,12 @@ export function CreatePlayerScreen() {
             <input id="player-weight" type="number" min={130} max={340} value={weightLbs} onChange={(e) => setWeightLbs(Number(e.target.value))} aria-describedby="build-body-note" />
           </div>
         </div>
-        <p className="form-help" id="build-body-note">Height and weight define your player profile and story presentation. They are not currently used to change OVR.</p>
+        <aside className="build-explainer body-build-explainer" id="build-body-note" aria-label="Height and weight trade-offs">
+          <strong>Body profile trade-offs</strong>
+          <span><b>{buildEffects.height.title}:</b> {buildEffects.height.benefit} {buildEffects.height.drawback}</span>
+          <span><b>{buildEffects.weight.title}:</b> {buildEffects.weight.benefit} {buildEffects.weight.drawback}</span>
+          <span>These transparent starting modifiers apply after your point allocation and can affect OVR only when their attributes matter to your position.</span>
+        </aside>
 
         <div className="btn-row" style={{ marginTop: 10 }}>
           <button className="btn btn-ghost" onClick={() => gameStore.setState({ screen: "career-select" })}>
