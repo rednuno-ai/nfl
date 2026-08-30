@@ -8,6 +8,29 @@ import type { GameEventDefinition } from "../../types";
 
 export const HIGH_SCHOOL_EVENTS: GameEventDefinition[] = [
   {
+    id: "hs_personality_leadership",
+    category: "high_school",
+    title: "The Locker Room Is Watching",
+    description: "After a hard practice, younger players start looking to you for the tone of the week.",
+    conditions: { personalityAny: ["competitive", "loyal", "disciplined"], probability: 0.15 },
+    cooldownWeeks: 24,
+    tags: [],
+    choices: [
+      {
+        id: "raise_standard",
+        label: "Raise the standard",
+        description: "Challenge everyone to match your preparation.",
+        consequences: { relationshipDeltas: [{ targetTag: "team", delta: 3 }], attributeDeltas: [{ path: "general.leadership", delta: 2 }, { path: "general.morale", delta: -1 }] },
+      },
+      {
+        id: "lead_quietly",
+        label: "Lead quietly",
+        description: "Stay after with the younger players and teach the details.",
+        consequences: { relationshipDeltas: [{ targetTag: "team", delta: 5 }], attributeDeltas: [{ path: "mental.footballIQ", delta: 1 }, { path: "general.leadership", delta: 1 }] },
+      },
+    ],
+  },
+  {
     id: "hs_first_scout_visit",
     category: "high_school",
     title: "A Scout Wants to Talk",

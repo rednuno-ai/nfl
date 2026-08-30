@@ -146,6 +146,26 @@ describe("career state machine", () => {
     assert.equal(relationshipValue(socialWeek, "media"), 53);
   });
 
+  it("keeps narrative memory as a durable tag for future event callbacks", () => {
+    const base = createCareer(baseInput());
+    const pending: CareerState = {
+      ...base,
+      interaction: {
+        type: "decision",
+        decision: {
+          eventId: "memory_test",
+          title: "A choice that matters later",
+          description: "test",
+          week: base.totalWeek,
+          choices: [{ id: "keep_promise", label: "Keep it", consequences: { narrativeMemory: "You kept the promise." } }],
+        },
+      },
+    };
+
+    const resolved = resolveDecision(pending, "keep_promise");
+    assert.ok(resolved.tags.includes("memory:memory_test:keep_promise"));
+  });
+
   it("can skip a live game while preserving its real result, stats and schedule progress", () => {
     let state = createCareer(baseInput());
     for (let i = 0; i < 30 && state.interaction?.type !== "game"; i++) {

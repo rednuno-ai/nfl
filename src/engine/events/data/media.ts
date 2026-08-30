@@ -2,6 +2,29 @@ import type { GameEventDefinition } from "../../types";
 
 export const MEDIA_EVENTS: GameEventDefinition[] = [
   {
+    id: "media_personality_platform",
+    category: "media",
+    title: "What Do You Stand For?",
+    description: "A local publication offers you a platform to talk about the person behind the player. The opportunity reaches you because of the way you carry yourself.",
+    conditions: { personalityAny: ["charismatic", "introvert", "risk_taker"], minFame: 8, probability: 0.13 },
+    cooldownWeeks: 28,
+    tags: [],
+    choices: [
+      {
+        id: "speak_openly",
+        label: "Speak openly",
+        description: "Build a real connection, with the risk of more attention.",
+        consequences: { attributeDeltas: [{ path: "general.fame", delta: 3 }, { path: "general.reputation", delta: 2 }], relationshipDeltas: [{ targetTag: "media", delta: 2 }] },
+      },
+      {
+        id: "keep_boundaries",
+        label: "Keep boundaries",
+        description: "Stay in control of the story and protect your focus.",
+        consequences: { attributeDeltas: [{ path: "mental.composure", delta: 2 }], relationshipDeltas: [{ targetTag: "media", delta: -1 }] },
+      },
+    ],
+  },
+  {
     id: "media_hot_take_response",
     category: "media",
     title: "A Reporter Wants Your Reaction",

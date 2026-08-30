@@ -33,6 +33,8 @@ export function isEligible(def: GameEventDefinition, ctx: EventEngineContext): b
   if (c.minAge !== undefined && ctx.player.bio.age < c.minAge) return false;
   if (c.maxAge !== undefined && ctx.player.bio.age > c.maxAge) return false;
   if (c.positions && !c.positions.includes(ctx.player.position)) return false;
+  if (c.personalityAny && !c.personalityAny.some((trait) => ctx.player.personality.includes(trait))) return false;
+  if (c.personalityAll && !c.personalityAll.every((trait) => ctx.player.personality.includes(trait))) return false;
 
   if (c.minAttribute) {
     const val = getAttributeByPath(ctx.player.attributes, c.minAttribute.path);

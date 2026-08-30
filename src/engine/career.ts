@@ -405,6 +405,10 @@ export function resolveDecision(state: CareerState, choiceId: string): CareerSta
   let tags = state.tags;
   if (c.addTags?.length) tags = Array.from(new Set([...tags, ...c.addTags]));
   if (c.removeTags?.length) tags = tags.filter((t) => !c.removeTags!.includes(t));
+  // Narrative memory is a durable, queryable consequence rather than text
+  // that disappears into a log. Future data-driven events can gate on this
+  // tag to call back a previous choice without hard-coding a story branch.
+  if (c.narrativeMemory) tags = Array.from(new Set([...tags, `memory:${decision.eventId}:${choice.id}`]));
 
   let news = state.news;
   if (c.news) {

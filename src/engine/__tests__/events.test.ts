@@ -80,6 +80,25 @@ describe("event engine", () => {
     assert.equal(isEligible(onceEvent, { ...ctx, week: 500 }), false);
   });
 
+  it("can gate a story opportunity on the player's personality", () => {
+    const event = {
+      id: "personality_gate",
+      category: "personal" as const,
+      title: "Personality Gate",
+      description: "test",
+      conditions: { personalityAny: ["charismatic" as const], probability: 1 },
+      choices: [],
+      cooldownWeeks: 0,
+      tags: [],
+    };
+    const player = testPlayer();
+    const { firedAt, firedOnce } = createEmptyEventMemory();
+    const context = { player, stage: "high_school" as const, week: 1, coachRelationship: 50, fame: 5, tags: new Set<string>(), firedAt, firedOnce };
+    assert.equal(isEligible(event, context), false);
+    context.player = { ...context.player, personality: ["charismatic"] };
+    assert.equal(isEligible(event, context), true);
+  });
+
   it("rollEligibleEvents only returns events passing their probability roll", () => {
     const player = testPlayer();
     const { firedAt, firedOnce } = createEmptyEventMemory();

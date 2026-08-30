@@ -454,6 +454,10 @@ export interface EventCondition {
   minAge?: number;
   maxAge?: number;
   positions?: Position[];
+  /** Personality-gated story opportunities. `personalityAny` needs one
+   * match; `personalityAll` needs every listed trait. */
+  personalityAny?: PersonalityTrait[];
+  personalityAll?: PersonalityTrait[];
   minAttribute?: { path: string; value: number };
   maxAttribute?: { path: string; value: number };
   minCoachRelationship?: number;

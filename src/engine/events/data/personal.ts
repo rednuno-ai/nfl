@@ -2,6 +2,61 @@ import type { GameEventDefinition } from "../../types";
 
 export const PERSONAL_EVENTS: GameEventDefinition[] = [
   {
+    id: "personal_family_time",
+    category: "personal",
+    title: "A Promise at Home",
+    description: "Your family asks you to make time for an important dinner before the next game. It lands differently depending on the person you chose to be.",
+    conditions: { personalityAny: ["family_oriented", "loyal", "ambitious"], probability: 0.14 },
+    cooldownWeeks: 24,
+    tags: [],
+    choices: [
+      {
+        id: "show_up",
+        label: "Keep the promise",
+        description: "Protect the people who keep you grounded.",
+        consequences: {
+          relationshipDeltas: [{ targetTag: "family", delta: 6 }],
+          attributeDeltas: [{ path: "general.morale", delta: 3 }],
+          narrativeMemory: "You protected family time before a big week.",
+        },
+      },
+      {
+        id: "film_room",
+        label: "Stay late for film",
+        description: "Trade one evening at home for extra preparation.",
+        consequences: {
+          relationshipDeltas: [{ targetTag: "family", delta: -2 }],
+          attributeDeltas: [{ path: "mental.footballIQ", delta: 1 }, { path: "general.discipline", delta: 1 }],
+          narrativeMemory: "You chose preparation over a family commitment.",
+        },
+      },
+    ],
+  },
+  {
+    id: "personal_family_time_callback",
+    category: "personal",
+    title: "They Remembered",
+    description: "Your family brings up the promise you kept before a difficult stretch. The earlier choice is still part of the conversation.",
+    conditions: { tagsPresent: ["memory:personal_family_time:show_up"], probability: 0.18 },
+    cooldownWeeks: 50,
+    once: true,
+    tags: [],
+    choices: [
+      {
+        id: "share_the_moment",
+        label: "Share the moment",
+        description: "Let them see the work behind the career.",
+        consequences: { relationshipDeltas: [{ targetTag: "family", delta: 5 }], attributeDeltas: [{ path: "general.morale", delta: 2 }] },
+      },
+      {
+        id: "keep_it_simple",
+        label: "Keep it simple",
+        description: "Appreciate the support, then return to routine.",
+        consequences: { attributeDeltas: [{ path: "general.composure", delta: 1 }] },
+      },
+    ],
+  },
+  {
     id: "personal_new_relationship",
     category: "personal",
     title: "Someone Catches Your Eye",
