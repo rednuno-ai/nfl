@@ -3,4 +3,5 @@ dist/
 dist-sandbox/
 *.log
 *.tsbuildinfo
+.wrangler-config/
 .DS_Store
