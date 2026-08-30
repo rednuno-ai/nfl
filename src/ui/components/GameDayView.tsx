@@ -253,17 +253,17 @@ export function GameDayView({
         </div>
       )}
 
-      <div className="page-title">Game Day</div>
+      <h1 className="page-title">Game Day</h1>
       <div className="page-subtitle">
         Week {game.week} · vs {opponentLabel}
       </div>
 
-      <div className={`gameday-objective ${objectiveComplete ? "is-complete" : ""}`} aria-label={`Game Day Mission: ${objective.title}`}>
+      <section className={`gameday-objective ${objectiveComplete ? "is-complete" : ""}`} aria-labelledby="gameday-mission-title">
         <div className="gameday-objective-topline"><span>GAME DAY MISSION</span><strong>{objectiveComplete ? "COMPLETE" : `${objectiveValue}/${objective.target}`}</strong></div>
-        <div className="gameday-objective-title">{objective.title}</div>
+        <h2 className="gameday-objective-title" id="gameday-mission-title">{objective.title}</h2>
         <div className="gameday-objective-copy">{objective.description} <em>{objective.rewardLabel}</em></div>
         <div className="gameday-objective-track"><div style={{ width: `${Math.min(100, (objectiveValue / objective.target) * 100)}%` }} /></div>
-      </div>
+      </section>
 
       <div className="scoreboard">
         <div className="team">
@@ -355,9 +355,15 @@ export function GameDayView({
       </div>
 
       {showDecision && decision && (
-        <div className="card" style={{ marginBottom: 20 }}>
+        <section className="card" style={{ marginBottom: 20 }} aria-labelledby="game-decision-title">
           <div className="modal-eyebrow">{KIND_LABEL[decision.kind]}</div>
-          <div className="keymoment-title">{decision.situation}</div>
+          <h2 className="keymoment-title" id="game-decision-title">{decision.situation}</h2>
+          {decision.kind === "play_call" && (
+            <div className="decision-context" role="note">
+              <strong>Read the moment</strong>
+              <span>Position attributes, fatigue ({Math.round(game.fatigue)}%), confidence ({Math.round(game.confidence)}) and the game situation all shape the result. Risk labels describe the trade-off, never a guaranteed outcome.</span>
+            </div>
+          )}
           {decision.defenseIntel && (
             <div className="intel-banner">
               <div>{decision.defenseIntel.note}</div>
@@ -386,20 +392,20 @@ export function GameDayView({
               </button>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {caughtUp && game.finished && !decision && (
-        <div className="card" style={{ marginBottom: 20, textAlign: "center" }}>
+        <section className="card" style={{ marginBottom: 20, textAlign: "center" }} aria-labelledby="game-final-title">
           <div className="modal-eyebrow">Final</div>
-          <div className="keymoment-title">
+          <h2 className="keymoment-title" id="game-final-title">
             {game.result === "win" ? "You win!" : game.result === "loss" ? "You lose." : "It's a tie."} {scorePlayer}-{scoreOpponent}
-          </div>
+          </h2>
           {gameStory.length > 0 && (
             <div className="game-story">
-              <div className="section-title" style={{ marginTop: 16, textAlign: "left" }}>
+              <h2 className="section-title" style={{ marginTop: 16, textAlign: "left" }}>
                 Game Story
-              </div>
+              </h2>
               {gameStory.map((line, i) => (
                 <div key={i} className="game-story-line">
                   {line}
@@ -407,10 +413,11 @@ export function GameDayView({
               ))}
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      <details className="play-log-details">
+      <h2 className="sr-only" id="play-log-title">Play log</h2>
+      <details className="play-log-details" aria-labelledby="play-log-title">
         <summary>Play log <span>{revealed.length}</span></summary>
       <div className="play-log" aria-live="polite">
         {revealed.map((entry, i) => (

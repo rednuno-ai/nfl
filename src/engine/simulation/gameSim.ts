@@ -581,7 +581,7 @@ function positionSkillEdge(
       if (playType === "deep_pass") success += (qb.deepAccuracy - 60) / 400;
       else if (playType === "short_pass") success += (qb.shortAccuracy - 60) / 500;
       else if (playType === "play_action") success += (qb.mediumAccuracy - 60) / 500;
-      else if (playType === "qb_scramble") success += (qb.throwOnRun - 60) / 500;
+      else if (playType === "qb_scramble") success += ((qb.throwOnRun + player.attributes.physical.agility) - 120) / 650;
       turnover -= (qb.awareness - 60) / 800;
       sack -= (qb.awareness - 60) / 900;
     } else if (position === "RB") {
@@ -916,11 +916,11 @@ const DEFENSE_OPTIONS: KeyMomentOption[] = [
 function offensePlayOptions(position: Position, _state: GameSimState, _rng: RNG): KeyMomentOption[] {
   if (position === "QB") {
     return [
-      { id: "play_run", label: "Run", description: "Hand it off and trust the offensive line.", riskLevel: "balanced", icon: "🟢" },
-      { id: "play_short", label: "Short Pass", description: "A quick, safe completion to keep the chains moving.", riskLevel: "safe", icon: "🔵" },
-      { id: "play_deep", label: "Deep Pass", description: "Push it downfield for the big play.", riskLevel: "aggressive", icon: "🟣" },
-      { id: "play_pa", label: "Play Action", description: "Sell the run fake to open up the pass.", riskLevel: "balanced", icon: "🟠" },
-      { id: "play_scramble", label: "QB Scramble", description: "Pull it down and run.", riskLevel: "aggressive", icon: "🔴" },
+      { id: "play_run", label: "Run", description: "Trust the line and run game. A steadier floor, but a loaded box can stop it cold.", riskLevel: "balanced", icon: "🟢" },
+      { id: "play_short", label: "Safe Pass", description: "Short accuracy and awareness protect the ball; smaller gains, stronger completion floor.", riskLevel: "safe", icon: "🔵" },
+      { id: "play_deep", label: "Deep Pass", description: "Deep accuracy and confidence chase the explosive gain; pressure raises the downside.", riskLevel: "aggressive", icon: "🟣" },
+      { id: "play_pa", label: "Play Action", description: "Use the run fake to create space. It is stronger when your recent run tendency is believable.", riskLevel: "balanced", icon: "🟠" },
+      { id: "play_scramble", label: "Improvise", description: "Throw on the move or escape with agility. High upside, but late pressure can punish it.", riskLevel: "aggressive", icon: "🔴" },
       { id: "play_trick", label: "Trick Play", description: "A gadget play — boom or bust.", riskLevel: "aggressive", icon: "⚡" },
     ];
   }

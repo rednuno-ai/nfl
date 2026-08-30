@@ -158,6 +158,34 @@ describe("game simulation", () => {
     assert.equal(sawTargetPriority, true, "expected at least one QB pass call to prompt for a target priority");
   });
 
+  it("gives a QB distinct safe, deep, run and improvisation calls with observable risk tags", () => {
+    const player = makeQB();
+    const input = buildInput(player, TEAMS[0], TEAMS[1]);
+    const rng = new RNG(310);
+    let state = beginGame(input, rng);
+    let iterations = 0;
+    while (!state.finished && state.pendingDecision?.kind !== "play_call" && iterations < MAX_ITERATIONS) {
+      if (state.pendingDecision) state = advanceGame(state, input, rng, state.pendingDecision.options[0].id);
+      else state = advanceGame(state, input, rng);
+      iterations++;
+    }
+
+    assert.equal(state.pendingDecision?.kind, "play_call", "expected a QB play-call decision");
+    const options = state.pendingDecision!.options;
+    const byId = (id: string) => options.find((option) => option.id === id);
+    assert.equal(byId("play_short")?.label, "Safe Pass");
+    assert.equal(byId("play_short")?.riskLevel, "safe");
+    assert.equal(byId("play_deep")?.label, "Deep Pass");
+    assert.equal(byId("play_deep")?.riskLevel, "aggressive");
+    assert.equal(byId("play_run")?.label, "Run");
+    assert.equal(byId("play_scramble")?.label, "Improvise");
+
+    state = advanceGame(state, input, rng, "play_scramble");
+    assert.equal(state.pendingDecision?.kind, "defense_look");
+    assert.equal(state.carriedPlayType, "qb_scramble", "the selected play must persist into its resolution");
+    assert.equal(state.carriedRiskLevel, "aggressive");
+  });
+
   it("a defensive player gets defense_call decisions, not offensive play calls", () => {
     const player = makePlayer("CB");
     const input = buildInput(player, TEAMS[0], TEAMS[1]);

@@ -18,6 +18,7 @@ import { TrainingModal } from "@ui/components/TrainingModal";
 import { GameDayView } from "@ui/components/GameDayView";
 import { LifeCinematic } from "@ui/components/LifeCinematic";
 import { getGameDayObjective } from "@engine/gameObjectives";
+import { recordDailyReturn } from "@data/metrics";
 
 const SCREEN_TITLES: Record<ScreenId, string> = {
   dashboard: "Career HQ",
@@ -51,9 +52,15 @@ export default function App() {
       ? "Sign in"
       : !currentUser?.subscriptionActive
         ? "Membership"
-        : SCREEN_TITLES[screen];
+        : activeCareer?.interaction?.type === "game"
+          ? "Game Day"
+          : SCREEN_TITLES[screen];
     document.title = `${title} | GRIDIRON LIFE`;
-  }, [currentUser?.subscriptionActive, screen, session]);
+  }, [activeCareer?.interaction?.type, currentUser?.subscriptionActive, screen, session]);
+
+  useEffect(() => {
+    if (session) recordDailyReturn();
+  }, [session?.username]);
 
   // Registration wall: no gameplay is reachable without an account.
   if (!session) {

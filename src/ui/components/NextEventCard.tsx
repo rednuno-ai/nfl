@@ -75,6 +75,8 @@ export function NextEventCard({
 function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; needsWeeklyPlan: boolean; onChoose: (focus: TrainingSelection) => void }) {
   const resilience = Math.round((state.player.attributes.physical.durability + state.player.attributes.general.discipline) / 2);
   const injuryOutlook = resilience >= 75 ? "lower" : resilience >= 55 ? "moderate" : "elevated";
+  const coachTrust = state.relationships.find((relationship) => relationship.type === "coach")?.value ?? 50;
+  const familyTrust = state.relationships.find((relationship) => relationship.type === "family")?.value ?? 50;
   if (!needsWeeklyPlan) {
     return <div className="weekly-plan-status"><span aria-hidden="true">✓</span> Weekly focus selected. Your next decision is ready.</div>;
   }
@@ -89,18 +91,18 @@ function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; 
       </div>
       <div className="weekly-plan-options">
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("position_specific")}>
-          <strong>🏋️ Position work</strong><span>Key position skills grow; you go straight to the next event.</span>
+          <strong>🏋️ Position work</strong><span>Gain position skills. Cost: give up this week&apos;s film or recovery benefit.</span>
         </button>
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("mental")}>
-          <strong>📚 School & film</strong><span>Decision-making, composure and pressure handling get the focus.</span>
+          <strong>📚 School & film</strong><span>Build decision-making and composure. Cost: no direct position-skill focus.</span>
         </button>
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("recovery")}>
-          <strong>🛌 Recover</strong><span>Prioritise morale and recovery over faster attribute growth.</span>
+          <strong>🛌 Recover</strong><span>Raise morale and protect readiness. Cost: slower attribute development.</span>
         </button>
       </div>
       <div className="weekly-plan-links" aria-label="Off-field decisions">
-        <button type="button" onClick={() => gameStore.getState().navigate("relationships")}>People <span>Relationships & media choices</span></button>
-        <button type="button" onClick={() => gameStore.getState().navigate("news")}>Reputation <span>Review active headlines · {Math.round(state.player.attributes.general.reputation)}/100</span></button>
+        <button type="button" onClick={() => gameStore.getState().navigate("relationships")}>Coach, team & family <span>Relationship events change trust · coach {coachTrust}/100 · family {familyTrust}/100</span></button>
+        <button type="button" onClick={() => gameStore.getState().navigate("news")}>Reputation & social <span>Media choices affect reputation · {Math.round(state.player.attributes.general.reputation)}/100</span></button>
       </div>
       <div className="weekly-risk-note"><strong>Injury outlook: {injuryOutlook}</strong><span>Durability and discipline currently set your game-day risk baseline ({resilience}/100).</span></div>
     </section>

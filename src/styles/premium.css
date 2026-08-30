@@ -80,6 +80,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 @media(prefers-reduced-motion:reduce){.weekly-plan-option:hover{transform:none}}
 
 .weekly-risk-note{display:flex;justify-content:space-between;gap:10px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07);color:var(--text-faint);font-size:10px;line-height:1.35}.weekly-risk-note strong{color:var(--text-dim);white-space:nowrap}.weekly-risk-note span{text-align:right}@media(max-width:480px){.weekly-risk-note{align-items:flex-start;flex-direction:column;gap:3px}.weekly-risk-note span{text-align:left}}
+.decision-context{display:grid;gap:3px;margin:10px 0 12px;padding:10px 11px;border:1px solid rgba(105,184,255,.2);border-radius:10px;background:rgba(69,137,210,.08);color:var(--text-faint);font-size:11px;line-height:1.4}.decision-context strong{color:#cce8ff;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.gameday-objective-title,.keymoment-title,.section-title{font-weight:inherit}
 
 /* Semantic frame for the standalone player builder; deliberately quiet so it
    preserves the existing character-creator focus. */

@@ -34,6 +34,7 @@ import {
 } from "@engine/career";
 import type { CreatePlayerInput } from "@engine/player";
 import type { Asset } from "@engine/types";
+import { completeOnboarding, recordFirstGameCompleted, recordFirstGameStarted } from "@data/metrics";
 
 export type CinematicScene = "contract" | "garage" | "home" | "press" | "relationship";
 
@@ -227,6 +228,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
 
   startNewCareer: async (input) => {
     const state = createCareer(input);
+    completeOnboarding();
     set({ activeCareer: state, screen: "dashboard" });
     await repository.saveCareer(get().userId, state);
     await get().refreshCareers();
@@ -248,7 +250,9 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   advance: (options) => {
     const current = get().activeCareer;
     if (!current) return;
-    applyCareer(get, set, advanceWeek(current, options));
+    const next = advanceWeek(current, options);
+    if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
+    applyCareer(get, set, next);
   },
 
   decide: (choiceId) => {
@@ -260,7 +264,9 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   chooseTraining: (focus) => {
     const current = get().activeCareer;
     if (!current) return;
-    applyCareer(get, set, chooseTrainingFocus(current, focus));
+    const next = chooseTrainingFocus(current, focus);
+    if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
+    applyCareer(get, set, next);
   },
 
   gameDecide: (optionId) => {
@@ -272,6 +278,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   acknowledgeGameResult: () => {
     const current = get().activeCareer;
     if (!current) return;
+    if (current.currentSeasonGameStats.length === 0 && current.interaction?.type === "game" && current.interaction.game.finished) recordFirstGameCompleted();
     applyCareer(get, set, acknowledgeFinishedGame(current));
   },
 

@@ -6,6 +6,7 @@ import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
 import { PositionBadge } from "@ui/components/PositionBadge";
 import { PlayerHeroArt } from "@ui/components/PlayerHeroArt";
 import { ConfirmModal } from "@ui/components/ConfirmModal";
+import { startOnboarding } from "@data/metrics";
 
 export function CareerSelectScreen() {
   const careers = useGameStore((s) => s.careers);
@@ -19,6 +20,10 @@ export function CareerSelectScreen() {
   const atLimit = careers.length >= FREE_TIER_CAREER_LIMIT;
   const hasCareers = !loading && careers.length > 0;
   const featured = hasCareers ? careers[0] : null;
+  const beginCareer = () => {
+    startOnboarding();
+    gameStore.setState({ screen: "create-player" });
+  };
 
   return (
     <div className="homepage-page">
@@ -42,7 +47,7 @@ export function CareerSelectScreen() {
               <button
                 className="btn btn-primary btn-lg homepage-cta"
                 disabled={atLimit || loading}
-                onClick={() => gameStore.setState({ screen: "create-player" })}
+                onClick={beginCareer}
               >
                 {loading ? "Loading…" : "▶ START CAREER"}
               </button>
@@ -105,7 +110,7 @@ export function CareerSelectScreen() {
           <button
             className="btn btn-primary btn-block"
             disabled={atLimit}
-            onClick={() => gameStore.setState({ screen: "create-player" })}
+            onClick={beginCareer}
           >
             {atLimit ? `Free tier limit reached (${FREE_TIER_CAREER_LIMIT} careers)` : "Start a New Career"}
           </button>

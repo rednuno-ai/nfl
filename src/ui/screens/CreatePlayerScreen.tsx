@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { gameStore } from "@store/gameStore";
+import { abandonOnboarding, setOnboardingStage } from "@data/metrics";
 import { MVP_POSITIONS, type Hand, type PersonalityTrait, type Position } from "@engine/types";
 import { PERSONALITY_DESCRIPTIONS, PERSONALITY_LABELS } from "@engine/player";
 import { getBuildEffects, pointBuyPointsLeft, POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_POOL, POINT_BUY_SLOTS, previewPointBuyOverall, recommendedPointBuyAllocations } from "@engine/attributes";
@@ -82,6 +83,10 @@ export function CreatePlayerScreen() {
   const pointsLeft = pointBuyPointsLeft(position, allocations);
   const previewOverall = previewPointBuyOverall(position, allocations, { heightInches, weightLbs });
   const buildEffects = getBuildEffects(heightInches, weightLbs);
+
+  useEffect(() => {
+    setOnboardingStage(step);
+  }, [step]);
 
   function togglePersonality(trait: PersonalityTrait) {
     setPersonality((prev) => (prev.includes(trait) ? prev.filter((t) => t !== trait) : prev.length < 3 ? [...prev, trait] : prev));
@@ -286,7 +291,13 @@ export function CreatePlayerScreen() {
         </aside>
 
         <div className="btn-row" style={{ marginTop: 10 }}>
-          <button className="btn btn-ghost" onClick={() => gameStore.setState({ screen: "career-select" })}>
+          <button
+            className="btn btn-ghost"
+            onClick={() => {
+              abandonOnboarding();
+              gameStore.setState({ screen: "career-select" });
+            }}
+          >
             Back
           </button>
           <button className="btn btn-primary" style={{ flex: 1 }} disabled={!canSubmitBio} onClick={goToAttributes}>
