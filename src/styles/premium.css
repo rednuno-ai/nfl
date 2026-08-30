@@ -85,3 +85,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
    preserves the existing character-creator focus. */
 .player-creation-page{min-height:100vh;display:flex;flex-direction:column}.player-creation-header,.player-creation-footer{width:min(980px,calc(100% - 32px));margin:0 auto;color:var(--text-faint);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.player-creation-header{padding:20px 0 0}.player-creation-brand{color:var(--text-dim)}.player-creation-page .centered-page{flex:1}.player-creation-footer{padding:0 0 20px;text-align:center;letter-spacing:.08em;text-transform:none}.player-creation-page .centered-page{width:min(100%,1044px)}
 @media(max-width:480px){.player-creation-header{padding-top:14px}.player-creation-footer{padding-bottom:14px}}
+
+/* Standalone account and career-picker routes retain landmarks without
+   competing with their established hero treatments. */
+.homepage-page,.subscription-page{min-height:100vh;display:flex;flex-direction:column}.homepage-page .homepage-body{flex:1}.homepage-footer,.subscription-footer{padding:16px;color:var(--text-faint);font-size:10px;font-weight:800;letter-spacing:.08em;text-align:center;text-transform:uppercase}.subscription-header{width:min(980px,calc(100% - 32px));margin:0 auto;padding:16px 0 0}.subscription-header .brand{padding:0}.subscription-page .centered-page{flex:1}.subscription-footer{padding-bottom:22px}

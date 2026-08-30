@@ -6,12 +6,16 @@ export function SubscriptionScreen() {
   const session = useGameStore((s) => s.session);
 
   return (
-    <div className="centered-page">
-      <div className="onboarding-card">
-        <div className="brand" style={{ justifyContent: "center", fontSize: 24, marginBottom: 8 }}>
+    <div className="subscription-page">
+      <header className="subscription-header">
+        <div className="brand" style={{ fontSize: 20 }}>
           <span className="brand-mark">GL</span>
           GRIDIRON LIFE
         </div>
+      </header>
+      <main className="centered-page" id="subscription-main">
+      <div className="onboarding-card">
+        <h1 className="page-title" style={{ textAlign: "center" }}>Unlock your career</h1>
         <p className="page-subtitle" style={{ textAlign: "center", marginBottom: 4 }}>
           Hi, {session?.username}. Just one step left.
         </p>
@@ -29,9 +33,7 @@ export function SubscriptionScreen() {
         </div>
 
         <div className="auth-note" style={{ marginBottom: 16 }}>
-          Demo environment: no real payment processor is connected to this instance, so no card is requested and no
-          real charge happens. The button below simulates a successful payment so you can test the full product. In a
-          real deployment, this would be replaced by a real checkout (e.g. Stripe).
+          Demo mode — no card, no charge. This unlocks the full game for testing.
         </div>
 
         <button className="btn btn-primary btn-block" onClick={() => gameStore.getState().subscribe()}>
@@ -42,6 +44,8 @@ export function SubscriptionScreen() {
           Log Out
         </button>
       </div>
+      </main>
+      <footer className="subscription-footer">Original football fiction · No real payment processing</footer>
     </div>
   );
 }

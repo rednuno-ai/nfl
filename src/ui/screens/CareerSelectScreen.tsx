@@ -21,8 +21,8 @@ export function CareerSelectScreen() {
   const featured = hasCareers ? careers[0] : null;
 
   return (
-    <main className="homepage-shell" id="career-select-main">
-      <div className={`homepage-hero ${hasCareers ? "homepage-hero-compact" : ""}`}>
+    <div className="homepage-page">
+      <header className={`homepage-hero ${hasCareers ? "homepage-hero-compact" : ""}`}>
         <PlayerHeroArt className="homepage-hero-art" />
         <div className="homepage-hero-content">
           <div className="brand" style={{ fontSize: 20, marginBottom: hasCareers ? 18 : 40 }}>
@@ -58,9 +58,9 @@ export function CareerSelectScreen() {
             </>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="homepage-body">
+      <main className="homepage-body" id="career-select-main">
         {loading && <div className="faint" style={{ textAlign: "center" }}>Loading your careers…</div>}
 
         {hasCareers && (
@@ -117,7 +117,9 @@ export function CareerSelectScreen() {
             <InviteFriendsCard />
           </div>
         )}
-      </div>
+      </main>
+
+      <footer className="homepage-footer">GRIDIRON LIFE · Original football fiction</footer>
 
       {pendingDelete && (
         <ConfirmModal
@@ -132,6 +134,6 @@ export function CareerSelectScreen() {
           }}
         />
       )}
-    </main>
+    </div>
   );
 }
