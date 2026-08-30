@@ -192,7 +192,7 @@ export function CreatePlayerScreen() {
               {submitting ? "Starting…" : "Start Career"}
             </button>
           </div>
-          {pointsLeft !== 0 && <p className="form-help form-help-warning" id="points-required">Spend all {pointsLeft} points to continue.</p>}
+          {pointsLeft !== 0 && <p className="form-help form-help-warning" id="points-required">Spend all {pointsLeft} point{pointsLeft === 1 ? "" : "s"} to continue.</p>}
         </div>
       </PlayerCreationFrame>
     );
