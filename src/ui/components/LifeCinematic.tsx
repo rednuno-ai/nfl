@@ -7,6 +7,14 @@ const SCENE_COPY: Record<CinematicScene, { eyebrow: string; action: string }> = 
   home: { eyebrow: "CAREER REEL · HOME BASE", action: "Make it home" },
   press: { eyebrow: "CAREER REEL · AFTER THE WHISTLE", action: "Keep moving" },
   relationship: { eyebrow: "CAREER REEL · OFF THE CLOCK", action: "Back to your story" },
+  training: { eyebrow: "CAREER REEL · PUT IN THE WORK", action: "Get after it" },
+  film: { eyebrow: "CAREER REEL · FILM ROOM", action: "Trust the read" },
+  recovery: { eyebrow: "CAREER REEL · RECOVERY", action: "Reset and return" },
+  team: { eyebrow: "CAREER REEL · THE LOCKER ROOM", action: "Stay connected" },
+  tunnel: { eyebrow: "CAREER REEL · GAME NIGHT", action: "Take the field" },
+  draft: { eyebrow: "CAREER REEL · THE CALL", action: "Keep the moment" },
+  interview: { eyebrow: "CAREER REEL · IN THE SPOTLIGHT", action: "Own your voice" },
+  travel: { eyebrow: "CAREER REEL · ON THE ROAD", action: "Arrive ready" },
 };
 
 /** A short, first-person cinematic beat built from original art and lightweight

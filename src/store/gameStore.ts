@@ -35,8 +35,15 @@ import {
 import type { CreatePlayerInput } from "@engine/player";
 import type { Asset } from "@engine/types";
 import { completeOnboarding, recordFirstGameCompleted, recordFirstGameStarted } from "@data/metrics";
+import {
+  cinematicForDecision,
+  cinematicForGameResult,
+  cinematicForGameStart,
+  cinematicForTraining,
+  type CinematicScene,
+} from "@data/cinematicCatalog";
 
-export type CinematicScene = "contract" | "garage" | "home" | "press" | "relationship";
+export type { CinematicScene } from "@data/cinematicCatalog";
 
 export type ScreenId =
   | "career-select"
@@ -253,12 +260,20 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const next = advanceWeek(current, options);
     if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
     applyCareer(get, set, next);
+    if (next.interaction?.type === "game") {
+      const scheduledGame = current.schedule.find((entry) => entry.week === current.weekInSeason);
+      const cinematic = cinematicForGameStart(scheduledGame?.isHome ?? true);
+      if (cinematic) set({ cinematic });
+    }
   },
 
   decide: (choiceId) => {
     const current = get().activeCareer;
     if (!current) return;
+    const decision = current.interaction?.type === "decision" ? current.interaction.decision : null;
     applyCareer(get, set, resolveDecision(current, choiceId));
+    const cinematic = decision ? cinematicForDecision(decision.eventId) : null;
+    if (cinematic) set({ cinematic });
   },
 
   chooseTraining: (focus) => {
@@ -267,6 +282,8 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const next = chooseTrainingFocus(current, focus);
     if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
     applyCareer(get, set, next);
+    const cinematic = cinematicForTraining(focus);
+    if (cinematic) set({ cinematic });
   },
 
   gameDecide: (optionId) => {
@@ -280,6 +297,10 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     if (!current) return;
     if (current.currentSeasonGameStats.length === 0 && current.interaction?.type === "game" && current.interaction.game.finished) recordFirstGameCompleted();
     applyCareer(get, set, acknowledgeFinishedGame(current));
+    if (current.interaction?.type === "game" && current.interaction.game.finished) {
+      const cinematic = cinematicForGameResult(current.interaction.game.result);
+      if (cinematic) set({ cinematic });
+    }
   },
 
   commitCollege: (collegeId) => {
