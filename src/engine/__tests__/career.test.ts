@@ -130,6 +130,22 @@ describe("career state machine", () => {
     assert.equal(JSON.stringify(frozen.interaction?.type === "game" ? frozen.interaction.game : null), before);
   });
 
+  it("makes weekly relationship and media priorities apply visible, exclusive trade-offs", () => {
+    const base = createCareer(baseInput());
+    const relationshipWeek = advanceWeek(base, { trainingFocus: "relationships" });
+    const socialWeek = advanceWeek(base, { trainingFocus: "social" });
+    const relationshipValue = (state: CareerState, type: string) => state.relationships.find((relationship) => relationship.type === type)?.value;
+
+    assert.equal(relationshipValue(relationshipWeek, "coach"), 58);
+    assert.equal(relationshipValue(relationshipWeek, "family"), 78);
+    assert.equal(relationshipValue(relationshipWeek, "teammate"), 52);
+    assert.equal(relationshipWeek.player.attributes.general.morale, base.player.attributes.general.morale + 3);
+    assert.equal(socialWeek.player.attributes.general.reputation, base.player.attributes.general.reputation + 2);
+    assert.equal(socialWeek.player.attributes.general.fame, base.player.attributes.general.fame + 1);
+    assert.equal(socialWeek.player.attributes.general.morale, base.player.attributes.general.morale - 1);
+    assert.equal(relationshipValue(socialWeek, "media"), 53);
+  });
+
   it("can skip a live game while preserving its real result, stats and schedule progress", () => {
     let state = createCareer(baseInput());
     for (let i = 0; i < 30 && state.interaction?.type !== "game"; i++) {

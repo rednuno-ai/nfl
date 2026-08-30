@@ -76,7 +76,9 @@ export interface TrainingFocusChoice {
 
 /** Training is always a player choice. "skip" means no attribute gain this
  * week, preserving the trade-off instead of forcing a workout every turn. */
-export type TrainingSelection = TrainingFocus | "skip";
+/** One weekly priority only: field work, recovery, or an intentional life
+ * investment. The life priorities are real trade-offs, not navigation links. */
+export type TrainingSelection = TrainingFocus | "relationships" | "social" | "skip";
 
 // Every trainable week the player picks how to spend their practice time
 // before the rest of the week (narrative event / game / offseason work)
@@ -90,6 +92,8 @@ export const TRAINING_FOCUS_CHOICES: TrainingFocusChoice[] = [
   { id: "mental", label: "Film Room", description: "Focuses on decision-making, composure, and handling pressure." },
   { id: "position_specific", label: "Position-Specific Work", description: "Focuses on your position's key attributes." },
   { id: "recovery", label: "Active Recovery", description: "Reduces fatigue and injury risk; slower attribute gains." },
+  { id: "relationships", label: "Team & Family Time", description: "Builds coach, teammate and family trust; no training gain this week." },
+  { id: "social", label: "Community & Media", description: "Builds reputation and media access; no training or recovery gain this week." },
   { id: "skip", label: "Skip Training", description: "Take the week for life off the field. No attribute gain this week." },
 ];
 
@@ -345,6 +349,33 @@ function bumpRelationship(state: CareerState, targetTag: string, delta: number):
   return state.relationships.map((r) => (r.id === existing.id ? { ...r, value: clamp(r.value + delta) } : r));
 }
 
+function isTrainingFocus(selection: TrainingSelection): selection is TrainingFocus {
+  return selection === "strength" || selection === "speed" || selection === "technique" || selection === "recovery" || selection === "mental" || selection === "position_specific";
+}
+
+/** Applies non-training weekly priorities at the moment the player chooses
+ * them, so their consequence is visible before game day. They are excluded
+ * from the later practice tick — one week deliberately has one priority. */
+function applyLifePriority(state: CareerState, selection: Extract<TrainingSelection, "relationships" | "social">): CareerState {
+  if (selection === "relationships") {
+    let relationships = bumpRelationship(state, "coach", 3);
+    relationships = bumpRelationship({ ...state, relationships }, "team", 2);
+    relationships = bumpRelationship({ ...state, relationships }, "family", 3);
+    const player: Player = {
+      ...state.player,
+      attributes: applyAttributeDeltas(state.player.attributes, [{ path: "general.morale", delta: 3 }, { path: "general.leadership", delta: 1 }]),
+    };
+    return log({ ...state, player, relationships }, "Weekly priority: invested time in coach, teammates and family (+trust, +morale; no practice gain). ");
+  }
+
+  const relationships = bumpRelationship(state, "media", 3);
+  const player: Player = {
+    ...state.player,
+    attributes: applyAttributeDeltas(state.player.attributes, [{ path: "general.reputation", delta: 2 }, { path: "general.fame", delta: 1 }, { path: "general.morale", delta: -1 }]),
+  };
+  return log({ ...state, player, relationships }, "Weekly priority: invested in community and media (+reputation, +fame; less recovery this week). ");
+}
+
 // -----------------------------------------------------------------------------
 // Narrative decision resolution
 // -----------------------------------------------------------------------------
@@ -440,6 +471,9 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
   }
   if (options.trainingFocus) {
     state = { ...state, trainingFocusChosenForWeek: state.totalWeek, pendingTrainingFocus: options.trainingFocus };
+    if (options.trainingFocus === "relationships" || options.trainingFocus === "social") {
+      state = applyLifePriority(state, options.trainingFocus);
+    }
   }
 
   // 1) Roll a narrative event at most once per week.
@@ -463,8 +497,8 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
   let next = state;
   if (state.stage !== "draft" && state.stage !== "recruiting") {
     const selection = options.trainingFocus ?? state.pendingTrainingFocus ?? "recovery";
-    if (selection !== "skip") next = applyTrainingTick(next, selection);
-    else next = log(next, "Skipped training this week to focus on life off the field.");
+    if (isTrainingFocus(selection)) next = applyTrainingTick(next, selection);
+    else if (selection === "skip") next = log(next, "Skipped training this week to focus on life off the field.");
   }
   return finishWeekProcessing(next, isGameStage && !!scheduleEntry === false);
 }
@@ -731,7 +765,7 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
     const college = state.stage === "college" && state.college ? getCollege(state.college.collegeId) : null;
     const devRate = college ? college.developmentRate : 1;
     const focus = state.pendingTrainingFocus ?? "position_specific";
-    if (focus !== "skip") {
+    if (isTrainingFocus(focus)) {
       const { result: practiceResult, rngState: rngState3 } = withRng({ ...state, rngState: rngState2 }, (rng) =>
         applyTraining(player.attributes, focus, 0.5, devRate, rng, positionSpecificPaths(player))
       );

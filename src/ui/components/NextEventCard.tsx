@@ -100,7 +100,7 @@ function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; 
           <div className="weekly-plan-kicker">BEFORE GAME DAY</div>
           <h2 id="weekly-plan-title">Set this week's priority</h2>
         </div>
-        <span>Real trade-offs</span>
+        <span>1 choice this week</span>
       </div>
       <div className="weekly-plan-options">
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("position_specific")}>
@@ -111,6 +111,12 @@ function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; 
         </button>
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("recovery")}>
           <strong>🛌 Recover</strong><span>Raise morale and protect readiness. Cost: slower attribute development.</span>
+        </button>
+        <button type="button" className="weekly-plan-option" onClick={() => onChoose("relationships")}>
+          <strong>🤝 Team &amp; family</strong><span>Coach +3, team +2, family +3, morale +3. Cost: no practice gain.</span>
+        </button>
+        <button type="button" className="weekly-plan-option" onClick={() => onChoose("social")}>
+          <strong>📣 Community &amp; media</strong><span>Reputation +2, fame +1, media +3. Cost: −1 morale, no recovery.</span>
         </button>
       </div>
       <div className="weekly-plan-links" aria-label="Off-field decisions">
