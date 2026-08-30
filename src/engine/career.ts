@@ -272,7 +272,8 @@ function validatePointBuy(input: CreatePlayerInput): void {
     }
     spent += points;
   }
-  if (spent !== POINT_BUY_POOL) throw new Error(`Spend all ${POINT_BUY_POOL} attribute points before starting a career.`);
+  const pointsLeft = POINT_BUY_POOL - spent;
+  if (pointsLeft !== 0) throw new Error(`Spend all ${POINT_BUY_POOL} attribute points before starting a career.`);
 }
 
 // -----------------------------------------------------------------------------

@@ -80,3 +80,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 @media(prefers-reduced-motion:reduce){.weekly-plan-option:hover{transform:none}}
 
 .weekly-risk-note{display:flex;justify-content:space-between;gap:10px;margin-top:9px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07);color:var(--text-faint);font-size:10px;line-height:1.35}.weekly-risk-note strong{color:var(--text-dim);white-space:nowrap}.weekly-risk-note span{text-align:right}@media(max-width:480px){.weekly-risk-note{align-items:flex-start;flex-direction:column;gap:3px}.weekly-risk-note span{text-align:left}}
+
+/* Semantic frame for the standalone player builder; deliberately quiet so it
+   preserves the existing character-creator focus. */
+.player-creation-page{min-height:100vh;display:flex;flex-direction:column}.player-creation-header,.player-creation-footer{width:min(980px,calc(100% - 32px));margin:0 auto;color:var(--text-faint);font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.player-creation-header{padding:20px 0 0}.player-creation-brand{color:var(--text-dim)}.player-creation-page .centered-page{flex:1}.player-creation-footer{padding:0 0 20px;text-align:center;letter-spacing:.08em;text-transform:none}.player-creation-page .centered-page{width:min(100%,1044px)}
+@media(max-width:480px){.player-creation-header{padding-top:14px}.player-creation-footer{padding-bottom:14px}}

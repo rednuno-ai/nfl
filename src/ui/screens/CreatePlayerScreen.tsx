@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { gameStore } from "@store/gameStore";
 import { MVP_POSITIONS, type Hand, type PersonalityTrait, type Position } from "@engine/types";
 import { PERSONALITY_DESCRIPTIONS, PERSONALITY_LABELS } from "@engine/player";
@@ -46,6 +46,20 @@ const PERSONALITY_ICON: Record<PersonalityTrait, string> = {
   materialistic: "💰",
   competitive: "💪",
 };
+
+function PlayerCreationFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="player-creation-page">
+      <header className="player-creation-header">
+        <span className="player-creation-brand">GRIDIRON LIFE</span>
+      </header>
+      <main className="centered-page" id="create-player-main">
+        {children}
+      </main>
+      <footer className="player-creation-footer">Build your way.</footer>
+    </div>
+  );
+}
 
 export function CreatePlayerScreen() {
   const [step, setStep] = useState<"bio" | "attributes">("bio");
@@ -114,7 +128,7 @@ export function CreatePlayerScreen() {
 
   if (step === "attributes") {
     return (
-      <main className="centered-page" id="create-player-main">
+      <PlayerCreationFrame>
         <div className="onboarding-card card">
           <h1 className="page-title">Build Your Player</h1>
           <p className="page-subtitle">Spend {POINT_BUY_POOL} points on your {position} strengths.</p>
@@ -164,17 +178,17 @@ export function CreatePlayerScreen() {
               Back
             </button>
             <button className="btn btn-primary" style={{ flex: 1 }} disabled={submitting || pointsLeft !== 0} onClick={handleSubmit} aria-describedby={pointsLeft !== 0 ? "points-required" : undefined}>
-              {submitting ? "Starting…" : pointsLeft !== 0 ? `Allocate ${pointsLeft} more` : "Start Career"}
+              {submitting ? "Starting…" : "Start Career"}
             </button>
           </div>
-          {pointsLeft !== 0 && <p className="form-help form-help-warning" id="points-required">Spend every attribute point to begin your career.</p>}
+          {pointsLeft !== 0 && <p className="form-help form-help-warning" id="points-required">Spend all {pointsLeft} points to continue.</p>}
         </div>
-      </main>
+      </PlayerCreationFrame>
     );
   }
 
   return (
-    <main className="centered-page" id="create-player-main">
+    <PlayerCreationFrame>
       <div className="onboarding-card card">
         <h1 className="page-title">Build Your Player</h1>
         <p className="page-subtitle">Age 15 · Freshman year</p>
@@ -269,6 +283,6 @@ export function CreatePlayerScreen() {
           </button>
         </div>
       </div>
-    </main>
+    </PlayerCreationFrame>
   );
 }
