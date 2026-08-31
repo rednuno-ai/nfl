@@ -4,6 +4,8 @@
 // owned by a Durable Object so account credentials, sessions and careers
 // never need to live in localStorage on the published game.
 
+import { DurableObject } from "cloudflare:workers";
+
 const DEMO_USERNAME = "adm";
 const DEMO_PASSWORD = "adm";
 const DEMO_RECOVERY_KEY = "DEMO-2026";
@@ -109,8 +111,9 @@ function userForClient(row) {
  * the public Worker durable server-side accounts and careers without a
  * separately provisioned Supabase project.
  */
-export class AccountStore {
+export class AccountStore extends DurableObject {
   constructor(ctx, env) {
+    super(ctx, env);
     this.ctx = ctx;
     this.env = env;
     this.ready = ctx.blockConcurrencyWhile(() => this.initialize());
