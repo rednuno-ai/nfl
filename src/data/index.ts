@@ -1,18 +1,24 @@
 import type { Repository } from "./repository";
 import { LocalRepository } from "./localRepository";
+import { WorkerRepository } from "./workerRepository";
 
 // =============================================================================
-// Repository factory. Local storage works out of the box; Supabase activates
-// automatically the moment env vars are present AND the package is
-// installed (both true in any normal `npm install`-capable environment).
+// Repository factory. The published Worker is the default source of truth;
+// Supabase stays an explicit optional integration and localStorage is only
+// used for Vite/offline development.
 // =============================================================================
 
 let cached: Repository | null = null;
 
 export function getRepository(): Repository {
   if (cached) return cached;
-  cached = new LocalRepository();
+  cached = shouldUseWorkerPersistence() ? new WorkerRepository() : new LocalRepository();
   return cached;
+}
+
+function shouldUseWorkerPersistence(): boolean {
+  if (typeof window === "undefined") return false;
+  return !["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
 }
 
 /** Call once at app startup if Supabase env vars are present, to switch the
@@ -37,6 +43,10 @@ export async function initRepository(): Promise<Repository> {
     } catch (err) {
       console.warn("Supabase configured but unavailable, falling back to local storage.", err);
     }
+  }
+  if (shouldUseWorkerPersistence()) {
+    cached = new WorkerRepository();
+    return cached;
   }
   return getRepository();
 }

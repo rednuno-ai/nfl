@@ -5,6 +5,7 @@ import { initRepository } from "@data/index";
 import { seedDefaultAccounts } from "@data/auth";
 import { recordInternalMetric } from "@data/metrics";
 import { AppErrorBoundary } from "@ui/components/AppErrorBoundary";
+import { gameStore } from "@store/gameStore";
 import "./styles/index.css";
 import "./styles/premium.css";
 
@@ -15,6 +16,7 @@ const rootContainer = container;
 async function boot() {
   await initRepository();
   await seedDefaultAccounts();
+  await gameStore.getState().hydrateAccount();
   createRoot(rootContainer).render(
     <StrictMode>
       <AppErrorBoundary><App /></AppErrorBoundary>

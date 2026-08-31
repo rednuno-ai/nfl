@@ -1,4 +1,4 @@
-import { beforeEach, describe, it } from "node:test";
+import { beforeEach, describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { changePassword, DEMO_ACCOUNT_USERNAME, getSession, isDemoAccount, login, register, resetDemoAccount, seedDefaultAccounts } from "../auth";
 import { createAccountExport } from "../accountExport";
@@ -73,7 +73,7 @@ describe("local account controls", () => {
     storage.setItem("nfl-life:index:player-one", JSON.stringify(["normal-career"]));
     storage.setItem("nfl-life:career:normal-career", JSON.stringify({ id: "normal-career", player: { bio: { firstName: "Player" } } }));
 
-    const exported = createAccountExport("player-one");
+    const exported = await createAccountExport("player-one");
     assert.ok(exported);
     const parsed = JSON.parse(exported!);
     assert.equal(parsed.account.username, "player-one");

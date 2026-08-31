@@ -49,7 +49,7 @@ npm run test      # testes automatizados
 
 Ver `GAME_DESIGN.md` para a arquitetura completa do jogo (motor de eventos,
 simulação de jogos, sistema de contas/assinatura, etc.) e `DATABASE_SCHEMA.md`
-para o esquema de dados pensado para uma futura integração com Supabase.
+para a persistência publicada no Worker e a integração opcional com Supabase.
 
 ## Nota sobre a pasta `jogar-offline/`
 

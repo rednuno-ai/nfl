@@ -1,21 +1,14 @@
 // =============================================================================
-// Local authentication + subscription gate.
+// Authentication + subscription gate.
 // -----------------------------------------------------------------------------
-// GRIDIRON LIFE requires an account to play (registration wall) and an active
-// subscription (paywall) once logged in. This module is a client-side,
-// localStorage-backed implementation so that requirement works TODAY with no
-// backend — see GAME_DESIGN.md §5/§8 for why this sandbox can't reach a live
-// Supabase/Stripe project directly.
+// GRIDIRON LIFE uses the published Worker's server-side API when it is
+// available. It deliberately retains a local implementation only for Vite
+// development and offline previews, so the public game never treats browser
+// storage as its source of truth for credentials or careers.
 //
-// This is NOT a substitute for real server-side auth: anyone with browser
-// devtools can inspect or edit localStorage. It exists behind the same small
-// surface (register/login/logout/getSession) that a real backend would
-// expose, specifically so it's a drop-in swap later:
-//   - Auth  -> replace this file with Supabase Auth (email/password or OAuth).
-//   - Billing -> replace `activateSubscriptionDemo` with a real Stripe
-//     Checkout redirect + webhook that flips `subscriptionActive` server-side.
-// Nothing outside src/data/auth.ts and the two screens that call it needs to
-// change when that swap happens.
+// The Worker stores only a PBKDF2 hash and an opaque, HttpOnly session cookie
+// is used on the public site. Nothing outside this module needs to know which
+// persistence backend is active.
 //
 // Pricing: GRIDIRON LIFE is $5/month (SUBSCRIPTION_PRICE_USD below). No payment
 // processor is connected in this build (no Stripe/PayPal account authorized
@@ -40,8 +33,7 @@ export interface AuthUser {
   referredBy: string | null;
   /** How many other accounts registered using this account's referral code. */
   referralCount: number;
-  /** One-time recovery code shown to the player in Profile. Local-only until
-   * authentication moves to a server-backed provider. */
+  /** One-time recovery code shown to the player in Profile. */
   recoveryKey: string;
 }
 
@@ -61,6 +53,59 @@ export const DEMO_ACCOUNT_USERNAME = "adm";
 const DEFAULT_ADMIN_PASSWORD = "adm";
 const DEFAULT_ADMIN_RECOVERY_KEY = "DEMO-2026";
 const MIN_PASSWORD_LENGTH = 8;
+
+type BackendMode = "unknown" | "remote" | "local";
+let backendMode: BackendMode = "unknown";
+let remoteSession: AuthSession | null = null;
+let remoteUser: AuthUser | null = null;
+
+interface RemoteResponse<T = Record<string, unknown>> {
+  ok: boolean;
+  status: number;
+  data: T & { error?: string };
+}
+
+function canUseRemoteApi(): boolean {
+  return typeof window !== "undefined" && typeof window.fetch === "function";
+}
+
+function isPublishedHost(): boolean {
+  if (typeof window === "undefined") return false;
+  return !["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
+async function remoteRequest<T = Record<string, unknown>>(path: string, init?: RequestInit): Promise<RemoteResponse<T> | null> {
+  if (!canUseRemoteApi()) return null;
+  try {
+    const response = await fetch(path, {
+      ...init,
+      credentials: "same-origin",
+      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    });
+    if (!response.headers.get("content-type")?.includes("application/json")) {
+      if (!isPublishedHost()) backendMode = "local";
+      return null;
+    }
+    const data = (await response.json()) as T & { error?: string; ok?: boolean };
+    backendMode = "remote";
+    return { ok: response.ok && data.ok !== false, status: response.status, data };
+  } catch {
+    // A published app must fail closed if its API is unavailable; falling
+    // back to a stale local account would reintroduce the persistence bug.
+    if (isPublishedHost()) return { ok: false, status: 503, data: { error: "The secure account service is temporarily unavailable." } as T & { error?: string } };
+    backendMode = "local";
+    return null;
+  }
+}
+
+function cacheRemoteUser(user: AuthUser | null): void {
+  remoteUser = user;
+  remoteSession = user ? { username: user.username, token: "http-only-cookie" } : null;
+}
+
+function remoteUserFrom(data: { user?: AuthUser | null }): AuthUser | null {
+  return data.user ?? null;
+}
 
 function passwordIsLongEnough(username: string, password: string): boolean {
   // The intentionally public demo keeps its short, documented credentials so
@@ -127,7 +172,7 @@ function generateReferralCode(username: string, existing: Record<string, AuthUse
 }
 
 /** Finds the account owning a given referral code, if any. */
-export function findUserByReferralCode(codeRaw: string): AuthUser | null {
+function localFindUserByReferralCode(codeRaw: string): AuthUser | null {
   const code = normalizeReferralCode(codeRaw);
   const users = loadUsers();
   return Object.values(users).find((u) => u.referralCode === code) ?? null;
@@ -170,7 +215,7 @@ function startSession(username: string): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 
-export function getSession(): AuthSession | null {
+function localGetSession(): AuthSession | null {
   try {
     return JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null");
   } catch {
@@ -178,17 +223,17 @@ export function getSession(): AuthSession | null {
   }
 }
 
-export function logout(): void {
+function localLogout(): void {
   localStorage.removeItem(SESSION_KEY);
 }
 
-export function getCurrentUser(): AuthUser | null {
-  const session = getSession();
+function localGetCurrentUser(): AuthUser | null {
+  const session = localGetSession();
   if (!session) return null;
   return loadUsers()[session.username] ?? null;
 }
 
-export async function register(usernameRaw: string, password: string, referralCodeRaw?: string): Promise<AuthResult> {
+async function localRegister(usernameRaw: string, password: string, referralCodeRaw?: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
   if (username.length < 2) return { ok: false, error: "Username too short (minimum 2 characters)." };
   if (!passwordIsLongEnough(username, password)) return { ok: false, error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.` };
@@ -200,7 +245,7 @@ export async function register(usernameRaw: string, password: string, referralCo
   // blocking registration, since it's a bonus, not a requirement.
   let referrer: AuthUser | null = null;
   if (referralCodeRaw && referralCodeRaw.trim()) {
-    const candidate = findUserByReferralCode(referralCodeRaw);
+    const candidate = localFindUserByReferralCode(referralCodeRaw);
     if (candidate && candidate.username !== username) referrer = candidate;
   }
 
@@ -227,7 +272,7 @@ export async function register(usernameRaw: string, password: string, referralCo
   return { ok: true };
 }
 
-export async function login(usernameRaw: string, password: string): Promise<AuthResult> {
+async function localLogin(usernameRaw: string, password: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
   const users = loadUsers();
   const user = users[username];
@@ -241,7 +286,7 @@ export async function login(usernameRaw: string, password: string): Promise<Auth
 /** Resets a password only when the player provides the recovery key they were
  * shown in Profile. A production build must replace this local-only flow with
  * verified email recovery. */
-export async function recoverPassword(usernameRaw: string, recoveryKeyRaw: string, password: string): Promise<AuthResult> {
+async function localRecoverPassword(usernameRaw: string, recoveryKeyRaw: string, password: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
   if (!passwordIsLongEnough(username, password)) return { ok: false, error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your new password.` };
   const users = loadUsers();
@@ -256,10 +301,9 @@ export async function recoverPassword(usernameRaw: string, recoveryKeyRaw: strin
   return { ok: true };
 }
 
-/** Changes a local password only after the current secret is supplied. This
- * is a convenience for the browser-only demo mode; real authentication must
- * still be enforced by the configured identity provider on the server. */
-export async function changePassword(usernameRaw: string, currentPassword: string, nextPassword: string): Promise<AuthResult> {
+/** Local development fallback for password changes. The published route is
+ * server-authenticated by the Worker below. */
+async function localChangePassword(usernameRaw: string, currentPassword: string, nextPassword: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
   if (!passwordIsLongEnough(username, nextPassword)) return { ok: false, error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your new password.` };
   const users = loadUsers();
@@ -275,7 +319,7 @@ export async function changePassword(usernameRaw: string, currentPassword: strin
 
 /** Deletes an account and every career stored for it on this device. The UI
  * always confirms this destructive action before calling it. */
-export function deleteAccount(usernameRaw: string): void {
+function localDeleteAccount(usernameRaw: string): void {
   const username = normalizeUsername(usernameRaw);
   const careerIds = (() => {
     try {
@@ -292,13 +336,13 @@ export function deleteAccount(usernameRaw: string): void {
   const users = loadUsers();
   delete users[username];
   saveUsers(users);
-  logout();
+  localLogout();
 }
 
 /** Rebuilds the professional demo profile from scratch, including deleting its
  * saves. It is deliberately explicit: visitors can safely replay the sample
  * flow without silently losing their own account data. */
-export async function resetDemoAccount(usernameRaw: string): Promise<AuthResult> {
+async function localResetDemoAccount(usernameRaw: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
   if (!isDemoAccount(username)) return { ok: false, error: "Only the demo account can be reset." };
   const careerIds = (() => {
@@ -329,13 +373,13 @@ export async function resetDemoAccount(usernameRaw: string): Promise<AuthResult>
     recoveryKey: DEFAULT_ADMIN_RECOVERY_KEY,
   };
   saveUsers(users);
-  logout();
+  localLogout();
   return { ok: true };
 }
 
 /** Simulates a successful $5/month subscription payment. See module header:
  *  no real payment processor is wired into this build. */
-export function activateSubscriptionDemo(usernameRaw: string): void {
+function localActivateSubscriptionDemo(usernameRaw: string): void {
   const username = normalizeUsername(usernameRaw);
   const users = loadUsers();
   const user = users[username];
@@ -344,7 +388,7 @@ export function activateSubscriptionDemo(usernameRaw: string): void {
   saveUsers(users);
 }
 
-export function cancelSubscription(usernameRaw: string): void {
+function localCancelSubscription(usernameRaw: string): void {
   const username = normalizeUsername(usernameRaw);
   const users = loadUsers();
   const user = users[username];
@@ -358,15 +402,159 @@ export function cancelSubscription(usernameRaw: string): void {
  *  every time. Only runs once, when there are no accounts yet. Awaited at
  *  app startup (see main.tsx) so it's guaranteed to exist before the login
  *  screen is interactive. */
-export async function seedDefaultAccounts(): Promise<void> {
+async function localSeedDefaultAccounts(): Promise<void> {
   const users = loadUsers();
   if (users[DEMO_ACCOUNT_USERNAME]) return;
-  const result = await register(DEMO_ACCOUNT_USERNAME, DEFAULT_ADMIN_PASSWORD);
+  const result = await localRegister(DEMO_ACCOUNT_USERNAME, DEFAULT_ADMIN_PASSWORD);
   if (result.ok) {
-    activateSubscriptionDemo(DEMO_ACCOUNT_USERNAME);
+    localActivateSubscriptionDemo(DEMO_ACCOUNT_USERNAME);
     const updatedUsers = loadUsers();
     updatedUsers[DEMO_ACCOUNT_USERNAME] = { ...updatedUsers[DEMO_ACCOUNT_USERNAME], recoveryKey: DEFAULT_ADMIN_RECOVERY_KEY, referralCode: "DEMO-GL" };
     saveUsers(updatedUsers);
-    logout(); // don't auto-login; the seeded account still goes through the normal login screen
+    localLogout(); // don't auto-login; the seeded account still goes through the normal login screen
   }
+}
+
+/** Hydrates the browser-only cache from the Worker's HttpOnly session. This
+ * runs before React renders, so a refresh keeps a signed-in player signed in
+ * without storing a bearer token in the page. */
+export async function hydrateAuthSession(): Promise<void> {
+  const response = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/session", { method: "GET" });
+  if (response) {
+    cacheRemoteUser(response.ok ? remoteUserFrom(response.data) : null);
+    return;
+  }
+  if (backendMode === "unknown") backendMode = "local";
+}
+
+export function usesRemoteAuth(): boolean {
+  return backendMode === "remote";
+}
+
+export function getSession(): AuthSession | null {
+  return backendMode === "remote" ? remoteSession : localGetSession();
+}
+
+export function getCurrentUser(): AuthUser | null {
+  return backendMode === "remote" ? remoteUser : localGetCurrentUser();
+}
+
+export function findUserByReferralCode(codeRaw: string): AuthUser | null {
+  // Referral lookups are only a convenience in local development. The
+  // production Worker resolves and validates referral codes during signup.
+  return backendMode === "remote" ? null : localFindUserByReferralCode(codeRaw);
+}
+
+export async function register(username: string, password: string, referralCode?: string): Promise<AuthResult> {
+  const response = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ username, password, referralCode }),
+  });
+  if (response) {
+    if (!response.ok) return { ok: false, error: response.data.error ?? "Couldn't create the account." };
+    cacheRemoteUser(remoteUserFrom(response.data));
+    return { ok: true };
+  }
+  return localRegister(username, password, referralCode);
+}
+
+export async function login(username: string, password: string): Promise<AuthResult> {
+  const response = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+  if (response) {
+    if (!response.ok) return { ok: false, error: response.data.error ?? "Couldn't sign in." };
+    cacheRemoteUser(remoteUserFrom(response.data));
+    return { ok: true };
+  }
+  return localLogin(username, password);
+}
+
+export async function recoverPassword(username: string, recoveryKey: string, password: string): Promise<AuthResult> {
+  const response = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/recover", {
+    method: "POST",
+    body: JSON.stringify({ username, recoveryKey, password }),
+  });
+  if (response) {
+    if (!response.ok) return { ok: false, error: response.data.error ?? "Couldn't reset the password." };
+    cacheRemoteUser(remoteUserFrom(response.data));
+    return { ok: true };
+  }
+  return localRecoverPassword(username, recoveryKey, password);
+}
+
+export async function changePassword(username: string, currentPassword: string, nextPassword: string): Promise<AuthResult> {
+  const response = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ username, currentPassword, nextPassword }),
+  });
+  if (response) {
+    if (!response.ok) return { ok: false, error: response.data.error ?? "Couldn't change the password." };
+    cacheRemoteUser(remoteUserFrom(response.data));
+    return { ok: true };
+  }
+  return localChangePassword(username, currentPassword, nextPassword);
+}
+
+export async function resetDemoAccount(username: string): Promise<AuthResult> {
+  const response = await remoteRequest("/api/auth/reset-demo", { method: "POST", body: JSON.stringify({ username }) });
+  if (response) {
+    if (!response.ok) return { ok: false, error: response.data.error ?? "Couldn't reset the demo profile." };
+    cacheRemoteUser(null);
+    return { ok: true };
+  }
+  return localResetDemoAccount(username);
+}
+
+export function logout(): void {
+  if (backendMode === "remote" || (backendMode === "unknown" && isPublishedHost())) {
+    cacheRemoteUser(null);
+    void remoteRequest("/api/auth/logout", { method: "POST", body: "{}" });
+    return;
+  }
+  localLogout();
+}
+
+export function deleteAccount(username: string): void {
+  if (backendMode === "remote" || (backendMode === "unknown" && isPublishedHost())) {
+    cacheRemoteUser(null);
+    void remoteRequest("/api/auth/account", { method: "DELETE" });
+    return;
+  }
+  localDeleteAccount(username);
+}
+
+export async function activateSubscriptionDemo(username: string): Promise<void> {
+  const response = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/subscribe", { method: "POST", body: JSON.stringify({ username }) });
+  if (response) {
+    if (response.ok) cacheRemoteUser(remoteUserFrom(response.data));
+    return;
+  }
+  localActivateSubscriptionDemo(username);
+}
+
+export async function cancelSubscription(username: string): Promise<void> {
+  const response = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/cancel-subscription", { method: "POST", body: JSON.stringify({ username }) });
+  if (response) {
+    if (response.ok) cacheRemoteUser(remoteUserFrom(response.data));
+    return;
+  }
+  localCancelSubscription(username);
+}
+
+/** Ensures the demo profile exists locally only when a Worker API is not
+ * present. In production the Durable Object creates it atomically. */
+export async function seedDefaultAccounts(): Promise<void> {
+  await hydrateAuthSession();
+  if (backendMode === "remote" || isPublishedHost()) return;
+  await localSeedDefaultAccounts();
+}
+
+/** Fetches a server-side data export when authenticated remotely. */
+export async function fetchRemoteAccountExport(): Promise<string | null> {
+  if (backendMode !== "remote") return null;
+  const response = await remoteRequest("/api/account/export", { method: "GET" });
+  if (!response?.ok) return null;
+  return JSON.stringify(response.data, null, 2);
 }

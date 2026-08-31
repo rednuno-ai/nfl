@@ -11,6 +11,7 @@ import {
   activateSubscriptionDemo,
   resetDemoAccount as authResetDemoAccount,
   deleteAccount as authDeleteAccount,
+  hydrateAuthSession,
   type AuthSession,
   type AuthUser,
 } from "@data/auth";
@@ -81,6 +82,7 @@ export interface GameStoreState {
   recoverAccount: (username: string, recoveryKey: string, password: string) => Promise<void>;
   changePassword: (currentPassword: string, nextPassword: string) => Promise<boolean>;
   resetDemoProfile: () => Promise<void>;
+  hydrateAccount: () => Promise<void>;
   logoutAccount: () => void;
   deleteCurrentAccount: () => void;
   subscribe: () => void;
@@ -236,6 +238,13 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     set({ authBusy: false, authError: result.ok ? null : result.error ?? "Couldn't reset the demo profile.", session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
   },
 
+  hydrateAccount: async () => {
+    await hydrateAuthSession();
+    const session = getSession();
+    set({ session, userId: session?.username ?? "", currentUser: getCurrentUser() });
+    if (session) await get().refreshCareers();
+  },
+
   logoutAccount: () => {
     authLogout();
     set({ session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
@@ -251,8 +260,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   subscribe: () => {
     const session = get().session;
     if (!session) return;
-    activateSubscriptionDemo(session.username);
-    set({ currentUser: getCurrentUser() });
+    void activateSubscriptionDemo(session.username).then(() => set({ currentUser: getCurrentUser() }));
   },
 
   refreshCareers: async () => {

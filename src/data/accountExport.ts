@@ -1,5 +1,5 @@
 import type { CareerState } from "@engine/career";
-import { getCurrentUser } from "./auth";
+import { fetchRemoteAccountExport, getCurrentUser, usesRemoteAuth } from "./auth";
 
 const INDEX_KEY = (username: string) => `nfl-life:index:${username}`;
 const CAREER_KEY = (careerId: string) => `nfl-life:career:${careerId}`;
@@ -23,7 +23,8 @@ function safeCareer(careerId: string): CareerState | null {
 
 /** Creates a portable copy of the signed-in player's local data. Credentials,
  * password hashes, salts and recovery keys are intentionally never exported. */
-export function createAccountExport(username: string): string | null {
+export async function createAccountExport(username: string): Promise<string | null> {
+  if (usesRemoteAuth()) return fetchRemoteAccountExport();
   const user = getCurrentUser();
   if (!user || user.username !== username) return null;
   const { passwordHash: _passwordHash, salt: _salt, recoveryKey: _recoveryKey, ...account } = user;

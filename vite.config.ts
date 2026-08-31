@@ -1,6 +1,12 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// `--configLoader runner` evaluates this as a native ESM module. Resolving the
+// config directory from import.meta.url keeps aliases working there as well as
+// in Vite's default bundled config loader.
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 // This is a static React SPA. Keeping Vite independent from the Workers
 // runtime makes `vite dev` / HMR reliable; Wrangler deploys the built `dist`
@@ -9,10 +15,10 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@engine": path.resolve(__dirname, "src/engine"),
-      "@data": path.resolve(__dirname, "src/data"),
-      "@store": path.resolve(__dirname, "src/store"),
-      "@ui": path.resolve(__dirname, "src/ui"),
+      "@engine": path.resolve(projectRoot, "src/engine"),
+      "@data": path.resolve(projectRoot, "src/data"),
+      "@store": path.resolve(projectRoot, "src/store"),
+      "@ui": path.resolve(projectRoot, "src/ui"),
     },
   },
   server: {

@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { buildContract, weeklySalary, advanceContractYear, isContractExpired, checkPerformanceRelease, generateFreeAgencyOffers } from "../contracts";
 import { RNG } from "../rng";

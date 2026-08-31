@@ -3,6 +3,14 @@
   "name": "nfl",
   "main": "./worker.mjs",
   "compatibility_date": "2026-08-25",
+  "durable_objects": {
+    "bindings": [
+      { "name": "ACCOUNT_STORE", "class_name": "AccountStore" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["AccountStore"] }
+  ],
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"

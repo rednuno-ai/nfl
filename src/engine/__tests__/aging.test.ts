@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { createPlayer } from "../player";
 import { applySeasonalAging, applyTraining, trainingGrowthMultiplier } from "../aging";

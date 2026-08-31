@@ -33,8 +33,8 @@ export function SettingsScreen() {
     }
   }
 
-  function downloadData() {
-    const data = currentUser ? createAccountExport(currentUser.username) : null;
+  async function downloadData() {
+    const data = currentUser ? await createAccountExport(currentUser.username) : null;
     if (!data) return;
     const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
     const link = document.createElement("a");
@@ -86,7 +86,7 @@ export function SettingsScreen() {
       <section className="card" style={{ marginBottom: 20 }} aria-labelledby="export-title">
         <h2 className="section-title" id="export-title">Download your data</h2>
         <p className="muted">Download a JSON copy of this account and its careers. Passwords, hashes and recovery codes are never included.</p>
-        <button className="btn btn-ghost" type="button" onClick={downloadData}>Download Local Data</button>
+        <button className="btn btn-ghost" type="button" onClick={() => void downloadData()}>Download Data</button>
       </section>
 
       <section className="card" style={{ marginBottom: 20 }} aria-labelledby="metrics-title">

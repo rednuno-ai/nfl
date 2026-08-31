@@ -71,15 +71,16 @@ child table). `teams` and `colleges` are public-read reference data with no
 write policy for regular users. See the full policies in
 `supabase/migrations/0001_init.sql`.
 
-## Why this isn't wired up in this environment
+## Published persistence
 
-This build environment has no access to the npm registry, so
-`@supabase/supabase-js` cannot be installed here, and there is no live
-Supabase project to run these migrations against. The repository
-abstraction (`src/data/repository.ts`) is what makes this a non-issue for
-gameplay: `LocalRepository` (localStorage) is a fully working
-implementation of the exact same interface `SupabaseRepository` implements,
-so the app is completely playable today. Turning on Supabase is:
+The production Worker now persists accounts, opaque HttpOnly sessions and
+career JSON in its SQLite-backed Durable Object (`AccountStore`). Its binding
+and migration are declared in `wrangler.jsonc`, so the Worker Build deploy
+applies the storage migration together with the app release. The browser is
+not the source of truth for published accounts or careers.
+
+Supabase remains an optional future data platform for cross-player features
+such as leaderboards. Turning it on is still:
 
 ```bash
 npm install                      # pulls @supabase/supabase-js

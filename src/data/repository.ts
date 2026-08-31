@@ -3,8 +3,10 @@ import type { CareerState } from "@engine/career";
 // =============================================================================
 // Repository abstraction — the ONLY interface the UI/store talks to for
 // persistence. Two implementations exist:
-//   - LocalRepository   (src/data/localRepository.ts)  — works today, no backend.
-//   - SupabaseRepository (src/data/supabase/*)          — real multi-device sync,
+//   - WorkerRepository  (src/data/workerRepository.ts) — published default;
+//     authenticated, durable server-side storage in the Cloudflare Worker.
+//   - LocalRepository   (src/data/localRepository.ts)  — Vite/offline fallback.
+//   - SupabaseRepository (src/data/supabase/*)          — optional external sync,
 //     wired up the moment `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` are set
 //     and `npm install` has fetched `@supabase/supabase-js` in a normal
 //     (non-sandboxed) environment.

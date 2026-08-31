@@ -114,18 +114,18 @@ any UI framework.
 - **Fictional world** (`engine/teams.ts`, `engine/colleges.ts`): 32
   fictional NFL-analog teams and 30 fictional colleges — see §6 on
   licensing.
-- **Save system**: `Repository` interface with a fully working
-  `LocalRepository` (localStorage) and a ready-to-activate
-  `SupabaseRepository`. Multiple concurrent careers, autosave on every
-  action. See `DATABASE_SCHEMA.md`.
+- **Save system**: the published Worker uses a SQLite-backed Durable Object
+  for authenticated, server-side career saves and autosave on every action.
+  `LocalRepository` remains only for Vite/offline development; an optional
+  `SupabaseRepository` is available for a separately configured integration.
 - **Accounts & subscription** (`src/data/auth.ts`, `AuthScreen`,
   `SubscriptionScreen`): registration is required to play at all, and an
   active subscription ($5/month) is required beyond that. Both gates are
   real — there is no way to reach `CareerSelectScreen` without them — but
-  the implementation is local (localStorage + Web Crypto PBKDF2 password
-  hashing, no server) because this sandbox has no way to provision a live
-  Supabase Auth project or a live payment processor. See §7 for the exact
-  swap path to real Auth/billing, and the module header of `auth.ts` for why
+  the published implementation is server-side: password hashes and careers
+  are stored in the Worker Durable Object, while the browser receives only an
+  HttpOnly session cookie. See §7 for the remaining billing swap path, and
+  the module header of `auth.ts` for why
   the "Simular assinatura" button is an honest, clearly-labeled simulation
   rather than a fake button that pretends to charge a real card. A seeded
   demo account (`adm` / `adm`, pre-subscribed) exists so the paywall doesn't
@@ -290,15 +290,11 @@ counting resolver calls — see the git history for the exact probe used
 during this tuning pass (removed from the repo since it's a one-off, not a
 maintained tool).
 
-**Accounts & subscription** — see §3's bullet for what exists. The swap path
-to production-real versions:
-- *Auth*: replace `src/data/auth.ts` with calls to Supabase Auth
-  (`supabase.auth.signUp` / `signInWithPassword`), keep the same
-  `AuthScreen`/`SubscriptionScreen` — they only depend on the small
-  register/login/logout/getSession surface, not on how it's implemented.
-- *Billing*: replace `activateSubscriptionDemo()` with a real Stripe
+**Accounts & subscription** — authentication and save data are already
+server-backed by the Worker. The remaining billing swap path is to replace
+`activateSubscriptionDemo()` with a real Stripe
   Checkout session (redirect out, webhook flips `subscriptionActive` in the
-  database on `checkout.session.completed`). No UI changes needed beyond
+  Worker database on `checkout.session.completed`). No UI changes needed beyond
   removing the "ambiente de demonstração" notice.
 
 **Homepage demo video** (`public/demo.webm`, embedded in `AuthScreen`): real

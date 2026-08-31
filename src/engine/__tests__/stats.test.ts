@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { addStatLine, sumStatLines, careerTotals, passerRating, yardsPerCarry, yardsPerReception } from "../stats";
 import { emptyStatLine } from "../types";

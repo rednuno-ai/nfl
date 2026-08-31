@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { computeLegacy, LEGACY_TIER_LABELS } from "../legacy";
 import { emptyStatLine } from "../types";
