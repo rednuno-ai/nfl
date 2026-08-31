@@ -114,8 +114,6 @@ function userForClient(row) {
 export class AccountStore extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.ctx = ctx;
-    this.env = env;
     this.ready = ctx.blockConcurrencyWhile(() => this.initialize());
   }
 
