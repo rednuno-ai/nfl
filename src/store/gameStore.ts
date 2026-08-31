@@ -72,6 +72,7 @@ export interface GameStoreState {
   screen: ScreenId;
   loading: boolean;
   error: string | null;
+  saveError: string | null;
   toast: string | null;
   cinematic: { scene: CinematicScene; title: string; body: string } | null;
 
@@ -109,19 +110,24 @@ export interface GameStoreState {
 
   navigate: (screen: ScreenId) => void;
   dismissToast: () => void;
+  retrySave: () => void;
 }
 
-const repository = getRepository();
-
-function persist(state: GameStoreState) {
+function persist(state: GameStoreState, set: (partial: Partial<GameStoreState>) => void) {
   if (state.activeCareer) {
     // Fire-and-forget autosave. LocalRepository is effectively synchronous;
     // a Supabase-backed repository would be a real network write here, so a
     // rejection (e.g. a dropped connection) shouldn't crash the app — just
     // surface it for debugging.
-    void repository.saveCareer(state.userId, state.activeCareer).catch((err) => {
-      console.error("Autosave failed:", err);
-    });
+    void getRepository()
+      .saveCareer(state.userId, state.activeCareer)
+      .then(() => {
+        if (state.saveError) set({ saveError: null });
+      })
+      .catch((err) => {
+        console.error("Autosave failed:", err);
+        set({ saveError: "Your latest change could not be saved. Check your connection, then retry." });
+      });
   }
 }
 
@@ -150,7 +156,7 @@ function applyCareer(get: () => GameStoreState, set: (partial: Partial<GameStore
   const unlocked = current ? newlyUnlockedTitles(current, next) : [];
   const toast = unlocked.length > 0 ? `🏆 Achievement unlocked: ${unlocked.join(", ")}` : fallbackToast ?? get().toast;
   set({ activeCareer: next, toast });
-  persist(get());
+  persist(get(), set);
 }
 
 const initialSession = typeof localStorage !== "undefined" ? getSession() : null;
@@ -166,6 +172,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   screen: "career-select",
   loading: false,
   error: null,
+  saveError: null,
   toast: null,
   cinematic: null,
 
@@ -249,7 +256,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   refreshCareers: async () => {
     set({ loading: true });
     try {
-      const careers = await repository.listCareers(get().userId);
+      const careers = await getRepository().listCareers(get().userId);
       set({ careers, loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });
@@ -260,18 +267,34 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const state = createCareer(input);
     completeOnboarding();
     set({ activeCareer: state, screen: "dashboard" });
-    await repository.saveCareer(get().userId, state);
+    try {
+      await getRepository().saveCareer(get().userId, state);
+    } catch (err) {
+      console.error("Initial career save failed:", err);
+      set({ saveError: "Your new career could not be saved yet. Check your connection, then retry." });
+    }
     await get().refreshCareers();
   },
 
   openCareer: async (id) => {
     set({ loading: true });
-    const state = await repository.loadCareer(get().userId, id);
-    set({ activeCareer: state, screen: state ? "dashboard" : "career-select", loading: false });
+    try {
+      const state = await getRepository().loadCareer(get().userId, id);
+      set({ activeCareer: state, screen: state ? "dashboard" : "career-select", loading: false, toast: state ? get().toast : "That career could not be found." });
+    } catch (err) {
+      console.error("Career load failed:", err);
+      set({ loading: false, toast: "Couldn't open that career. Check your connection and try again." });
+    }
   },
 
   deleteCareer: async (id) => {
-    await repository.deleteCareer(get().userId, id);
+    try {
+      await getRepository().deleteCareer(get().userId, id);
+    } catch (err) {
+      console.error("Career delete failed:", err);
+      set({ saveError: "That career could not be deleted. Check your connection, then retry." });
+      return;
+    }
     await get().refreshCareers();
   },
 
@@ -434,6 +457,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     set({ screen, toast: gameIsPaused ? "Game paused. Resume it from the Game Day tab whenever you are ready." : get().toast });
   },
   dismissToast: () => set({ toast: null }),
+  retrySave: () => persist(get(), set),
 }));
 
 export const useGameStore = createUseStore(gameStore);

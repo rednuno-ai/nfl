@@ -1,26 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useGameStore, gameStore, type ScreenId } from "@store/gameStore";
 import { Sidebar, MobileNav } from "@ui/layout/NavBar";
 import { AuthScreen } from "@ui/screens/AuthScreen";
 import { SubscriptionScreen } from "@ui/screens/SubscriptionScreen";
 import { CareerSelectScreen } from "@ui/screens/CareerSelectScreen";
-import { CreatePlayerScreen } from "@ui/screens/CreatePlayerScreen";
-import { DashboardScreen } from "@ui/screens/DashboardScreen";
-import { StatsScreen } from "@ui/screens/StatsScreen";
-import { FinanceScreen } from "@ui/screens/FinanceScreen";
-import { RelationshipsScreen } from "@ui/screens/RelationshipsScreen";
-import { NewsScreen } from "@ui/screens/NewsScreen";
-import { LegacyScreen } from "@ui/screens/LegacyScreen";
-import { SettingsScreen } from "@ui/screens/SettingsScreen";
-import { TeamScreen } from "@ui/screens/TeamScreen";
-import { DecisionModal } from "@ui/components/DecisionModal";
-import { TrainingModal } from "@ui/components/TrainingModal";
-import { GameDayView } from "@ui/components/GameDayView";
-import { LifeCinematic } from "@ui/components/LifeCinematic";
-import { PrivacyAccountControlsDialog } from "@ui/components/PrivacyAccountControlsDialog";
 import { getGameDayObjective } from "@engine/gameObjectives";
 import { recordDailyReturn } from "@data/metrics";
 import type { CareerState } from "@engine/career";
+
+const CreatePlayerScreen = lazy(() => import("@ui/screens/CreatePlayerScreen").then((module) => ({ default: module.CreatePlayerScreen })));
+const DashboardScreen = lazy(() => import("@ui/screens/DashboardScreen").then((module) => ({ default: module.DashboardScreen })));
+const StatsScreen = lazy(() => import("@ui/screens/StatsScreen").then((module) => ({ default: module.StatsScreen })));
+const FinanceScreen = lazy(() => import("@ui/screens/FinanceScreen").then((module) => ({ default: module.FinanceScreen })));
+const RelationshipsScreen = lazy(() => import("@ui/screens/RelationshipsScreen").then((module) => ({ default: module.RelationshipsScreen })));
+const NewsScreen = lazy(() => import("@ui/screens/NewsScreen").then((module) => ({ default: module.NewsScreen })));
+const LegacyScreen = lazy(() => import("@ui/screens/LegacyScreen").then((module) => ({ default: module.LegacyScreen })));
+const SettingsScreen = lazy(() => import("@ui/screens/SettingsScreen").then((module) => ({ default: module.SettingsScreen })));
+const TeamScreen = lazy(() => import("@ui/screens/TeamScreen").then((module) => ({ default: module.TeamScreen })));
+const DecisionModal = lazy(() => import("@ui/components/DecisionModal").then((module) => ({ default: module.DecisionModal })));
+const TrainingModal = lazy(() => import("@ui/components/TrainingModal").then((module) => ({ default: module.TrainingModal })));
+const GameDayView = lazy(() => import("@ui/components/GameDayView").then((module) => ({ default: module.GameDayView })));
+const LifeCinematic = lazy(() => import("@ui/components/LifeCinematic").then((module) => ({ default: module.LifeCinematic })));
+const PrivacyAccountControlsDialog = lazy(() => import("@ui/components/PrivacyAccountControlsDialog").then((module) => ({ default: module.PrivacyAccountControlsDialog })));
 
 const SCREEN_TITLES: Record<ScreenId, string> = {
   dashboard: "Career HQ",
@@ -43,6 +44,7 @@ export default function App() {
   const screen = useGameStore((s) => s.screen);
   const toast = useGameStore((s) => s.toast);
   const cinematic = useGameStore((s) => s.cinematic);
+  const saveError = useGameStore((s) => s.saveError);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const privacyTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -78,7 +80,7 @@ export default function App() {
   }
 
   if (!activeCareer) {
-    return screen === "create-player" ? <CreatePlayerScreen /> : <CareerSelectScreen />;
+    return screen === "create-player" ? <ScreenBoundary label="Loading player builder"><CreatePlayerScreen /></ScreenBoundary> : <CareerSelectScreen />;
   }
 
   const interaction = activeCareer.interaction;
@@ -103,45 +105,46 @@ export default function App() {
         </header>
         <main id="game-main" className="app-main" tabIndex={-1}>
           {interaction?.type === "game" && screen === "game-day" ? (
-          <GameDayView
-            game={interaction.game}
-            opponentLabel={interaction.game.opponentName}
-            teamLabel={activeCareer.team ? `${activeCareer.team.city} ${activeCareer.team.name}` : "Your Team"}
-            playerName={`${activeCareer.player.bio.firstName[0]}. ${activeCareer.player.bio.lastName}`}
-            playerPosition={activeCareer.player.position}
-            objective={getGameDayObjective(activeCareer.player.position, activeCareer.totalWeek)}
-            onChoose={(optionId) => gameStore.getState().gameDecide(optionId)}
-            onSimulate={() => gameStore.getState().simulateGame()}
-            onFinished={() => gameStore.getState().acknowledgeGameResult()}
-          />
+          <ScreenBoundary label="Loading Game Day">
+            <GameDayView
+              game={interaction.game}
+              opponentLabel={interaction.game.opponentName}
+              teamLabel={activeCareer.team ? `${activeCareer.team.city} ${activeCareer.team.name}` : "Your Team"}
+              playerName={`${activeCareer.player.bio.firstName[0]}. ${activeCareer.player.bio.lastName}`}
+              playerPosition={activeCareer.player.position}
+              objective={getGameDayObjective(activeCareer.player.position, activeCareer.totalWeek)}
+              onChoose={(optionId) => gameStore.getState().gameDecide(optionId)}
+              onSimulate={() => gameStore.getState().simulateGame()}
+              onFinished={() => gameStore.getState().acknowledgeGameResult()}
+            />
+          </ScreenBoundary>
           ) : (
-          <div key={screen} className="screen-fade">
-            <ScreenRouter screen={screen} />
-          </div>
+          <ScreenBoundary label="Loading career screen"><div key={screen} className="screen-fade"><ScreenRouter screen={screen} /></div></ScreenBoundary>
           )}
         </main>
         <footer className="app-footer">
           GRIDIRON LIFE · Original football fiction
           <button ref={privacyTriggerRef} type="button" onClick={() => setPrivacyOpen(true)}>Privacy & account controls</button>
         </footer>
+        {saveError && <aside className="save-recovery" role="alert"><span>{saveError}</span><button type="button" className="btn btn-ghost" onClick={() => gameStore.getState().retrySave()}>Retry save</button></aside>}
       </div>
       <MobileNav active={screen} gameAvailable={interactionIsGame(activeCareer)} onNavigate={(id) => gameStore.getState().navigate(id)} />
 
-      {interaction?.type === "decision" && <DecisionModal decision={interaction.decision} onChoose={(choiceId) => gameStore.getState().decide(choiceId)} />}
+      {interaction?.type === "decision" && <Suspense fallback={null}><DecisionModal decision={interaction.decision} onChoose={(choiceId) => gameStore.getState().decide(choiceId)} /></Suspense>}
       {interaction?.type === "training" && (
-        <TrainingModal week={interaction.week} options={interaction.options} onChoose={(focusId) => gameStore.getState().chooseTraining(focusId)} />
+        <Suspense fallback={null}><TrainingModal week={interaction.week} options={interaction.options} onChoose={(focusId) => gameStore.getState().chooseTraining(focusId)} /></Suspense>
       )}
-      {cinematic && <LifeCinematic {...cinematic} onClose={() => gameStore.getState().dismissCinematic()} />}
+      {cinematic && <Suspense fallback={null}><LifeCinematic {...cinematic} onClose={() => gameStore.getState().dismissCinematic()} /></Suspense>}
       {privacyOpen && (
-        <PrivacyAccountControlsDialog
-          username={session.username}
-          returnFocusRef={privacyTriggerRef}
-          onClose={() => setPrivacyOpen(false)}
-          onOpenSettings={() => {
-            setPrivacyOpen(false);
-            gameStore.getState().navigate("settings");
-          }}
-        />
+        <Suspense fallback={null}><PrivacyAccountControlsDialog
+            username={session.username}
+            returnFocusRef={privacyTriggerRef}
+            onClose={() => setPrivacyOpen(false)}
+            onOpenSettings={() => {
+              setPrivacyOpen(false);
+              gameStore.getState().navigate("settings");
+            }}
+          /></Suspense>
       )}
 
       {toast && (
@@ -151,6 +154,10 @@ export default function App() {
       )}
     </div>
   );
+}
+
+function ScreenBoundary({ children, label }: { children: React.ReactNode; label: string }) {
+  return <Suspense fallback={<div className="screen-loading" role="status" aria-live="polite" aria-busy="true">{label}…</div>}>{children}</Suspense>;
 }
 
 function interactionIsGame(career: CareerState | null): boolean {

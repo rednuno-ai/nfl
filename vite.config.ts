@@ -20,6 +20,16 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
-    sourcemap: true,
+    // Source maps are useful locally but add deploy weight and expose source
+    // in a public game build. Vite still fingerprints emitted app assets for
+    // long-lived Worker caching.
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom"],
+        },
+      },
+    },
   },
 });
