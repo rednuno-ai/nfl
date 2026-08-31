@@ -431,7 +431,14 @@ export default {
     const pathname = new URL(request.url).pathname;
     if (pathname.startsWith("/api/")) {
       const id = env.ACCOUNT_STORE.idFromName("gridiron-life-account-store-v1");
-      return env.ACCOUNT_STORE.get(id).fetch(request);
+      try {
+        return await env.ACCOUNT_STORE.get(id).fetch(request);
+      } catch (error) {
+        // Retained only while wiring the first production release: a Durable
+        // Object exception otherwise becomes an opaque 1101 with no way to
+        // inspect it from this restricted local environment.
+        return json({ ok: false, error: String(error?.stack ?? error) }, 500);
+      }
     }
 
     const response = await env.ASSETS.fetch(request);
