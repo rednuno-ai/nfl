@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import type { CinematicScene } from "@store/gameStore";
+import { useDialogFocus } from "@ui/hooks/useDialogFocus";
 
 const SCENE_COPY: Record<CinematicScene, { eyebrow: string; action: string }> = {
   contract: { eyebrow: "CAREER REEL · SIGNING DAY", action: "Enter the next chapter" },
@@ -23,17 +23,11 @@ const SCENE_COPY: Record<CinematicScene, { eyebrow: string; action: string }> = 
 export function LifeCinematic({ scene, title, body, onClose }: { scene: CinematicScene; title: string; body: string; onClose: () => void }) {
   const copy = SCENE_COPY[scene];
   const isGameIntro = scene === "tunnel" || scene === "travel";
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose]);
+  const dialogRef = useDialogFocus(onClose);
 
   return (
     <div className="life-cinematic-backdrop" role="presentation">
-      <section className={`life-cinematic life-cinematic--${scene}`} role="dialog" aria-modal="true" aria-labelledby="life-cinematic-title" aria-describedby="life-cinematic-description">
+      <section ref={dialogRef} className={`life-cinematic life-cinematic--${scene}`} role="dialog" aria-modal="true" aria-labelledby="life-cinematic-title" aria-describedby="life-cinematic-description">
         <div className="life-cinematic-art" aria-hidden="true" />
         <div className="life-cinematic-grain" aria-hidden="true" />
         <div className="life-cinematic-reel" aria-hidden="true"><span /></div>
@@ -43,7 +37,7 @@ export function LifeCinematic({ scene, title, body, onClose }: { scene: Cinemati
           <p id="life-cinematic-description">{body}</p>
           <div className="life-cinematic-actions">
             {isGameIntro && <button type="button" className="btn btn-ghost life-cinematic-skip" onClick={onClose}>Skip intro</button>}
-            <button className="btn btn-primary life-cinematic-action" onClick={onClose} autoFocus>
+            <button type="button" className="btn btn-primary life-cinematic-action" onClick={onClose}>
               {copy.action} <span aria-hidden="true">→</span>
             </button>
           </div>

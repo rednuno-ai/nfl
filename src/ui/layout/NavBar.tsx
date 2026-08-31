@@ -64,8 +64,8 @@ export function MobileNav({ active, onNavigate, gameAvailable = false }: { activ
   }, [open]);
   return (
     <nav className="mobile-nav" ref={navRef} aria-label="Career navigation">
-      {open && <div className="mobile-nav-more" role="menu">
-        {secondary.map((entry) => <button key={entry.id} type="button" role="menuitem" aria-current={active === entry.id ? "page" : undefined} className={active === entry.id ? "active" : ""} onClick={() => { onNavigate(entry.id); setOpen(false); }}><span aria-hidden="true">{entry.icon}</span>{entry.label}</button>)}
+      {open && <div className="mobile-nav-more" aria-label="More career pages">
+        {secondary.map((entry) => <button key={entry.id} type="button" aria-current={active === entry.id ? "page" : undefined} className={active === entry.id ? "active" : ""} onClick={() => { onNavigate(entry.id); setOpen(false); }}><span aria-hidden="true">{entry.icon}</span>{entry.label}</button>)}
       </div>}
       {entries.map((entry) => (
         <button key={entry.id} type="button" aria-current={active === entry.id ? "page" : undefined} className={`mobile-nav-item ${active === entry.id ? "active" : ""}`} onClick={() => onNavigate(entry.id)}>

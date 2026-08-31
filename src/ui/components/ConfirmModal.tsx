@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useDialogFocus } from "@ui/hooks/useDialogFocus";
 
 // =============================================================================
 // A themed replacement for window.confirm() — destructive actions (deleting a
@@ -28,21 +28,15 @@ export function ConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onCancel]);
+  const dialogRef = useDialogFocus(onCancel);
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" style={{ width: "min(420px, 100%)" }} role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-description" onClick={(e) => e.stopPropagation()}>
-        <div id="confirm-modal-title" className="modal-title">{title}</div>
-        <div id="confirm-modal-description" className="modal-body" style={{ marginBottom: 22 }}>
+      <section ref={dialogRef} className="modal" style={{ width: "min(420px, 100%)" }} role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-description" onClick={(e) => e.stopPropagation()}>
+        <h2 id="confirm-modal-title" className="modal-title">{title}</h2>
+        <p id="confirm-modal-description" className="modal-body" style={{ marginBottom: 22 }}>
           {body}
-        </div>
+        </p>
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button type="button" className="btn btn-ghost" onClick={onCancel} autoFocus>
             {cancelLabel}
@@ -56,7 +50,7 @@ export function ConfirmModal({
             {confirmLabel}
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

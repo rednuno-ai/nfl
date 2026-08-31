@@ -88,8 +88,7 @@ export default function App() {
       <a className="skip-link" href="#game-main">Skip to game content</a>
       <Sidebar active={screen} gameAvailable={interactionIsGame(activeCareer)} onNavigate={(id) => gameStore.getState().navigate(id)} onExit={() => gameStore.getState().backToCareerSelect()} />
       <div className="app-content">
-        <main id="game-main" className="app-main" tabIndex={-1}>
-          <header className="season-hud" aria-label="Career status">
+        <header className="season-hud" aria-label="Career status">
           <div className="season-hud-title">
             <span className="season-hud-live" aria-hidden="true" />
             LIVE CAREER
@@ -102,6 +101,7 @@ export default function App() {
             <span className="season-hud-screen">{screen.replace("-", " ")}</span>
           </div>
         </header>
+        <main id="game-main" className="app-main" tabIndex={-1}>
           {interaction?.type === "game" && screen === "game-day" ? (
           <GameDayView
             game={interaction.game}
@@ -145,7 +145,7 @@ export default function App() {
       )}
 
       {toast && (
-        <button type="button" className="toast" aria-label="Dismiss notification" onClick={() => gameStore.getState().dismissToast()}>
+        <button type="button" className="toast" role="status" aria-live="polite" aria-label="Dismiss notification" onClick={() => gameStore.getState().dismissToast()}>
           {toast}
         </button>
       )}
