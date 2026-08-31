@@ -119,5 +119,5 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 
 /* Mobile audit: every player-facing action has a reliable 44px hit target.
    Small buttons keep their compact typography, not a smaller touch surface. */
-.btn,.pill-option,.skip-link{min-height:44px}.life-buy-button,.life-action-row .btn{min-height:44px!important}.app-footer button{display:inline-flex;align-items:center;min-height:44px;margin-left:8px;padding:6px 4px}.skip-link{display:inline-flex;align-items:center}
+.btn,.pill-option,.skip-link,input:not([type="checkbox"]):not([type="radio"]),select{min-height:44px}.life-buy-button,.life-action-row .btn{min-height:44px!important}.app-footer button{display:inline-flex;align-items:center;min-height:44px;margin-left:8px;padding:6px 4px}.skip-link{display:inline-flex;align-items:center}
 @media(max-width:480px){.app-footer button{display:flex;width:max-content;margin-left:0}}
