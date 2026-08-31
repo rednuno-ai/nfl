@@ -429,7 +429,7 @@ export class AccountStore extends DurableObject {
 export default {
   async fetch(request, env) {
     const pathname = new URL(request.url).pathname;
-    if (pathname === "/_persistence-health") {
+    if (pathname === "/healthz") {
       const id = env.ACCOUNT_STORE.idFromName("gridiron-life-account-store-v1");
       const probeUrl = new URL(request.url);
       probeUrl.pathname = "/api/auth/session";
