@@ -66,6 +66,17 @@ export interface TrainingResult {
   moraleDelta: number;
 }
 
+/**
+ * Training should remain useful throughout a career without becoming an
+ * infinite, single-button progression loop. Potential is a soft ceiling, not
+ * a hard cap: a player can still have a breakout, but a skill already well
+ * ahead of their projected ceiling improves much more slowly.
+ */
+export function trainingGrowthMultiplier(potential: number, currentValue: number): number {
+  const softCeiling = clamp(potential + 15, 45, 100);
+  return clamp((softCeiling - currentValue + 12) / 42, 0.12, 1);
+}
+
 const TRAINING_TARGETS: Record<TrainingFocus, { path: string; weight: number }[]> = {
   strength: [
     { path: "physical.strength", weight: 1 },
@@ -104,7 +115,8 @@ export function applyTraining(
   const baseGain = 0.6 * developmentRate * intensity;
   let next = attrs;
   for (const target of targets) {
-    const gain = baseGain * target.weight * (0.7 + rng.next() * 0.6);
+    const currentValue = getAttributeValue(next, target.path);
+    const gain = baseGain * target.weight * (0.7 + rng.next() * 0.6) * trainingGrowthMultiplier(attrs.general.potential, currentValue);
     next = applyAttributeDelta(next, target.path, gain);
   }
 
@@ -114,4 +126,8 @@ export function applyTraining(
   const moraleDelta = isRecovery ? 4 : focus === "mental" ? 1 : 0.5;
 
   return { attributes: next, fatigueDelta, injuryRiskDelta, moraleDelta };
+}
+
+function getAttributeValue(attrs: Attributes, path: string): number {
+  return path.split(".").reduce<unknown>((value, key) => (value && typeof value === "object" ? (value as Record<string, unknown>)[key] : 0), attrs) as number;
 }

@@ -11,6 +11,7 @@ import {
   signWithTeam,
   retireCareer,
   canRetire,
+  injuryContextMultiplier,
   chooseTrainingFocus,
   evaluateSeasonAwards,
   type CareerState,
@@ -144,6 +145,17 @@ describe("career state machine", () => {
     assert.equal(socialWeek.player.attributes.general.fame, base.player.attributes.general.fame + 1);
     assert.equal(socialWeek.player.attributes.general.morale, base.player.attributes.general.morale - 1);
     assert.equal(relationshipValue(socialWeek, "media"), 53);
+  });
+
+  it("carries workload and recovery between weeks so training risk is not cosmetic", () => {
+    const base = createCareer(baseInput());
+    const hardWeek = advanceWeek(base, { trainingFocus: "position_specific" });
+    const recoveryWeek = advanceWeek(base, { trainingFocus: "recovery" });
+
+    assert.ok(hardWeek.trainingLoad > base.trainingLoad, "hard practice should add persistent workload after weekly rest");
+    assert.ok(hardWeek.injuryRiskModifier > base.injuryRiskModifier, "hard practice should add injury pressure");
+    assert.ok(recoveryWeek.trainingLoad < base.trainingLoad + 1, "recovery should clear workload rather than silently adding another grind");
+    assert.ok(injuryContextMultiplier(60, 0.1) > injuryContextMultiplier(0, 0), "high workload must raise the engine's injury multiplier");
   });
 
   it("keeps narrative memory as a durable tag for future event callbacks", () => {

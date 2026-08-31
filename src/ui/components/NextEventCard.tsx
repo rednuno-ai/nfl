@@ -87,7 +87,8 @@ export function NextEventCard({
 
 function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; needsWeeklyPlan: boolean; onChoose: (focus: TrainingSelection) => void }) {
   const resilience = Math.round((state.player.attributes.physical.durability + state.player.attributes.general.discipline) / 2);
-  const injuryOutlook = resilience >= 75 ? "lower" : resilience >= 55 ? "moderate" : "elevated";
+  const workload = Math.round(state.trainingLoad ?? 0);
+  const injuryOutlook = workload >= 55 || resilience < 55 ? "elevated" : workload >= 25 || resilience < 75 ? "moderate" : "lower";
   const coachTrust = state.relationships.find((relationship) => relationship.type === "coach")?.value ?? 50;
   const familyTrust = state.relationships.find((relationship) => relationship.type === "family")?.value ?? 50;
   if (!needsWeeklyPlan) {
@@ -123,7 +124,7 @@ function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; 
         <button type="button" onClick={() => gameStore.getState().navigate("relationships")}>Coach, team & family <span>Relationship events change trust · coach {coachTrust}/100 · family {familyTrust}/100</span></button>
         <button type="button" onClick={() => gameStore.getState().navigate("news")}>Reputation & social <span>Media choices affect reputation · {Math.round(state.player.attributes.general.reputation)}/100</span></button>
       </div>
-      <div className="weekly-risk-note"><strong>Injury outlook: {injuryOutlook}</strong><span>Durability and discipline currently set your game-day risk baseline ({resilience}/100).</span></div>
+      <div className="weekly-risk-note"><strong>Condition: {workload < 25 ? "fresh" : workload < 55 ? "managed" : "overworked"} · injury outlook: {injuryOutlook}</strong><span>Workload {workload}/100 and resilience {resilience}/100 set the next game&apos;s risk. Recovery clears more load; hard practice adds it.</span></div>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createPlayer } from "../player";
-import { applySeasonalAging, applyTraining } from "../aging";
+import { applySeasonalAging, applyTraining, trainingGrowthMultiplier } from "../aging";
 import { RNG } from "../rng";
 
 describe("aging", () => {
@@ -59,5 +59,12 @@ describe("aging", () => {
     const result = applyTraining(player.attributes, "recovery", 1, 1, rng);
     assert.ok(result.fatigueDelta < 0);
     assert.ok(result.moraleDelta > 0);
+  });
+
+  it("tapers training gains near a player's potential instead of allowing an infinite dominant grind", () => {
+    const early = trainingGrowthMultiplier(70, 50);
+    const nearCeiling = trainingGrowthMultiplier(70, 84);
+    assert.ok(early > nearCeiling, "a skill well below potential should grow faster than one already beyond the soft ceiling");
+    assert.ok(nearCeiling >= 0.12, "the soft ceiling must still permit rare late-career growth");
   });
 });

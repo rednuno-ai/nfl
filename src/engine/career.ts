@@ -149,6 +149,9 @@ export interface CareerState {
   narrativeRolledForWeek: number;
   trainingFocusChosenForWeek: number;
   pendingTrainingFocus: TrainingSelection | null;
+  /** Persistent condition between games. Older saves safely default to 0. */
+  trainingLoad: number; // 0 = fresh, 100 = overworked
+  injuryRiskModifier: number; // accumulated weekly training risk, -0.15..0.35
   interaction: Interaction;
   decisionHistory: ResolvedDecision[];
   achievements: Achievement[];
@@ -250,6 +253,8 @@ export function createCareer(input: CreatePlayerInput): CareerState {
     narrativeRolledForWeek: -1,
     trainingFocusChosenForWeek: -1,
     pendingTrainingFocus: null,
+    trainingLoad: 0,
+    injuryRiskModifier: 0,
     interaction: null,
     decisionHistory: [],
     achievements: initialAchievements(),
@@ -475,7 +480,9 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
   }
   if (options.trainingFocus) {
     state = { ...state, trainingFocusChosenForWeek: state.totalWeek, pendingTrainingFocus: options.trainingFocus };
-    if (options.trainingFocus === "relationships" || options.trainingFocus === "social") {
+    if (isTrainingFocus(options.trainingFocus)) {
+      state = applyTrainingCondition(state, options.trainingFocus);
+    } else if (options.trainingFocus === "relationships" || options.trainingFocus === "social") {
       state = applyLifePriority(state, options.trainingFocus);
     }
   }
@@ -563,15 +570,37 @@ function applyTrainingTick(state: CareerState, focus: TrainingFocus): CareerStat
   const college = state.college ? getCollege(state.college.collegeId) : null;
   const devRate = college ? college.developmentRate : 1;
   const { result, rngState } = withRng(state, (rng) => applyTraining(state.player.attributes, focus, 1, devRate, rng, positionSpecificPaths(state.player)));
-  // Training doesn't just move raw attributes — it also feeds back into
-  // morale (recovery weeks lift it, grinding sessions barely move it). Note
-  // fatigueDelta/injuryRiskDelta are only meaningful within a single game's
-  // GameSimState.fatigue (see gameSim.ts) — there's no persistent
-  // career-level fatigue meter to apply them to yet, so morale is the one
-  // durable side effect we can fold in here.
+  // The workload trade-off was applied when the weekly focus was selected,
+  // before a narrative event or Game Day can occur. This tick only applies the
+  // attribute/morale result, so a single session is never counted twice.
   const attributes = applyAttributeDelta(result.attributes, "general.morale", result.moraleDelta);
   const player: Player = { ...state.player, attributes };
   return { ...state, player, rngState };
+}
+
+function applyTrainingCondition(state: CareerState, focus: TrainingFocus): CareerState {
+  const isRecovery = focus === "recovery";
+  const fatigueDelta = isRecovery ? -18 : 10;
+  const injuryRiskDelta = isRecovery ? -0.02 : 0.015;
+  return {
+    ...state,
+    trainingLoad: nextTrainingLoad(state.trainingLoad, fatigueDelta),
+    injuryRiskModifier: nextInjuryRiskModifier(state.injuryRiskModifier, injuryRiskDelta),
+  };
+}
+
+function nextTrainingLoad(current: number | undefined, delta: number): number {
+  return clamp((current ?? 0) + delta, 0, 100);
+}
+
+function nextInjuryRiskModifier(current: number | undefined, delta: number): number {
+  return clamp((current ?? 0) + delta, -0.15, 0.35);
+}
+
+/** The multiplier passed to the injury model. Kept exported so the UI and
+ * balance tests can describe the same condition that the engine uses. */
+export function injuryContextMultiplier(trainingLoad: number | undefined, injuryRiskModifier: number | undefined): number {
+  return clamp(1 + clamp(trainingLoad ?? 0, 0, 100) * 0.005 + (injuryRiskModifier ?? 0), 0.7, 1.85);
 }
 
 function positionSpecificPaths(player: Player): string[] {
@@ -765,6 +794,8 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
   // attributes moving through a season instead of only changing at
   // season-end aging.
   let finalRngState = rngState2;
+  let trainingLoad = state.trainingLoad ?? 0;
+  let injuryRiskModifier = state.injuryRiskModifier ?? 0;
   if (state.stage === "high_school" || state.stage === "college" || state.stage === "nfl_season") {
     const college = state.stage === "college" && state.college ? getCollege(state.college.collegeId) : null;
     const devRate = college ? college.developmentRate : 1;
@@ -779,6 +810,10 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
     }
   }
 
+  // A real game also leaves a small, durable workload mark. It is intentionally
+  // smaller than a hard practice so the player can recover between games.
+  trainingLoad = nextTrainingLoad(trainingLoad, game.fatigue * 0.1);
+
   // In-game injury risk. Narrative-event injuryChance consequences (see
   // resolveDecision) only fire from specific story beats and mostly target
   // players who are already hurt, so without this roll the injury system
@@ -789,7 +824,13 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
   let tags = state.tags;
   if (injuries.length === 0) {
     const { result: injuryRoll, rngState: rngState4 } = withRng({ ...state, rngState: finalRngState }, (rng) =>
-      rollForInjury(state.totalWeek, player.attributes.physical.durability, player.attributes.general.discipline, rng, 1)
+      rollForInjury(
+        state.totalWeek,
+        player.attributes.physical.durability,
+        player.attributes.general.discipline,
+        rng,
+        injuryContextMultiplier(trainingLoad, injuryRiskModifier)
+      )
     );
     finalRngState = rngState4;
     if (injuryRoll) {
@@ -818,6 +859,8 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
       player,
       injuries,
       tags,
+      trainingLoad,
+      injuryRiskModifier,
     },
     logMsg
   );
@@ -882,7 +925,15 @@ export function evaluateSeasonAwards(stat: StatLine, position: string, teamWins:
 
 function finishWeekProcessing(state: CareerState, wasGameOrOffWeek: boolean): CareerState {
   const { state: financeState, log: financeLog } = weeklyFinanceTick(state.finance);
-  let next: CareerState = { ...state, finance: financeState };
+  // Every week includes some passive recovery. Deliberate recovery clears
+  // considerably more through applyTrainingTick; a grind can therefore stack
+  // pressure while a balanced plan steadily returns the player to baseline.
+  let next: CareerState = {
+    ...state,
+    finance: financeState,
+    trainingLoad: clamp((state.trainingLoad ?? 0) - 8, 0, 100),
+    injuryRiskModifier: clamp((state.injuryRiskModifier ?? 0) * 0.7, -0.15, 0.35),
+  };
 
   // Pay NFL salary. Contracts specify an annual amount spread across the
   // season, so this only fires while under contract during the nfl_season
@@ -992,11 +1043,19 @@ function gradeLabel(year: number): string {
 
 function generateRecruitingOffers(state: CareerState): RecruitingOfferView[] {
   const power = overall(state.player) * 0.6 + state.player.attributes.general.fame * 0.4;
-  const { result, rngState } = withRng(state, (rng) => {
-    const eligible = COLLEGES.filter((c) => c.prestige <= power + 15 + rng.next() * 15);
-    return rng.shuffle(eligible).slice(0, 3 + Math.floor(rng.next() * 4));
-  });
-  return result.map((c: College) => ({ collegeId: c.id, collegeName: `${c.name} ${c.mascot}`, interestLevel: clamp(60 + Math.round(Math.random() * 30)), scholarship: true }));
+  // Recruiting must be reproducible from CareerState. Do not use Math.random
+  // here: it made a save produce different offers after a reload.
+  const roll = (key: string) => (hashOpponentSeed(`recruiting:${state.seed}:${state.totalWeek}:${state.highSchool.classYear}:${key}`) / 0xffffffff);
+  const eligible = COLLEGES.filter((college) => college.prestige <= power + 15 + roll(`${college.id}:eligible`) * 15);
+  const result = [...eligible]
+    .sort((a, b) => roll(`${a.id}:order`) - roll(`${b.id}:order`))
+    .slice(0, 3 + Math.floor(roll("offer-count") * 4));
+  return result.map((college: College) => ({
+    collegeId: college.id,
+    collegeName: `${college.name} ${college.mascot}`,
+    interestLevel: clamp(60 + Math.round(roll(`${college.id}:interest`) * 30)),
+    scholarship: true,
+  }));
 }
 
 function mergeOffers(existing: RecruitingOfferView[], fresh: RecruitingOfferView[]): RecruitingOfferView[] {

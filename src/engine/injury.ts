@@ -31,7 +31,12 @@ const INJURY_TEMPLATES: InjuryTemplate[] = [
 export function baseInjuryProbability(durability: number, discipline: number, contextMultiplier = 1): number {
   const durabilityFactor = 1 - durability / 140; // higher durability = lower risk
   const disciplineFactor = 1 - discipline / 400; // small effect: undisciplined players take more risks
-  const base = 0.02 * (0.6 + durabilityFactor) * (0.85 + disciplineFactor);
+  // This is a per-game/week *incident* chance, not the chance that an
+  // athlete ever carries a knock in a whole career. The previous 2% base
+  // compounded into a near-certain injury for every generated career and
+  // made recovery choices feel cosmetic. Durability and discipline still
+  // meaningfully differentiate the rate through the two factors below.
+  const base = 0.0035 * (0.6 + durabilityFactor) * (0.85 + disciplineFactor);
   return clamp(base * contextMultiplier, 0.002, 0.5);
 }
 

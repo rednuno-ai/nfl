@@ -131,6 +131,54 @@ any UI framework.
   demo account (`adm` / `adm`, pre-subscribed) exists so the paywall doesn't
   block testing.
 
+### 3.1 Progression & balance formulas
+
+The engine is intentionally transparent about the rules that shape a career.
+These are implementation formulas, not hidden “meta” modifiers:
+
+- **Overall:** each position is a weighted sum of its visible attributes,
+  rounded and clamped to **20–99**. For example, QB is `16% short accuracy +
+  16% medium accuracy + 12% deep accuracy + 12% throw power + 14% awareness
+  + 14% decision making + 8% pressure + 8% agility`. The equivalent weights
+  for every position live in `engine/attributes.ts`.
+- **Development:** a training target gains
+  `0.6 × developmentRate × intensity × targetWeight × random(0.7…1.3) ×
+  growthMultiplier`. `growthMultiplier` is a soft potential curve based on
+  `potential + 15`; it drops as an individual skill reaches that range but
+  never falls below `0.12`. Training is still valuable, but endlessly
+  repeating one button cannot create unlimited growth.
+- **Ageing:** physical attributes change by `+1.5` at age 21 or younger,
+  `+1.0` through 25, roughly plateau through 28, then decline from `−1.2` to
+  `−3.6` with age. Mental attributes continue to grow (up to `+2.2` per
+  season) through 32; durability loses `0.6 + 0.05 × seasonsPlayed` each
+  season.
+- **Condition and injury:** hard training adds **10** workload and `+0.015`
+  risk; recovery clears **18** workload and `−0.02` risk. Every week passively
+  clears 8 workload and reduces the current risk modifier by 30%. Game injury
+  context is `clamp(1 + workload × 0.005 + riskModifier, 0.7, 1.85)`. The base
+  incident chance is `0.0035 × (0.6 + (1 − durability/140)) ×
+  (0.85 + (1 − discipline/400))`, also clamped. This makes recovery and body
+  profile meaningful without making an injury inevitable in every career.
+- **Confidence, fame and results:** a strong/poor game shifts confidence by
+  `+4/−4`; completing the contextual Game Day objective adds `+3` confidence
+  and `+1` fame. Play outcomes combine team rating difference, fatigue
+  (up to −6 rating), confidence (up to +5), late-game pressure (up to ±4),
+  position skill, defensive call/tendency, risk level, momentum and
+  personality. Every probability is clamped before the seeded RNG rolls.
+- **Contracts:** veteran annual value is `600k + (overall/99)^2.4 × 34m ×
+  ageFactor × marketFactor × random(0.85…1.15)`. Age factors are 1.0 under
+  27, 0.9 under 30, 0.7 under 33 and 0.45 thereafter. The deal is 4/3/2 years
+  at OVR thresholds 85/70, with a 25–50% signing bonus and a slightly
+  back-loaded salary. Rookie contracts follow draft-pick scale.
+
+`engine/balance.ts` is the regression harness for this model. It resolves
+**1,000 deterministic aggregate careers** using the production attribute,
+training, ageing, injury, contract and legacy functions, then checks bounded
+peak OVR, career length, injury incidence, offers, championships and Hall of
+Fame distribution. It also compares all-out training with a balanced and a
+recovery-first strategy, so a change that makes one option strictly dominant
+fails review before release.
+
 ## 4. What a played-through MVP session looks like
 
 Create a player → play through 4 seasons of high school (games + training
