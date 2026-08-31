@@ -12,6 +12,7 @@ import {
   resetDemoAccount as authResetDemoAccount,
   deleteAccount as authDeleteAccount,
   hydrateAuthSession,
+  takePendingLocalCareerMigration,
   type AuthSession,
   type AuthUser,
 } from "@data/auth";
@@ -134,6 +135,17 @@ function persist(state: GameStoreState, set: (partial: Partial<GameStoreState>) 
   }
 }
 
+async function migratePendingLocalCareers(userId: string): Promise<number> {
+  const migrated = takePendingLocalCareerMigration(userId);
+  let copied = 0;
+  for (const candidate of migrated) {
+    if (!candidate || typeof candidate !== "object" || !("id" in candidate) || typeof candidate.id !== "string") continue;
+    await getRepository().saveCareer(userId, candidate as CareerState);
+    copied += 1;
+  }
+  return copied;
+}
+
 /** Titles of any achievements that flipped from locked to unlocked between
  *  two CareerState snapshots (index-aligned since ACHIEVEMENT_DEFINITIONS is
  *  a fixed, ordered list — see engine/achievements.ts). */
@@ -201,6 +213,16 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     }
     const session = getSession();
     set({ authBusy: false, session, userId: session?.username ?? "", currentUser: getCurrentUser() });
+    let migrated = 0;
+    if (session) {
+      try {
+        migrated = await migratePendingLocalCareers(session.username);
+      } catch (err) {
+        console.error("Local career migration failed:", err);
+        set({ saveError: "Your previous browser saves could not be copied yet. Sign in again when your connection is stable." });
+      }
+    }
+    if (migrated > 0) set({ toast: `${migrated} previous career${migrated === 1 ? "" : "s"} securely moved to your account.` });
     await get().refreshCareers();
   },
 

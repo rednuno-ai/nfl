@@ -58,6 +58,7 @@ type BackendMode = "unknown" | "remote" | "local";
 let backendMode: BackendMode = "unknown";
 let remoteSession: AuthSession | null = null;
 let remoteUser: AuthUser | null = null;
+let pendingLocalCareerMigration: string | null = null;
 
 interface RemoteResponse<T = Record<string, unknown>> {
   ok: boolean;
@@ -464,7 +465,29 @@ export async function login(username: string, password: string): Promise<AuthRes
     body: JSON.stringify({ username, password }),
   });
   if (response) {
-    if (!response.ok) return { ok: false, error: response.data.error ?? "Couldn't sign in." };
+    if (!response.ok) {
+      // Existing browser-only accounts are migrated on their first successful
+      // sign-in. We verify the old local password first, then register the
+      // same account remotely and let the store copy its career saves. This
+      // never overwrites an existing server account and never deletes the
+      // original browser data.
+      if (response.status === 401 && !isDemoAccount(username)) {
+        const localResult = await localLogin(username, password);
+        if (localResult.ok) {
+          const migration = await remoteRequest<{ user?: AuthUser | null }>("/api/auth/register", {
+            method: "POST",
+            body: JSON.stringify({ username, password }),
+          });
+          if (migration?.ok) {
+            cacheRemoteUser(remoteUserFrom(migration.data));
+            pendingLocalCareerMigration = normalizeUsername(username);
+            localLogout();
+            return { ok: true };
+          }
+        }
+      }
+      return { ok: false, error: response.data.error ?? "Couldn't sign in." };
+    }
     cacheRemoteUser(remoteUserFrom(response.data));
     return { ok: true };
   }
@@ -557,4 +580,28 @@ export async function fetchRemoteAccountExport(): Promise<string | null> {
   const response = await remoteRequest("/api/account/export", { method: "GET" });
   if (!response?.ok) return null;
   return JSON.stringify(response.data, null, 2);
+}
+
+/** Returns, once, the old browser-only saves that belong to an account that
+ * was just migrated to the Worker. The originals are deliberately retained
+ * locally as a recovery copy until the player chooses to clear browser data. */
+export function takePendingLocalCareerMigration(usernameRaw: string): unknown[] {
+  const username = normalizeUsername(usernameRaw);
+  if (pendingLocalCareerMigration !== username) return [];
+  pendingLocalCareerMigration = null;
+  try {
+    const ids = JSON.parse(localStorage.getItem(`nfl-life:index:${username}`) ?? "[]") as unknown;
+    if (!Array.isArray(ids)) return [];
+    return ids.flatMap((id) => {
+      if (typeof id !== "string") return [];
+      try {
+        const state = JSON.parse(localStorage.getItem(`nfl-life:career:${id}`) ?? "null") as unknown;
+        return state ? [state] : [];
+      } catch {
+        return [];
+      }
+    });
+  } catch {
+    return [];
+  }
 }
