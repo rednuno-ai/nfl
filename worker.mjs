@@ -429,6 +429,16 @@ export class AccountStore extends DurableObject {
 export default {
   async fetch(request, env) {
     const pathname = new URL(request.url).pathname;
+    if (pathname === "/_persistence-health") {
+      const id = env.ACCOUNT_STORE.idFromName("gridiron-life-account-store-v1");
+      const probeUrl = new URL(request.url);
+      probeUrl.pathname = "/api/auth/session";
+      try {
+        return await env.ACCOUNT_STORE.get(id).fetch(new Request(probeUrl, { method: "GET", headers: request.headers }));
+      } catch (error) {
+        return json({ ok: false, error: String(error?.stack ?? error) }, 500);
+      }
+    }
     if (pathname.startsWith("/api/")) {
       const id = env.ACCOUNT_STORE.idFromName("gridiron-life-account-store-v1");
       try {
