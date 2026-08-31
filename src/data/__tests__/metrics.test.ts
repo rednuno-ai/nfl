@@ -8,6 +8,9 @@ import {
   recordDailyReturn,
   recordFirstGameCompleted,
   recordFirstGameStarted,
+  recordGameDecision,
+  recordInternalMetric,
+  recordWeeklyPriority,
   setOnboardingStage,
   startOnboarding,
 } from "../metrics";
@@ -68,5 +71,21 @@ describe("internal metrics", () => {
     const metrics = readInternalMetrics();
     assert.equal(metrics.counts.returned_next_day, 1);
     assert.equal(metrics.counts["onboarding_abandoned:attributes"], 1);
+  });
+
+  it("keeps decision, season and recovery telemetry coarse and local", () => {
+    installStorage();
+    recordWeeklyPriority("recovery");
+    recordGameDecision("deep_pass");
+    recordInternalMetric("season_completed");
+    recordInternalMetric("save_failed");
+    recordGameDecision("not allowed spaces");
+    const metrics = readInternalMetrics();
+    assert.equal(metrics.counts["weekly_priority:recovery"], 1);
+    assert.equal(metrics.counts["game_decision:deep_pass"], 1);
+    assert.equal(metrics.counts.season_completed, 1);
+    assert.equal(metrics.counts.save_failed, 1);
+    assert.equal(metrics.counts["game_decision:not allowed spaces"], undefined);
+    assert.equal(JSON.stringify(metrics).includes("player-one"), false);
   });
 });

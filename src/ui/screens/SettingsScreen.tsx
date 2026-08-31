@@ -89,6 +89,11 @@ export function SettingsScreen() {
         <button className="btn btn-ghost" type="button" onClick={downloadData}>Download Local Data</button>
       </section>
 
+      <section className="card" style={{ marginBottom: 20 }} aria-labelledby="metrics-title">
+        <h2 className="section-title" id="metrics-title">Local product metrics</h2>
+        <p className="muted">This device keeps anonymous counters for onboarding, game progress, broad choice categories and recovery errors. They are never sent to a server and do not include your name, career details, password, recovery code, device or IP address.</p>
+      </section>
+
       {demoAccount && (
         <section className="card demo-reset-card" aria-labelledby="demo-reset-title">
           <h2 className="section-title" id="demo-reset-title">Demo account</h2>

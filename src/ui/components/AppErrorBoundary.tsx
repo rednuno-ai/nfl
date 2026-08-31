@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { recordInternalMetric } from "@data/metrics";
 
 interface AppErrorBoundaryState {
   failed: boolean;
@@ -16,6 +17,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("GRIDIRON LIFE rendering error", error, info.componentStack);
+    recordInternalMetric("render_recovery");
   }
 
   render() {

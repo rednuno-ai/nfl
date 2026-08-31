@@ -12,7 +12,13 @@ export type InternalMetricEvent =
   | "onboarding_abandoned"
   | "first_game_started"
   | "first_game_completed"
-  | "returned_next_day";
+  | "returned_next_day"
+  | "season_completed"
+  | "game_simulated"
+  | "save_failed"
+  | "save_retry"
+  | "startup_failed"
+  | "render_recovery";
 
 export interface InternalMetricsSnapshot {
   version: 1;
@@ -69,6 +75,17 @@ function increment(snapshot: InternalMetricsSnapshot, event: InternalMetricEvent
   snapshot.counts[key] = (snapshot.counts[key] ?? 0) + 1;
 }
 
+/** Records a deliberately coarse product signal. The optional category is
+ * restricted to a small safe alphabet, so no free-form/player-entered data can
+ * accidentally enter this local-only counter. */
+export function recordInternalMetric(event: InternalMetricEvent, category?: string): void {
+  const snapshot = readInternalMetrics();
+  const safeCategory = category && /^[a-z0-9_-]{1,40}$/i.test(category) ? category.toLowerCase() : undefined;
+  const key = safeCategory ? `${event}:${safeCategory}` : event;
+  snapshot.counts[key] = (snapshot.counts[key] ?? 0) + 1;
+  save(snapshot);
+}
+
 export function startOnboarding(): void {
   const snapshot = readInternalMetrics();
   increment(snapshot, "onboarding_started", "bio");
@@ -103,6 +120,24 @@ export function recordFirstGameStarted(): void {
   if (snapshot.firstGameStarted) return;
   increment(snapshot, "first_game_started");
   snapshot.firstGameStarted = true;
+  save(snapshot);
+}
+
+export function recordWeeklyPriority(focus: string): void {
+  const snapshot = readInternalMetrics();
+  const safeFocus = /^[a-z_]{1,40}$/i.test(focus) ? focus.toLowerCase() : undefined;
+  if (!safeFocus) return;
+  const key = `weekly_priority:${safeFocus}`;
+  snapshot.counts[key] = (snapshot.counts[key] ?? 0) + 1;
+  save(snapshot);
+}
+
+export function recordGameDecision(optionId: string): void {
+  const snapshot = readInternalMetrics();
+  const safeOption = /^[a-z0-9_-]{1,40}$/i.test(optionId) ? optionId.toLowerCase() : undefined;
+  if (!safeOption) return;
+  const key = `game_decision:${safeOption}`;
+  snapshot.counts[key] = (snapshot.counts[key] ?? 0) + 1;
   save(snapshot);
 }
 

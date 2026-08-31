@@ -36,7 +36,7 @@ import {
 } from "@engine/career";
 import type { CreatePlayerInput } from "@engine/player";
 import type { Asset } from "@engine/types";
-import { completeOnboarding, recordFirstGameCompleted, recordFirstGameStarted } from "@data/metrics";
+import { completeOnboarding, recordFirstGameCompleted, recordFirstGameStarted, recordGameDecision, recordInternalMetric, recordWeeklyPriority } from "@data/metrics";
 import {
   cinematicForDecision,
   cinematicForGameResult,
@@ -126,6 +126,7 @@ function persist(state: GameStoreState, set: (partial: Partial<GameStoreState>) 
       })
       .catch((err) => {
         console.error("Autosave failed:", err);
+        recordInternalMetric("save_failed");
         set({ saveError: "Your latest change could not be saved. Check your connection, then retry." });
       });
   }
@@ -156,6 +157,7 @@ function applyCareer(get: () => GameStoreState, set: (partial: Partial<GameStore
   const unlocked = current ? newlyUnlockedTitles(current, next) : [];
   const toast = unlocked.length > 0 ? `🏆 Achievement unlocked: ${unlocked.join(", ")}` : fallbackToast ?? get().toast;
   set({ activeCareer: next, toast });
+  if (current && next.seasonYear > current.seasonYear) recordInternalMetric("season_completed");
   persist(get(), set);
 }
 
@@ -307,6 +309,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
       set({ toast: "Game paused. Select Resume Game when you are ready." });
       return;
     }
+    if (options?.trainingFocus) recordWeeklyPriority(options.trainingFocus);
     const next = advanceWeek(current, options);
     if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
     applyCareer(get, set, next);
@@ -341,6 +344,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   gameDecide: (optionId) => {
     const current = get().activeCareer;
     if (!current) return;
+    recordGameDecision(optionId);
     applyCareer(get, set, resolveGameDecision(current, optionId));
   },
 
@@ -351,6 +355,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
       return;
     }
     const game = current.interaction.game;
+    recordInternalMetric("game_simulated");
     const firstCareerGame = current.currentSeasonGameStats.length === 0;
     const next = simulateActiveGame(current);
     if (firstCareerGame) recordFirstGameCompleted();
@@ -457,7 +462,10 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     set({ screen, toast: gameIsPaused ? "Game paused. Resume it from the Game Day tab whenever you are ready." : get().toast });
   },
   dismissToast: () => set({ toast: null }),
-  retrySave: () => persist(get(), set),
+  retrySave: () => {
+    recordInternalMetric("save_retry");
+    persist(get(), set);
+  },
 }));
 
 export const useGameStore = createUseStore(gameStore);
