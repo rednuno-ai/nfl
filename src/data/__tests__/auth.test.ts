@@ -1,6 +1,8 @@
 import { beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEMO_ACCOUNT_USERNAME, getSession, isDemoAccount, login, register, resetDemoAccount, seedDefaultAccounts } from "../auth";
+import { changePassword, DEMO_ACCOUNT_USERNAME, getSession, isDemoAccount, login, register, resetDemoAccount, seedDefaultAccounts } from "../auth";
+import { createAccountExport } from "../accountExport";
+import { LocalRepository } from "../localRepository";
 
 class MemoryStorage {
   private values = new Map<string, string>();
@@ -54,5 +56,40 @@ describe("demo account reset", () => {
     assert.equal(storage.getItem("nfl-life:index:player-one"), JSON.stringify(["normal-career"]));
     assert.equal(storage.getItem("nfl-life:career:normal-career"), "normal-state");
     assert.equal((await login("player-one", "safe-password")).ok, true, "normal credentials stay usable");
+  });
+});
+
+describe("local account controls", () => {
+  it("requires the current password before replacing it", async () => {
+    assert.equal((await register("player-one", "safe-password")).ok, true);
+    assert.equal((await changePassword("player-one", "wrong-password", "new-safe-password")).ok, false);
+    assert.equal((await changePassword("player-one", "safe-password", "new-safe-password")).ok, true);
+    assert.equal((await login("player-one", "safe-password")).ok, false);
+    assert.equal((await login("player-one", "new-safe-password")).ok, true);
+  });
+
+  it("exports player data without credential material", async () => {
+    assert.equal((await register("player-one", "safe-password")).ok, true);
+    storage.setItem("nfl-life:index:player-one", JSON.stringify(["normal-career"]));
+    storage.setItem("nfl-life:career:normal-career", JSON.stringify({ id: "normal-career", player: { bio: { firstName: "Player" } } }));
+
+    const exported = createAccountExport("player-one");
+    assert.ok(exported);
+    const parsed = JSON.parse(exported!);
+    assert.equal(parsed.account.username, "player-one");
+    assert.equal(parsed.careers.length, 1);
+    assert.equal("passwordHash" in parsed.account, false);
+    assert.equal("salt" in parsed.account, false);
+    assert.equal("recoveryKey" in parsed.account, false);
+  });
+
+  it("does not load or delete a career outside the signed-in account index", async () => {
+    const repository = new LocalRepository();
+    storage.setItem("nfl-life:index:player-one", JSON.stringify(["owned-career"]));
+    storage.setItem("nfl-life:career:owned-career", JSON.stringify({ id: "owned-career" }));
+
+    assert.equal(await repository.loadCareer("player-two", "owned-career"), null);
+    await repository.deleteCareer("player-two", "owned-career");
+    assert.equal(storage.getItem("nfl-life:career:owned-career"), JSON.stringify({ id: "owned-career" }));
   });
 });

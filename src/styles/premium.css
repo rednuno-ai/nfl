@@ -111,6 +111,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
    hit area remains comfortably usable on touch devices. */
 .game-simulate-control{min-width:156px;border-color:rgba(255,184,77,.42)!important;color:#ffe1a2!important}.game-simulate-control:hover:not(:disabled),.game-simulate-control:focus-visible{border-color:var(--accent)!important;background:rgba(255,122,82,.14)!important}.game-simulate-control:disabled{opacity:.45;cursor:not-allowed}
 
+/* Account controls remain compact without hiding the local-only boundary. */
+.recovery-card details{margin-top:10px}.recovery-card summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--accent-strong);font-size:12px;font-weight:800}.settings-password-form{display:grid;gap:9px;max-width:440px}.settings-password-form .field{margin:0}.settings-password-form .form-help{margin:0}
+
 .build-forecast{margin-top:-5px}.life-cinematic-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.life-cinematic-skip{min-height:44px}
 
 /* Original first-person career reels. These are intentionally lightweight

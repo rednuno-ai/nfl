@@ -60,6 +60,14 @@ const SESSION_KEY = "nfl-life:auth:session";
 export const DEMO_ACCOUNT_USERNAME = "adm";
 const DEFAULT_ADMIN_PASSWORD = "adm";
 const DEFAULT_ADMIN_RECOVERY_KEY = "DEMO-2026";
+const MIN_PASSWORD_LENGTH = 8;
+
+function passwordIsLongEnough(username: string, password: string): boolean {
+  // The intentionally public demo keeps its short, documented credentials so
+  // it remains frictionless to test. New player accounts require a stronger
+  // password, while existing local accounts can still sign in and upgrade it.
+  return isDemoAccount(username) ? password.length >= 3 : password.length >= MIN_PASSWORD_LENGTH;
+}
 
 function loadUsers(): Record<string, AuthUser> {
   try {
@@ -183,7 +191,7 @@ export function getCurrentUser(): AuthUser | null {
 export async function register(usernameRaw: string, password: string, referralCodeRaw?: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
   if (username.length < 2) return { ok: false, error: "Username too short (minimum 2 characters)." };
-  if (password.length < 3) return { ok: false, error: "Password too short (minimum 3 characters)." };
+  if (!passwordIsLongEnough(username, password)) return { ok: false, error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your password.` };
   const users = loadUsers();
   if (users[username]) return { ok: false, error: "That username is already registered." };
 
@@ -223,9 +231,9 @@ export async function login(usernameRaw: string, password: string): Promise<Auth
   const username = normalizeUsername(usernameRaw);
   const users = loadUsers();
   const user = users[username];
-  if (!user) return { ok: false, error: "No account exists with that username." };
+  if (!user) return { ok: false, error: "Incorrect username or password." };
   const hash = await hashPassword(password, user.salt);
-  if (hash !== user.passwordHash) return { ok: false, error: "Incorrect password." };
+  if (hash !== user.passwordHash) return { ok: false, error: "Incorrect username or password." };
   startSession(username);
   return { ok: true };
 }
@@ -235,7 +243,7 @@ export async function login(usernameRaw: string, password: string): Promise<Auth
  * verified email recovery. */
 export async function recoverPassword(usernameRaw: string, recoveryKeyRaw: string, password: string): Promise<AuthResult> {
   const username = normalizeUsername(usernameRaw);
-  if (password.length < 3) return { ok: false, error: "New password is too short (minimum 3 characters)." };
+  if (!passwordIsLongEnough(username, password)) return { ok: false, error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your new password.` };
   const users = loadUsers();
   const user = users[username];
   if (!user || normalizeRecoveryKey(user.recoveryKey) !== normalizeRecoveryKey(recoveryKeyRaw)) {
@@ -245,6 +253,23 @@ export async function recoverPassword(usernameRaw: string, recoveryKeyRaw: strin
   users[username] = { ...user, salt, passwordHash: await hashPassword(password, salt) };
   saveUsers(users);
   startSession(username);
+  return { ok: true };
+}
+
+/** Changes a local password only after the current secret is supplied. This
+ * is a convenience for the browser-only demo mode; real authentication must
+ * still be enforced by the configured identity provider on the server. */
+export async function changePassword(usernameRaw: string, currentPassword: string, nextPassword: string): Promise<AuthResult> {
+  const username = normalizeUsername(usernameRaw);
+  if (!passwordIsLongEnough(username, nextPassword)) return { ok: false, error: `Use at least ${MIN_PASSWORD_LENGTH} characters for your new password.` };
+  const users = loadUsers();
+  const user = users[username];
+  if (!user) return { ok: false, error: "Your account is no longer available on this device." };
+  const currentHash = await hashPassword(currentPassword, user.salt);
+  if (currentHash !== user.passwordHash) return { ok: false, error: "Your current password is incorrect." };
+  const salt = randomToken();
+  users[username] = { ...user, salt, passwordHash: await hashPassword(nextPassword, salt) };
+  saveUsers(users);
   return { ok: true };
 }
 

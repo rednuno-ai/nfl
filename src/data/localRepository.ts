@@ -57,7 +57,8 @@ export class LocalRepository implements Repository {
     return summaries.sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
-  async loadCareer(_userId: string, careerId: string): Promise<CareerState | null> {
+  async loadCareer(userId: string, careerId: string): Promise<CareerState | null> {
+    if (!getIndex(userId).includes(careerId)) return null;
     return safeParse<CareerState | null>(localStorage.getItem(CAREER_KEY(careerId)), null);
   }
 
@@ -69,6 +70,7 @@ export class LocalRepository implements Repository {
   }
 
   async deleteCareer(userId: string, careerId: string): Promise<void> {
+    if (!getIndex(userId).includes(careerId)) return;
     localStorage.removeItem(CAREER_KEY(careerId));
     localStorage.removeItem(UPDATED_KEY(careerId));
     setIndex(userId, getIndex(userId).filter((id) => id !== careerId));

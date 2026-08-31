@@ -6,6 +6,7 @@ import {
   register as authRegister,
   login as authLogin,
   recoverPassword as authRecoverPassword,
+  changePassword as authChangePassword,
   logout as authLogout,
   activateSubscriptionDemo,
   resetDemoAccount as authResetDemoAccount,
@@ -77,6 +78,7 @@ export interface GameStoreState {
   registerAccount: (username: string, password: string, referralCode?: string) => Promise<void>;
   loginAccount: (username: string, password: string) => Promise<void>;
   recoverAccount: (username: string, recoveryKey: string, password: string) => Promise<void>;
+  changePassword: (currentPassword: string, nextPassword: string) => Promise<boolean>;
   resetDemoProfile: () => Promise<void>;
   logoutAccount: () => void;
   deleteCurrentAccount: () => void;
@@ -201,6 +203,22 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const session = getSession();
     set({ authBusy: false, session, userId: session?.username ?? "", currentUser: getCurrentUser() });
     await get().refreshCareers();
+  },
+
+  changePassword: async (currentPassword, nextPassword) => {
+    const username = get().session?.username;
+    if (!username) {
+      set({ authError: "Sign in before changing your password." });
+      return false;
+    }
+    set({ authBusy: true, authError: null });
+    const result = await authChangePassword(username, currentPassword, nextPassword);
+    if (!result.ok) {
+      set({ authBusy: false, authError: result.error ?? "Couldn't change the password." });
+      return false;
+    }
+    set({ authBusy: false, authError: null, currentUser: getCurrentUser(), toast: "Password updated on this device." });
+    return true;
   },
 
   resetDemoProfile: async () => {

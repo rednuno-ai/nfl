@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useGameStore, gameStore } from "@store/gameStore";
 import { isDemoAccount } from "@data/auth";
+import { createAccountExport } from "@data/accountExport";
 import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
 import { ConfirmModal } from "@ui/components/ConfirmModal";
 
@@ -8,14 +9,40 @@ export function SettingsScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
   const session = useGameStore((s) => s.session);
   const currentUser = useGameStore((s) => s.currentUser);
+  const authError = useGameStore((s) => s.authError);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingAccountDelete, setConfirmingAccountDelete] = useState(false);
   const [confirmingDemoReset, setConfirmingDemoReset] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState("");
   const demoAccount = isDemoAccount(currentUser?.username);
   const referralUnlocked =
     state.currentSeasonGameStats.some((line) => line.gamesPlayed > 0) ||
     state.statHistory.some((line) => line.gamesPlayed > 0) ||
     state.achievements.some((achievement) => achievement.unlockedWeek !== null);
+
+  async function submitPasswordChange(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPasswordNotice("");
+    const changed = await gameStore.getState().changePassword(currentPassword, nextPassword);
+    if (changed) {
+      setCurrentPassword("");
+      setNextPassword("");
+      setPasswordNotice("Password updated on this device.");
+    }
+  }
+
+  function downloadData() {
+    const data = currentUser ? createAccountExport(currentUser.username) : null;
+    if (!data) return;
+    const url = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `gridiron-life-${currentUser?.username ?? "account"}-export.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
 
   return (
     <div>
@@ -33,7 +60,33 @@ export function SettingsScreen() {
       <section className="card recovery-card" aria-labelledby="recovery-title">
         <h2 className="section-title" id="recovery-title">Password recovery</h2>
         <p className="muted">Keep this code private. It can reset this local account from the login screen.</p>
-        <code>{currentUser?.recoveryKey ?? "Unavailable"}</code>
+        <details>
+          <summary>Show recovery code</summary>
+          <code>{currentUser?.recoveryKey ?? "Unavailable"}</code>
+        </details>
+      </section>
+
+      <section className="card" style={{ marginBottom: 20 }} aria-labelledby="password-title">
+        <h2 className="section-title" id="password-title">Change password</h2>
+        <p className="muted">New player passwords use at least 8 characters. The public demo keeps its documented test credentials.</p>
+        <form className="settings-password-form" onSubmit={(event) => void submitPasswordChange(event)}>
+          <div className="field">
+            <label htmlFor="current-password">Current password</label>
+            <input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+          </div>
+          <div className="field">
+            <label htmlFor="new-password">New password</label>
+            <input id="new-password" type="password" autoComplete="new-password" minLength={demoAccount ? 3 : 8} value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} required />
+          </div>
+          <button className="btn btn-ghost" type="submit" disabled={!currentPassword || !nextPassword}>Update Password</button>
+          {(passwordNotice || authError) && <p className="form-help" role="status">{passwordNotice || authError}</p>}
+        </form>
+      </section>
+
+      <section className="card" style={{ marginBottom: 20 }} aria-labelledby="export-title">
+        <h2 className="section-title" id="export-title">Download your data</h2>
+        <p className="muted">Download a JSON copy of this account and its careers. Passwords, hashes and recovery codes are never included.</p>
+        <button className="btn btn-ghost" type="button" onClick={downloadData}>Download Local Data</button>
       </section>
 
       {demoAccount && (
