@@ -61,7 +61,7 @@ async function hashPassword(password, salt) {
   const encoder = new TextEncoder();
   const material = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt: encoder.encode(salt), iterations: 210_000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: encoder.encode(salt), iterations: 100_000, hash: "SHA-256" },
     material,
     256
   );
@@ -427,26 +427,9 @@ export class AccountStore extends DurableObject {
 export default {
   async fetch(request, env) {
     const pathname = new URL(request.url).pathname;
-    if (pathname === "/healthz") {
-      const id = env.ACCOUNT_STORE.idFromName("gridiron-life-account-store-v1");
-      const probeUrl = new URL(request.url);
-      probeUrl.pathname = "/api/auth/session";
-      try {
-        return await env.ACCOUNT_STORE.get(id).fetch(new Request(probeUrl, { method: "GET", headers: request.headers }));
-      } catch (error) {
-        return json({ ok: false, error: String(error?.stack ?? error) }, 500);
-      }
-    }
     if (pathname.startsWith("/api/")) {
       const id = env.ACCOUNT_STORE.idFromName("gridiron-life-account-store-v1");
-      try {
-        return await env.ACCOUNT_STORE.get(id).fetch(request);
-      } catch (error) {
-        // Retained only while wiring the first production release: a Durable
-        // Object exception otherwise becomes an opaque 1101 with no way to
-        // inspect it from this restricted local environment.
-        return json({ ok: false, error: String(error?.stack ?? error) }, 500);
-      }
+      return env.ACCOUNT_STORE.get(id).fetch(request);
     }
 
     const response = await env.ASSETS.fetch(request);
