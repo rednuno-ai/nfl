@@ -4,8 +4,11 @@ import { Sidebar, MobileNav } from "@ui/layout/NavBar";
 import { AuthScreen } from "@ui/screens/AuthScreen";
 import { SubscriptionScreen } from "@ui/screens/SubscriptionScreen";
 import { CareerSelectScreen } from "@ui/screens/CareerSelectScreen";
+import { PrivacyAccountControlsDialog } from "@ui/components/PrivacyAccountControlsDialog";
 import { getGameDayObjective } from "@engine/gameObjectives";
 import { recordDailyReturn } from "@data/metrics";
+import { usesRemoteAuth } from "@data/auth";
+import { publicCopy } from "@ui/copy";
 import type { CareerState } from "@engine/career";
 
 const CreatePlayerScreen = lazy(() => import("@ui/screens/CreatePlayerScreen").then((module) => ({ default: module.CreatePlayerScreen })));
@@ -21,7 +24,6 @@ const DecisionModal = lazy(() => import("@ui/components/DecisionModal").then((mo
 const TrainingModal = lazy(() => import("@ui/components/TrainingModal").then((module) => ({ default: module.TrainingModal })));
 const GameDayView = lazy(() => import("@ui/components/GameDayView").then((module) => ({ default: module.GameDayView })));
 const LifeCinematic = lazy(() => import("@ui/components/LifeCinematic").then((module) => ({ default: module.LifeCinematic })));
-const PrivacyAccountControlsDialog = lazy(() => import("@ui/components/PrivacyAccountControlsDialog").then((module) => ({ default: module.PrivacyAccountControlsDialog })));
 
 const SCREEN_TITLES: Record<ScreenId, string> = {
   dashboard: "Career HQ",
@@ -136,15 +138,16 @@ export default function App() {
       )}
       {cinematic && <Suspense fallback={null}><LifeCinematic {...cinematic} onClose={() => gameStore.getState().dismissCinematic()} /></Suspense>}
       {privacyOpen && (
-        <Suspense fallback={null}><PrivacyAccountControlsDialog
-            username={session.username}
-            returnFocusRef={privacyTriggerRef}
-            onClose={() => setPrivacyOpen(false)}
-            onOpenSettings={() => {
-              setPrivacyOpen(false);
-              gameStore.getState().navigate("settings");
-            }}
-          /></Suspense>
+        <PrivacyAccountControlsDialog
+          username={session.username}
+          storageSummary={usesRemoteAuth() ? publicCopy.storage.serverShort : publicCopy.storage.localShort}
+          returnFocusRef={privacyTriggerRef}
+          onClose={() => setPrivacyOpen(false)}
+          onOpenSettings={() => {
+            setPrivacyOpen(false);
+            gameStore.getState().navigate("settings");
+          }}
+        />
       )}
 
       {toast && (

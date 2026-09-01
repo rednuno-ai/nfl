@@ -82,7 +82,8 @@ export interface GameStoreState {
   loginAccount: (username: string, password: string) => Promise<void>;
   recoverAccount: (username: string, recoveryKey: string, password: string) => Promise<void>;
   changePassword: (currentPassword: string, nextPassword: string) => Promise<boolean>;
-  resetDemoProfile: () => Promise<void>;
+  /** Returns true only after the demo account was actually reset. */
+  resetDemoProfile: () => Promise<boolean>;
   hydrateAccount: () => Promise<void>;
   logoutAccount: () => void;
   deleteCurrentAccount: () => void;
@@ -250,14 +251,19 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
       set({ authBusy: false, authError: result.error ?? "Couldn't change the password." });
       return false;
     }
-    set({ authBusy: false, authError: null, currentUser: getCurrentUser(), toast: "Password updated on this device." });
+    set({ authBusy: false, authError: null, currentUser: getCurrentUser(), toast: "Password updated." });
     return true;
   },
 
   resetDemoProfile: async () => {
     set({ authBusy: true, authError: null });
     const result = await authResetDemoAccount(get().session?.username ?? "");
-    set({ authBusy: false, authError: result.ok ? null : result.error ?? "Couldn't reset the demo profile.", session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
+    if (!result.ok) {
+      set({ authBusy: false, authError: result.error ?? "Couldn't reset the demo profile." });
+      return false;
+    }
+    set({ authBusy: false, authError: null, session: null, currentUser: null, userId: "", activeCareer: null, careers: [], screen: "career-select" });
+    return true;
   },
 
   hydrateAccount: async () => {

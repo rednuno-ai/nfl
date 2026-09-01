@@ -23,7 +23,19 @@ export function computeLegacy(input: LegacyInput): LegacyResult {
 
   const productionScore = Math.min(
     100,
-    (totals.passYards / 400 + totals.rushYards / 120 + totals.receivingYards / 120 + totals.tackles / 12 + totals.sacks * 2 + totals.interceptions * 4) / 3
+    (
+      totals.passYards / 400 +
+      totals.rushYards / 120 +
+      totals.receivingYards / 120 +
+      totals.tackles / 12 +
+      totals.sacks * 2 +
+      totals.interceptions * 4 +
+      totals.blocksWon / 70 +
+      totals.fieldGoalsMade * 0.35 +
+      totals.extraPointsMade * 0.08 +
+      totals.puntYards / 500 +
+      totals.puntsInside20 * 0.6
+    ) / 3
   );
 
   const accoladeScore = proBowls * 6 + allPros * 10 + mvps * 25 + championships * 20;

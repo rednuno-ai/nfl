@@ -67,4 +67,19 @@ describe("aging", () => {
     assert.ok(early > nearCeiling, "a skill well below potential should grow faster than one already beyond the soft ceiling");
     assert.ok(nearCeiling >= 0.12, "the soft ceiling must still permit rare late-career growth");
   });
+
+  it("makes repeated position work less efficient when the player is already overloaded", () => {
+    const player = createPlayer(
+      { firstName: "A", lastName: "B", position: "WR", hometownCity: "X", hometownState: "TX", hand: "right", heightInches: 72, weightLbs: 190, personality: [], currentYear: 2026 },
+      new RNG(8)
+    );
+    const paths = ["position.WR.catching", "position.WR.routeRunning", "position.WR.release", "position.WR.spectacularCatch"];
+    const fresh = applyTraining(player.attributes, "position_specific", 1, 1, new RNG(19), paths, 0);
+    const overloaded = applyTraining(player.attributes, "position_specific", 1, 1, new RNG(19), paths, 90);
+    const freshGain = fresh.attributes.position.WR.catching - player.attributes.position.WR.catching;
+    const overloadedGain = overloaded.attributes.position.WR.catching - player.attributes.position.WR.catching;
+
+    assert.ok(freshGain > overloadedGain, "overloaded position work should not produce the same gain as a fresh session");
+    assert.ok(overloaded.injuryRiskDelta > fresh.injuryRiskDelta - 0.001, "hard work retains its explicit injury cost");
+  });
 });

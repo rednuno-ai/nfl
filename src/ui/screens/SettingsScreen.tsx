@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { useGameStore, gameStore } from "@store/gameStore";
-import { isDemoAccount } from "@data/auth";
+import { isDemoAccount, usesRemoteAuth } from "@data/auth";
 import { createAccountExport } from "@data/accountExport";
 import { InviteFriendsCard } from "@ui/components/InviteFriendsCard";
 import { ConfirmModal } from "@ui/components/ConfirmModal";
+import { publicCopy } from "@ui/copy";
 
 export function SettingsScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
@@ -17,6 +18,8 @@ export function SettingsScreen() {
   const [nextPassword, setNextPassword] = useState("");
   const [passwordNotice, setPasswordNotice] = useState("");
   const demoAccount = isDemoAccount(currentUser?.username);
+  const serverBacked = usesRemoteAuth();
+  const saveLocation = serverBacked ? "GRIDIRON LIFE's Cloudflare save service" : "this browser's local storage";
   const referralUnlocked =
     state.currentSeasonGameStats.some((line) => line.gamesPlayed > 0) ||
     state.statHistory.some((line) => line.gamesPlayed > 0) ||
@@ -29,7 +32,7 @@ export function SettingsScreen() {
     if (changed) {
       setCurrentPassword("");
       setNextPassword("");
-      setPasswordNotice("Password updated on this device.");
+      setPasswordNotice("Password updated.");
     }
   }
 
@@ -52,14 +55,26 @@ export function SettingsScreen() {
       <section className="card" id="account-settings" style={{ marginBottom: 20 }} aria-labelledby="account-settings-title">
         <h2 className="section-title" id="account-settings-title">👤 Account</h2>
         <p className="muted">Signed in as {session?.username}</p>
+        <p className="form-help">Signing out ends this session. It does not delete your saved careers.</p>
         <button className="btn btn-ghost" onClick={() => gameStore.getState().logoutAccount()}>
           Sign Out
         </button>
       </section>
 
+      <section className="card" style={{ marginBottom: 20 }} aria-labelledby="storage-title">
+        <h2 className="section-title" id="storage-title">Storage & backup</h2>
+        <p className="muted">{serverBacked ? publicCopy.storage.server : publicCopy.storage.local}</p>
+        <ul className="settings-storage-list">
+          <li><strong>Backup:</strong> Download Data creates a JSON copy. It is a download only; this build does not automatically restore or merge it.</li>
+          <li><strong>Sign out:</strong> keeps saved careers. It only ends the current session.</li>
+          <li><strong>Reset:</strong> is available only for the demo account and never changes a normal account.</li>
+          <li><strong>Delete:</strong> removes the selected career or account after confirmation. {serverBacked ? "It removes data from the save service." : "Clearing browser data can also permanently remove local saves."}</li>
+        </ul>
+      </section>
+
       <section className="card recovery-card" aria-labelledby="recovery-title">
         <h2 className="section-title" id="recovery-title">Password recovery</h2>
-        <p className="muted">Keep this code private. It can reset this local account from the login screen.</p>
+        <p className="muted">Keep this code private. It can reset this account from the login screen.</p>
         <details>
           <summary>Show recovery code</summary>
           <code>{currentUser?.recoveryKey ?? "Unavailable"}</code>
@@ -97,7 +112,7 @@ export function SettingsScreen() {
       {demoAccount && (
         <section className="card demo-reset-card" aria-labelledby="demo-reset-title">
           <h2 className="section-title" id="demo-reset-title">Demo account</h2>
-          <p className="muted">Reset Demo Account removes only the demo careers stored in this browser and returns the demo to a clean starting state. Normal accounts are never touched.</p>
+          <p className="muted">Reset Demo Account removes only demo careers from {saveLocation} and returns the demo to a clean starting state. Normal accounts are never touched.</p>
           <button className="btn btn-ghost" onClick={() => setConfirmingDemoReset(true)}>Reset Demo Account</button>
         </section>
       )}
@@ -123,7 +138,7 @@ export function SettingsScreen() {
           Switch Career
         </button>
         <div className="account-delete-row">
-          <div><strong>Delete account</strong><span>Removes this account and all of its local careers from this browser.</span></div>
+          <div><strong>Delete account</strong><span>Removes this account and all of its careers from {saveLocation}.</span></div>
           <button className="btn btn-danger" onClick={() => setConfirmingAccountDelete(true)}>Delete Account</button>
         </div>
       </section>
@@ -145,7 +160,7 @@ export function SettingsScreen() {
       {confirmingAccountDelete && (
         <ConfirmModal
           title="Delete account and all careers?"
-          body="This permanently removes the signed-in account and every GRIDIRON LIFE career stored for it in this browser. This cannot be undone."
+          body={`This permanently removes the signed-in account and every GRIDIRON LIFE career stored for it in ${saveLocation}. This cannot be undone.`}
           confirmLabel="Delete Account"
           danger
           onCancel={() => setConfirmingAccountDelete(false)}
@@ -158,7 +173,7 @@ export function SettingsScreen() {
       {confirmingDemoReset && (
         <ConfirmModal
           title="Reset the demo account?"
-          body="This removes every demo career stored in this browser and signs out. It does not affect normal accounts. You can sign back in with adm / adm to start fresh."
+          body={`This removes every demo career stored in ${saveLocation} and signs out. It does not affect normal accounts. You can sign back in with adm / adm to start fresh.`}
           confirmLabel="Reset Demo Account"
           danger
           onCancel={() => setConfirmingDemoReset(false)}

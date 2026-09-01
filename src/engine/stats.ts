@@ -27,6 +27,14 @@ const NUMERIC_FIELDS: (keyof StatLine)[] = [
   "interceptions",
   "passesDefended",
   "forcedFumbles",
+  "blocksWon",
+  "fieldGoalAttempts",
+  "fieldGoalsMade",
+  "extraPointAttempts",
+  "extraPointsMade",
+  "punts",
+  "puntYards",
+  "puntsInside20",
 ];
 
 export function addStatLine(a: StatLine, b: StatLine): StatLine {

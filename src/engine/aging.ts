@@ -108,11 +108,19 @@ export function applyTraining(
   intensity: number,
   developmentRate: number,
   rng: RNG,
-  positionPaths: string[] = []
+  positionPaths: string[] = [],
+  trainingLoad = 0
 ): TrainingResult {
   const targets = focus === "position_specific" ? positionPaths.map((path) => ({ path, weight: 1 })) : TRAINING_TARGETS[focus];
 
-  const baseGain = 0.6 * developmentRate * intensity;
+  // Position work moves the most directly relevant ratings, but sustained
+  // repetition is deliberately less efficient per session than varied work.
+  // The meaningful upside remains; it no longer turns one weekly button into
+  // a free dominant progression strategy.
+  const repeatedWorkPenalty = focus === "position_specific"
+    ? clamp(1 - Math.max(0, trainingLoad - 20) / 95, 0.45, 1)
+    : 1;
+  const baseGain = 0.6 * developmentRate * intensity * (focus === "position_specific" ? 0.82 : 1) * repeatedWorkPenalty;
   let next = attrs;
   for (const target of targets) {
     const currentValue = getAttributeValue(next, target.path);
@@ -121,8 +129,9 @@ export function applyTraining(
   }
 
   const isRecovery = focus === "recovery";
-  const fatigueDelta = isRecovery ? -18 : 10 * intensity;
-  const injuryRiskDelta = isRecovery ? -0.02 : 0.015 * intensity;
+  const isHardPositionWork = focus === "position_specific";
+  const fatigueDelta = isRecovery ? -18 * intensity : (isHardPositionWork ? 16 : 8) * intensity;
+  const injuryRiskDelta = isRecovery ? -0.025 * intensity : (isHardPositionWork ? 0.04 : 0.01) * intensity;
   const moraleDelta = isRecovery ? 4 : focus === "mental" ? 1 : 0.5;
 
   return { attributes: next, fatigueDelta, injuryRiskDelta, moraleDelta };

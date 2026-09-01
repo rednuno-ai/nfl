@@ -1,7 +1,7 @@
 import { useGameStore, gameStore } from "@store/gameStore";
 import { AttributeBar } from "../components/AttributeBar";
 
-const TYPE_LABELS: Record<string, string> = { coach: "Coach", teammate: "Teammates", family: "Family", friend: "Friends", agent: "Agent", partner: "Partner", media: "Media", booster: "Booster" };
+const TYPE_LABELS: Record<string, string> = { coach: "Coach", teammate: "Teammates", family: "Family", friend: "Friends", agent: "Agent", rival: "Rival", partner: "Partner", media: "Media", booster: "Booster" };
 const MILESTONE_TAGS = ["in_relationship", "married", "has_child", "owns_house", "owns_luxury_home", "owns_car", "owns_luxury_car", "has_investments", "team_captain"];
 const MILESTONE_LABELS: Record<string, string> = {
   in_relationship: "In a Relationship", married: "Married", has_child: "Has a Child", owns_house: "Owns a Home", owns_luxury_home: "Owns a Luxury Home", owns_car: "Owns a Vehicle", owns_luxury_car: "Owns a High-End Car", has_investments: "Has Investments", team_captain: "Team Captain",
@@ -50,7 +50,15 @@ export function RelationshipsScreen() {
 
       <section className="card life-relationship-list">
         <div className="life-card-heading"><div><div className="life-card-kicker">CONNECTIONS</div><div className="section-title">People who shape the journey</div></div></div>
-        {state.relationships.map((relationship) => <AttributeBar key={relationship.id} label={`${relationship.name} (${TYPE_LABELS[relationship.type] ?? relationship.type})`} value={relationship.value} />)}
+        {state.relationships.map((relationship) => {
+          const latest = relationship.history?.[0];
+          return (
+            <div className="relationship-entry" key={relationship.id}>
+              <AttributeBar label={`${relationship.name} (${TYPE_LABELS[relationship.type] ?? relationship.type})`} value={relationship.value} />
+              {latest && <p className="relationship-history">Week {latest.week}: {latest.note}</p>}
+            </div>
+          );
+        })}
         {state.relationships.length === 0 && <p className="faint">No tracked relationships yet.</p>}
       </section>
 

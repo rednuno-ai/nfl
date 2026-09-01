@@ -43,12 +43,34 @@ export function StatsScreen() {
             <StatTile label="Yards / Catch" value={yardsPerReception(totals)} />
           </>
         )}
-        {(position === "LB" || position === "CB") && (
+        {(position === "LB" || position === "CB" || position === "DL" || position === "S") && (
           <>
             <StatTile label="Tackles" value={totals.tackles} />
             <StatTile label="Sacks" value={totals.sacks} />
             <StatTile label="Interceptions" value={totals.interceptions} />
             <StatTile label="Passes Defended" value={totals.passesDefended} />
+          </>
+        )}
+        {position === "OL" && (
+          <>
+            <StatTile label="Blocks Won" value={totals.blocksWon} />
+            <StatTile label="Games Started" value={totals.gamesStarted} />
+          </>
+        )}
+        {position === "K" && (
+          <>
+            <StatTile label="Field Goals" value={totals.fieldGoalsMade} />
+            <StatTile label="FG Attempts" value={totals.fieldGoalAttempts} />
+            <StatTile label="FG Accuracy" value={percentage(totals.fieldGoalsMade, totals.fieldGoalAttempts)} />
+            <StatTile label="Extra Points" value={totals.extraPointsMade} />
+          </>
+        )}
+        {position === "P" && (
+          <>
+            <StatTile label="Punts" value={totals.punts} />
+            <StatTile label="Punt Yards" value={totals.puntYards} />
+            <StatTile label="Punt Average" value={average(totals.puntYards, totals.punts)} />
+            <StatTile label="Inside 20" value={totals.puntsInside20} />
           </>
         )}
         <StatTile label="Games Played" value={totals.gamesPlayed} />
@@ -100,4 +122,12 @@ function StatTile({ label, value }: { label: string; value: number }) {
       <div className="label">{label}</div>
     </div>
   );
+}
+
+function percentage(numerator: number, denominator: number): number {
+  return denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
+}
+
+function average(total: number, count: number): number {
+  return count > 0 ? Math.round((total / count) * 10) / 10 : 0;
 }

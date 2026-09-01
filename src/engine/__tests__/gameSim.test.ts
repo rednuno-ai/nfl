@@ -252,6 +252,43 @@ describe("game simulation", () => {
     assert.equal(sawDefenseCall, true, "expected at least one defense_call decision for a CB");
   });
 
+  it("gives RB, WR, TE, LB and CB role-specific decisions instead of one shared menu", () => {
+    const expectations = [
+      { position: "RB" as const, kind: "play_call", label: /Run — Inside|Power Through/ },
+      { position: "WR" as const, kind: "play_call", label: /Short Route|Sit at the Sticks/ },
+      { position: "TE" as const, kind: "play_call", label: /Set the Edge|Seal the Edge/ },
+      { position: "LB" as const, kind: "defense_call", label: /Hook Zone|Shoot the Gap|Fill and Rally/ },
+      { position: "CB" as const, kind: "defense_call", label: /Press Man|Press at the Line/ },
+    ];
+
+    for (const expected of expectations) {
+      const player = makePlayer(expected.position);
+      const input = buildInput(player, TEAMS[2], TEAMS[3]);
+      const rng = new RNG(67);
+      let state = beginGame(input, rng);
+      let found = false;
+      for (let iterations = 0; !state.finished && iterations < MAX_ITERATIONS && !found; iterations++) {
+        if (state.pendingDecision?.kind === expected.kind) {
+          found = state.pendingDecision.options.some((option) => expected.label.test(option.label));
+          state = advanceGame(state, input, rng, state.pendingDecision.options[0].id);
+        } else if (state.pendingDecision) {
+          state = advanceGame(state, input, rng, state.pendingDecision.options[0].id);
+        } else {
+          state = advanceGame(state, input, rng);
+        }
+      }
+      assert.equal(found, true, `expected a ${expected.position}-specific ${expected.kind} menu`);
+    }
+  });
+
+  it("records tight-end blocking production on edge-setting run choices", () => {
+    const player = makePlayer("TE");
+    const input = buildInput(player, TEAMS[2], TEAMS[3]);
+    const { state } = playToCompletion(73, input);
+    assert.ok(state.stat.blocksWon > 0, "TE run concepts should produce blocking reps, not rushing attempts");
+    assert.equal(state.stat.rushAttempts, 0, "TE edge-setting calls should not be recorded as jet sweeps");
+  });
+
   it("aggressive key-moment choices still produce plausible final scores (statistical smoke test)", () => {
     const player = makeQB();
     // TEAMS[6]/TEAMS[30] are closely matched on rosterStrength/coachingQuality (the two

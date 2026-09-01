@@ -14,10 +14,12 @@ import {
   injuryContextMultiplier,
   chooseTrainingFocus,
   evaluateSeasonAwards,
+  hasRecentNarrativeArc,
   type CareerState,
 } from "../career";
 import { emptyStatLine } from "../types";
 import { POINT_BUY_POOL } from "../attributes";
+import { CONTINUITY_EVENTS } from "../events/data";
 
 /** Games now stay as the active interaction (see gameSim's play-by-play
  *  engine + GameDayView's real-time playback) until the UI explicitly
@@ -81,6 +83,31 @@ describe("career state machine", () => {
     assert.equal(state.player.bio.age, 15);
     assert.equal(state.retired, false);
     assert.equal(state.interaction, null);
+    assert.deepEqual(state.relationships.map((relationship) => relationship.type).sort(), ["agent", "coach", "family", "rival", "teammate"]);
+  });
+
+  it("keeps relationship history and avoids repeating a recent narrative arc", () => {
+    const base = createCareer(baseInput());
+    const pending: CareerState = {
+      ...base,
+      interaction: {
+        type: "decision",
+        decision: {
+          eventId: "continuity_rival_challenge",
+          title: "A Rival Calls You Out",
+          description: "test",
+          week: base.totalWeek,
+          choices: [{ id: "answer", label: "Answer publicly", consequences: { relationshipDeltas: [{ targetTag: "rival", delta: -8 }] } }],
+        },
+      },
+    };
+    const resolved = resolveDecision(pending, "answer");
+    const rival = resolved.relationships.find((relationship) => relationship.type === "rival");
+    assert.equal(rival?.value, 40);
+    assert.equal(rival?.history[0]?.note, "A Rival Calls You Out: Answer publicly");
+
+    const rematch = CONTINUITY_EVENTS.find((event) => event.id === "continuity_rival_rematch")!;
+    assert.equal(hasRecentNarrativeArc(resolved, rematch), true);
   });
 
   it("requires the whole 24-point pool before a career can start", () => {
@@ -319,8 +346,46 @@ describe("evaluateSeasonAwards", () => {
     assert.equal(withTeamSuccess.mvp, true);
   });
 
-  it("returns no honors for non-skill positions the heuristic doesn't model", () => {
+  it("returns no honors for a position with no meaningful production", () => {
     const stat = { ...emptyStatLine(1, "nfl", "team"), gamesPlayed: 16 };
     assert.deepEqual(evaluateSeasonAwards(stat, "OL", 14), { proBowl: false, allPro: false, mvp: false });
+  });
+
+  it("uses specialist production for K/P honors without allowing specialist MVPs", () => {
+    const kicker = {
+      ...emptyStatLine(1, "nfl", "team"),
+      gamesPlayed: 16,
+      fieldGoalAttempts: 32,
+      fieldGoalsMade: 29,
+      extraPointAttempts: 38,
+      extraPointsMade: 37,
+    };
+    const punter = {
+      ...emptyStatLine(1, "nfl", "team"),
+      gamesPlayed: 16,
+      punts: 58,
+      puntYards: 2_650,
+      puntsInside20: 25,
+    };
+
+    assert.deepEqual(evaluateSeasonAwards(kicker, "K", 13), { proBowl: true, allPro: true, mvp: false });
+    assert.deepEqual(evaluateSeasonAwards(punter, "P", 13), { proBowl: true, allPro: true, mvp: false });
+  });
+
+  it("evaluates elite awards from the stats that matter to each MVP-depth role", () => {
+    const eliteByPosition = {
+      QB: { passAttempts: 600, passCompletions: 500, passYards: 6_000, passTDs: 68, interceptionsThrown: 0 },
+      RB: { rushYards: 1_700, rushTDs: 15, receivingYards: 420, receivingTDs: 3 },
+      WR: { receptions: 112, receivingYards: 1_650, receivingTDs: 13 },
+      TE: { receptions: 86, receivingYards: 1_080, receivingTDs: 11, blocksWon: 75 },
+      LB: { tackles: 148, sacks: 11, interceptions: 3, passesDefended: 9, forcedFumbles: 4 },
+      CB: { tackles: 68, interceptions: 7, passesDefended: 22, forcedFumbles: 2 },
+    } as const;
+
+    for (const [position, production] of Object.entries(eliteByPosition)) {
+      const result = evaluateSeasonAwards({ ...emptyStatLine(1, "nfl", "team"), gamesPlayed: 17, ...production }, position, 13);
+      assert.equal(result.proBowl, true, `expected an elite ${position} season to earn a Pro Bowl`);
+      assert.equal(result.allPro, true, `expected an elite ${position} season to earn All-Pro`);
+    }
   });
 });

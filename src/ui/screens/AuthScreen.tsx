@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { gameStore, useGameStore } from "@store/gameStore";
+import { usesRemoteAuth } from "@data/auth";
+import { publicCopy } from "@ui/copy";
 
 type AuthMode = "login" | "register" | "recover";
 
@@ -25,19 +27,17 @@ export function AuthScreen() {
     gameStore.setState({ authError: null });
   }
 
-  function useDemo() {
-    setUsername("adm");
-    setPassword("adm");
-    setRecoveryKey("DEMO-2026");
+  async function useDemo() {
     setMode("login");
-    setNotice("Demo credentials are ready. Its progress can be reset at any time.");
+    setNotice(publicCopy.demo.opening);
     gameStore.setState({ authError: null });
-  }
-
-  async function resetDemo() {
-    await gameStore.getState().resetDemoProfile();
-    useDemo();
-    setNotice("Demo account reset. Sign in to start a fresh career.");
+    // The shared demo is reset only after an authenticated demo sign-in.
+    // This gives every visitor a clean entry while never touching real users.
+    await gameStore.getState().loginAccount("adm", "adm");
+    if (!gameStore.getState().session) return;
+    const reset = await gameStore.getState().resetDemoProfile();
+    if (!reset) return;
+    await gameStore.getState().loginAccount("adm", "adm");
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -71,9 +71,7 @@ export function AuthScreen() {
 
           <div className="auth-layout">
             <figure className="auth-demo" aria-labelledby="demo-caption">
-              <video className="auth-demo-video" src="/demo.webm" poster="/og-image.png" autoPlay muted loop playsInline preload="metadata">
-                Your browser doesn't support video.
-              </video>
+              <img className="auth-demo-media" src="/og-image.png" alt="GRIDIRON LIFE game dashboard preview" />
               <figcaption id="demo-caption">
                 <strong>See the game at full scale</strong>
                 <span>Career choices, game day, news and the life between the snaps.</span>
@@ -120,12 +118,11 @@ export function AuthScreen() {
 
               <aside className="demo-account-card" aria-label="Resettable demo account">
                 <div>
-                  <strong>Playable demo</strong>
-                  <span>Professional test profile · progress resets on request.</span>
+                  <strong>{publicCopy.demo.title}</strong>
+                  <span>{publicCopy.demo.detail}</span>
                 </div>
                 <div className="demo-account-actions">
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={useDemo}>Use demo</button>
-                  <button type="button" className="text-action" disabled={authBusy} onClick={() => void resetDemo()}>Reset data</button>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={authBusy} onClick={() => void useDemo()}>{publicCopy.demo.use}</button>
                 </div>
               </aside>
             </section>
@@ -139,10 +136,10 @@ export function AuthScreen() {
         <a href="#support">Support</a>
         <a href="#account-deletion">Delete account</a>
         <div className="auth-legal-panels">
-          <details id="privacy"><summary>Privacy</summary><p>In this build, account and career data stay in this browser's local storage unless a configured sync provider is enabled.</p></details>
+          <details id="privacy"><summary>Privacy</summary><p>{usesRemoteAuth() ? publicCopy.storage.server : publicCopy.storage.local}</p></details>
           <details id="terms"><summary>Terms</summary><p>GRIDIRON LIFE is a fictional football simulator. Teams, players, marks and stories are original and unaffiliated with the NFL.</p></details>
-          <details id="support"><summary>Support</summary><p>Use the demo reset for a clean test. For account help, keep your recovery code available in Profile.</p></details>
-          <details id="account-deletion"><summary>Delete account</summary><p>After signing in, open Profile → Danger Zone → Delete Account to remove the account and its local careers.</p></details>
+          <details id="support"><summary>Support</summary><p>Use the demo for a clean, automatic test entry. For account help, keep your recovery code available in Profile.</p></details>
+          <details id="account-deletion"><summary>Delete account</summary><p>After signing in, open Profile → Danger Zone → Delete Account. The confirmation explains exactly which saved careers will be removed.</p></details>
         </div>
       </footer>
     </div>

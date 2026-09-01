@@ -628,11 +628,22 @@ function positionSkillEdge(
         bigPlay += (rb.elusiveness - 60) / 500;
       }
       turnover -= (rb.carrying - 60) / 900;
-    } else if (position === "WR" || position === "TE") {
-      const wt = position === "WR" ? pos.WR : pos.TE;
-      success += (wt.catching + wt.routeRunning - 120) / 500;
+    } else if (position === "WR") {
+      const wr = pos.WR;
+      success += (wr.catching + wr.routeRunning - 120) / 500;
       if (playType === "deep_pass" || targetPriority === "mismatch") {
-        bigPlay += ((position === "WR" ? pos.WR.spectacularCatch : 55) - 60) / 400;
+        success += (wr.release - 60) / 650;
+        bigPlay += (wr.spectacularCatch - 60) / 400;
+      }
+    } else if (position === "TE") {
+      const te = pos.TE;
+      if (playType === "run") {
+        // A tight end's physical edge changes the team result even when the
+        // box score records a block rather than a carry.
+        success += (te.runBlock + player.attributes.physical.strength - 120) / 500;
+      } else {
+        success += (te.catching + te.routeRunning - 120) / 520;
+        if (playType === "play_action") success += (te.passBlock - 60) / 750;
       }
     }
   }
@@ -642,6 +653,8 @@ function positionSkillEdge(
       const cb = pos.CB;
       const coverageSkill = targetPriority === "wr1" || targetPriority === "mismatch" ? cb.manCoverage : cb.zoneCoverage;
       success -= (coverageSkill - 60) / 450;
+      if (targetPriority === "wr1" || targetPriority === "mismatch") success -= (cb.press - 60) / 800;
+      bigPlay -= (cb.zoneCoverage - 60) / 750;
       turnover += (cb.ballHawk - 60) / 700;
     } else if (position === "S") {
       const s = pos.S;
@@ -649,8 +662,13 @@ function positionSkillEdge(
       bigPlay -= (s.technique - 60) / 500;
     } else if (position === "LB") {
       const lb = pos.LB;
-      if (playType === "run" || playType === "qb_scramble") success -= (lb.tackling + lb.pursuit - 120) / 600;
-      else success -= (lb.coverage - 60) / 600;
+      if (playType === "run" || playType === "qb_scramble") {
+        success -= (lb.tackling + lb.pursuit - 120) / 520;
+        bigPlay -= (lb.pursuit - 60) / 700;
+      } else {
+        success -= (lb.coverage - 60) / 600;
+        sack += (lb.blockShedding - 60) / 800;
+      }
     } else if (position === "DL") {
       const dl = pos.DL;
       sack += (dl.technique - 60) / 500;
@@ -783,7 +801,7 @@ function buildDefenseCallPrompt(state: GameSimState, input: BeginGameInput, rng:
     timeoutsOpponent: state.timeoutsOpponent,
     side: "defense",
     situation: baseSituation(state),
-    options: defenseCallOptions(state),
+    options: defenseCallOptions(input.player.position, state),
     analystNote,
   };
 }
@@ -815,10 +833,24 @@ function fgSuccessProb(attemptYards: number): number {
   return clamp(1 - Math.max(0, attemptYards - 20) * 0.017, 0.05, 0.97);
 }
 
+function playerFieldGoalProbability(attemptYards: number, input: BeginGameInput): number {
+  const base = fgSuccessProb(attemptYards);
+  if (input.player.position !== "K") return base;
+  const skill = input.player.attributes.position.K.specialTeams;
+  return clamp(base + (skill - 60) / 300, 0.05, 0.985);
+}
+
+function playerPuntDistance(rng: RNG, input: BeginGameInput): number {
+  const base = rng.int(35, 48);
+  if (input.player.position !== "P") return base;
+  const skill = input.player.attributes.position.P.specialTeams;
+  return clamp(Math.round(base + (skill - 60) / 4), 30, 58);
+}
+
 function buildFourthDownApproachPrompt(state: GameSimState, input: BeginGameInput): KeyMomentPrompt {
   const attemptYards = fgAttemptYards(state);
   const goProb = fourthDownConvertProb(state, input);
-  const fgProb = fgSuccessProb(attemptYards);
+  const fgProb = playerFieldGoalProbability(attemptYards, input);
   const analystNote =
     attemptYards <= 62
       ? `Our offense converts about ${Math.round(goProb * 100)}% of the time on 4th & ${state.distance}. A ${attemptYards}-yard field goal has roughly a ${Math.round(fgProb * 100)}% chance.`
@@ -1000,7 +1032,7 @@ function offensePlayOptions(position: Position, state: GameSimState, _rng: RNG):
       { id: "play_pa_rb", label: "Play Action", description: "Sell the handoff, then release into the pattern.", riskLevel: "balanced", icon: "🟠" },
     ];
   }
-  if (position === "WR" || position === "TE") {
+  if (position === "WR") {
     if (longYardage || lateAndTrailing) {
       return [
         { id: "play_route_short", label: "Sit at the Sticks", description: "Find the first-down window and secure the catch through contact.", riskLevel: "safe", icon: "🔵" },
@@ -1016,6 +1048,22 @@ function offensePlayOptions(position: Position, state: GameSimState, _rng: RNG):
       { id: "play_jet", label: "Jet Sweep", description: "Take the handoff in motion.", riskLevel: "aggressive", icon: "🟢" },
     ];
   }
+  if (position === "TE") {
+    if (shortYardage || redZone) {
+      return [
+        { id: "play_execute", label: "Seal the Edge", description: "Win your block and give the runner a clean lane; strength and run blocking set the floor.", riskLevel: "safe", icon: "🟢" },
+        { id: "play_route_short", label: "Box Out", description: "Settle over the middle and use your frame to secure the conversion through contact.", riskLevel: "safe", icon: "🔵" },
+        { id: "play_pa_wr", label: "Leak After the Fake", description: "Sell the block, then release behind the linebackers for a touchdown window.", riskLevel: "balanced", icon: "🟠" },
+        { id: "play_route_deep", label: "Seam Shot", description: "Attack the seam between safeties. Big reward, but the catch window is tight.", riskLevel: "aggressive", icon: "🟣" },
+      ];
+    }
+    return [
+      { id: "play_execute", label: "Set the Edge", description: "Create the run lane with a controlled block; reliable production that also moves your blocking stat.", riskLevel: "safe", icon: "🟢" },
+      { id: "play_route_short", label: "Find the Soft Spot", description: "Sit down between zones for a secure chain-moving catch.", riskLevel: "safe", icon: "🔵" },
+      { id: "play_pa_wr", label: "Chip & Release", description: "Help in protection first, then uncover underneath when the rush commits.", riskLevel: "balanced", icon: "🟠" },
+      { id: "play_route_deep", label: "Seam Route", description: "Push vertically behind the linebackers for a chunk play.", riskLevel: "aggressive", icon: "🟣" },
+    ];
+  }
   if (shortYardage || redZone) {
     return [
       { id: "play_execute", label: "Win the Interior", description: "Set the physical tone and create a clean short-yardage lane.", riskLevel: "safe", icon: "🟢" },
@@ -1028,9 +1076,39 @@ function offensePlayOptions(position: Position, state: GameSimState, _rng: RNG):
   ];
 }
 
-function defenseCallOptions(state: GameSimState): KeyMomentOption[] {
+function defenseCallOptions(position: Position, state: GameSimState): KeyMomentOption[] {
   const shortYardage = state.distance <= 3 || state.ballOn >= 80;
   const longYardage = state.distance >= 8;
+  if (position === "LB") {
+    if (shortYardage) {
+      return [
+        { id: "def_blitz", label: "Shoot the Gap", description: "Attack downhill before the back can build speed; a missed fit opens the edge.", riskLevel: "aggressive", icon: "🟥" },
+        { id: "def_cover3", label: "Fill and Rally", description: "Read the backfield, own your run fit, then close with pursuit.", riskLevel: "safe", icon: "🟩" },
+        { id: "def_man", label: "Match the Back", description: "Follow the release into the flat and take away the quick outlet.", riskLevel: "balanced", icon: "🟨" },
+      ];
+    }
+    return [
+      { id: "def_cover3", label: "Hook Zone", description: "Read the quarterback from the middle and squeeze crossing routes.", riskLevel: "balanced", icon: "🟩" },
+      { id: "def_blitz", label: "Green-Dog Blitz", description: "If your assignment stays in, rush through the protection for a negative play.", riskLevel: "aggressive", icon: "🟥" },
+      { id: "def_man", label: "Carry the Tight End", description: "Stay attached to the underneath threat; physical but vulnerable to a sharp break.", riskLevel: "balanced", icon: "🟨" },
+      { id: "def_cover2", label: "Quarterback Spy", description: "Keep the scramble contained and force a patient offense to earn every yard.", riskLevel: "safe", icon: "🟦" },
+    ];
+  }
+  if (position === "CB") {
+    if (shortYardage) {
+      return [
+        { id: "def_man", label: "Press at the Line", description: "Disrupt the release with press technique; lose early and the throw is easy.", riskLevel: "aggressive", icon: "🟨" },
+        { id: "def_cover3", label: "Play the Sticks", description: "Keep eyes inside and break on the route at the first-down marker.", riskLevel: "balanced", icon: "🟩" },
+        { id: "def_cover2", label: "Trail with Help", description: "Protect the quick score by leveraging inside help over the top.", riskLevel: "safe", icon: "🟦" },
+      ];
+    }
+    return [
+      { id: "def_man", label: "Press Man", description: "Challenge the receiver at the line. Press and man coverage can erase a side.", riskLevel: "aggressive", icon: "🟨" },
+      { id: "def_cover3", label: "Bail into Cover 3", description: "Keep the deep route in front of you, then drive downhill on the throw.", riskLevel: "safe", icon: "🟩" },
+      { id: "def_double", label: "Bracket the Star", description: "Squeeze the featured receiver with help; another route may open elsewhere.", riskLevel: "balanced", icon: "🟪" },
+      { id: "def_cover2", label: "Trap the Sideline", description: "Invite the outside throw, then jump it with help behind you.", riskLevel: "balanced", icon: "🟦" },
+    ];
+  }
   if (shortYardage) {
     return [
       { id: "def_blitz", label: "Run Blitz", description: "Fill every gap quickly. Pressure can leave a fast throw exposed.", riskLevel: "aggressive", icon: "🟥" },
@@ -1487,12 +1565,12 @@ function applyPlayToState(
 function isFeaturedOnOffense(position: Position, playType: PlayType, targetPriority: TargetPriority | undefined): boolean {
   if (position === "QB") return playType === "qb_scramble" || playType === "short_pass" || playType === "deep_pass" || playType === "play_action" || playType === "trick_play";
   if (position === "RB") return playType === "run" || playType === "short_pass" || playType === "play_action";
-  if (position === "WR" || position === "TE") return true; // WR/TE options are always self-featured (run = jet sweep to them)
+  if (position === "WR" || position === "TE") return true; // WR routes and TE route/block assignments are always player-facing.
   return false;
 }
 
 function setupAfterTouchdown(state: GameSimState, input: BeginGameInput, rng: RNG, scorerIsPlayer: boolean): GameSimState {
-  let next = { ...state };
+  let next = { ...state, stat: { ...state.stat } };
   const marginBeforeConversion = next.scorePlayer - next.scoreOpponent;
 
   if (scorerIsPlayer && (next.quarter === 4 || next.overtime) && (marginBeforeConversion === -1 || marginBeforeConversion === -2)) {
@@ -1505,6 +1583,10 @@ function setupAfterTouchdown(state: GameSimState, input: BeginGameInput, rng: RN
   const patGood = rng.chance(0.94);
   if (scorerIsPlayer) next.scorePlayer += patGood ? 1 : 0;
   else next.scoreOpponent += patGood ? 1 : 0;
+  if (scorerIsPlayer && input.player.position === "K") {
+    next.stat.extraPointAttempts++;
+    if (patGood) next.stat.extraPointsMade++;
+  }
   next.secondsRemaining = clamp(next.secondsRemaining - rng.int(3, 6), 0, QUARTER_SECONDS);
   const kickerLabel = scorerIsPlayer ? "Extra point" : `${next.opponentName} extra point`;
   next.log = [
@@ -1600,8 +1682,12 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
   const startBallOn = next.ballOn;
 
   if (choice === "field_goal") {
-    const success = rng.chance(fgSuccessProb(attemptYards));
+    const success = rng.chance(playerFieldGoalProbability(attemptYards, input));
     if (success) next.scorePlayer += 3;
+    if (input.player.position === "K") {
+      next.stat.fieldGoalAttempts++;
+      if (success) next.stat.fieldGoalsMade++;
+    }
     next.log = [...next.log, fourthDownLogEntry(next, success ? `Field goal is good from ${attemptYards} yards!` : `Field goal from ${attemptYards} yards is no good.`, { scoringPlay: success, turnover: !success }, startBallOn)];
     if (success) {
       // In OT the field goal itself already breaks the tie — game over, no kickoff.
@@ -1616,9 +1702,14 @@ function resolveFourthDownChoice(state: GameSimState, input: BeginGameInput, rng
   }
 
   if (choice === "punt") {
-    const net = rng.int(35, 48);
+    const net = playerPuntDistance(rng, input);
     const landing = startBallOn + net;
     const touchback = landing >= 100;
+    if (input.player.position === "P") {
+      next.stat.punts++;
+      next.stat.puntYards += net;
+      if (!touchback && 100 - landing <= 20) next.stat.puntsInside20++;
+    }
     next.log = [...next.log, fourthDownLogEntry(next, touchback ? "Punts it into the end zone — touchback." : `Punts it away, ${net} yards.`, { scoringPlay: false, turnover: true }, startBallOn)];
     next.possession = next.possession === "player" ? "opponent" : "player";
     next.ballOn = touchback ? 25 : clamp(100 - landing, 5, 40);
@@ -1922,7 +2013,7 @@ function applyStatFromPlay(state: GameSimState, position: Position, offenseIsPla
           if (fumble) stat.fumbles += 1;
         }
       }
-    } else if (position === "WR" || position === "TE") {
+    } else if (position === "WR") {
       if (playType === "run") {
         stat.rushAttempts += 1;
         stat.rushYards += Math.max(0, yards);
@@ -1934,12 +2025,26 @@ function applyStatFromPlay(state: GameSimState, position: Position, offenseIsPla
         if (touchdown) stat.receivingTDs += 1;
         if (fumble) stat.fumbles += 1;
       }
+    } else if (position === "TE") {
+      if (playType === "run") {
+        // Run concepts for a TE represent sealing an edge or climbing to the
+        // second level, not an implausible stream of jet sweeps.
+        stat.blocksWon += 1;
+      } else if (complete) {
+        stat.receptions += 1;
+        stat.receivingYards += Math.max(0, yards);
+        if (touchdown) stat.receivingTDs += 1;
+        if (fumble) stat.fumbles += 1;
+      }
     }
   } else if (!offenseIsPlayerSnap && (position === "LB" || position === "CB" || position === "S" || position === "DL")) {
     if (sack && (position === "LB" || position === "DL")) stat.sacks += 1;
     if (interception && (position === "CB" || position === "S" || position === "LB")) stat.interceptions += 1;
-    else if (!complete && (position === "CB" || position === "S") && rng.chance(0.22)) stat.passesDefended += 1;
-    else if (rng.chance(position === "DL" ? 0.3 : 0.45)) stat.tackles += 1;
+    else if (!complete && position === "CB" && rng.chance(0.34)) stat.passesDefended += 1;
+    else if (!complete && position === "LB" && rng.chance(0.18)) stat.passesDefended += 1;
+    else if (!complete && position === "S" && rng.chance(0.22)) stat.passesDefended += 1;
+    else if (rng.chance(position === "LB" ? 0.58 : position === "CB" ? 0.36 : position === "DL" ? 0.3 : 0.45)) stat.tackles += 1;
+    if (fumble && (position === "LB" || position === "CB") && rng.chance(position === "LB" ? 0.45 : 0.18)) stat.forcedFumbles += 1;
   }
 
   return { ...state, stat };

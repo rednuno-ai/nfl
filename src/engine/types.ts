@@ -302,6 +302,17 @@ export interface StatLine {
   interceptions: number;
   passesDefended: number;
   forcedFumbles: number;
+  // Line and special-teams production. Keeping these on the shared stat line
+  // lets every playable position earn awards and legacy credit from its real
+  // role rather than a generic tackle fallback.
+  blocksWon: number;
+  fieldGoalAttempts: number;
+  fieldGoalsMade: number;
+  extraPointAttempts: number;
+  extraPointsMade: number;
+  punts: number;
+  puntYards: number;
+  puntsInside20: number;
   // Meta
   proBowl: boolean;
   allPro: boolean;
@@ -333,6 +344,14 @@ export function emptyStatLine(season: number, level: StatLine["level"], teamOrSc
     interceptions: 0,
     passesDefended: 0,
     forcedFumbles: 0,
+    blocksWon: 0,
+    fieldGoalAttempts: 0,
+    fieldGoalsMade: 0,
+    extraPointAttempts: 0,
+    extraPointsMade: 0,
+    punts: 0,
+    puntYards: 0,
+    puntsInside20: 0,
     proBowl: false,
     allPro: false,
     mvp: false,
@@ -362,7 +381,7 @@ export interface Injury {
 // Relationships
 // -----------------------------------------------------------------------------
 
-export type RelationshipType = "coach" | "teammate" | "family" | "friend" | "agent" | "partner" | "media" | "booster";
+export type RelationshipType = "coach" | "teammate" | "family" | "friend" | "agent" | "rival" | "partner" | "media" | "booster";
 
 export interface Relationship {
   id: string;

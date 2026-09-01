@@ -4,6 +4,7 @@ import { createPlayer } from "../player";
 import { RNG } from "../rng";
 import { isEligible, createEmptyEventMemory, rollEligibleEvents, markFired } from "../events/engine";
 import type { GameEventDefinition } from "../types";
+import { CONTINUITY_EVENTS, POSITION_EVENTS } from "../events/data";
 
 function testPlayer() {
   return createPlayer(
@@ -108,5 +109,25 @@ describe("event engine", () => {
     const result = rollEligibleEvents([guaranteedEvent, impossibleEvent], ctx, new RNG(1));
     assert.ok(result.some((e) => e.id === "test_event"));
     assert.ok(!result.some((e) => e.id === "impossible"));
+  });
+
+  it("ships a narrative event for each MVP-depth position and keeps it position-gated", () => {
+    const positions = ["QB", "RB", "WR", "TE", "LB", "CB"] as const;
+    for (const position of positions) {
+      const event = POSITION_EVENTS.find((candidate) => candidate.conditions.positions?.includes(position));
+      assert.ok(event, `expected a position narrative for ${position}`);
+      assert.equal(event!.choices.length >= 2, true, `${position} story should preserve player agency`);
+      assert.ok(event!.choices.every((choice) => choice.description), `${position} choices should explain the trade-off`);
+    }
+  });
+
+  it("ships connected narrative arcs with delayed consequences and mixed outcomes", () => {
+    const promise = CONTINUITY_EVENTS.find((event) => event.id === "continuity_coach_promise");
+    const due = CONTINUITY_EVENTS.find((event) => event.id === "continuity_coach_promise_due");
+    const rivalry = CONTINUITY_EVENTS.find((event) => event.id === "continuity_rival_rematch");
+    assert.ok(promise?.tags.includes("arc:coach-promise"));
+    assert.ok(due?.conditions.tagsPresent?.includes("promise:coach:film"));
+    assert.ok(due?.choices.some((choice) => choice.consequences.addTags?.includes("promise:coach:broken")));
+    assert.ok(rivalry?.choices.some((choice) => (choice.consequences.injuryChance ?? 0) > 0));
   });
 });

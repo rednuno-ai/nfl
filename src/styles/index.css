@@ -261,7 +261,7 @@ h4 {
 
 /* Subtle life across the app: cards rise in on mount, stat tiles stagger
    slightly so a grid doesn't pop in as one flat block. Kept short and
-   understated per the "não precisamos de exagerar" brief — this should read
+   understated by design — this should read
    as polish, not a slideshow. */
 @keyframes card-in {
   from {
@@ -1294,7 +1294,7 @@ h4 {
   overflow: hidden;
 }
 
-.auth-demo-video {
+.auth-demo-media {
   width: 100%;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);

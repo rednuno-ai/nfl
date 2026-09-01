@@ -29,6 +29,21 @@ describe("stats", () => {
     assert.equal(season.teamOrSchoolId, "team_1");
   });
 
+  it("preserves specialist production when combining game and season lines", () => {
+    const season = sumStatLines(
+      [
+        line({ fieldGoalAttempts: 3, fieldGoalsMade: 3, extraPointAttempts: 4, extraPointsMade: 4 }),
+        line({ fieldGoalAttempts: 2, fieldGoalsMade: 1, extraPointAttempts: 2, extraPointsMade: 2 }),
+      ],
+      2026,
+      "nfl",
+      "team_1"
+    );
+    assert.equal(season.fieldGoalAttempts, 5);
+    assert.equal(season.fieldGoalsMade, 4);
+    assert.equal(season.extraPointsMade, 6);
+  });
+
   it("careerTotals returns an empty line for an empty history instead of throwing", () => {
     const totals = careerTotals([]);
     assert.equal(totals.gamesPlayed, 0);

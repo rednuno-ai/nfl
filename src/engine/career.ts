@@ -84,7 +84,7 @@ export type TrainingSelection = TrainingFocus | "relationships" | "social" | "sk
 // before the rest of the week (narrative event / game / offseason work)
 // resolves. This is a real, consequential choice (see aging.ts's
 // TRAINING_TARGETS) — not a cosmetic gate — and it's what item 24 of the
-// spec ("Treino, com escolha de foco") asked for.
+// requested training with a player-selected focus.
 export const TRAINING_FOCUS_CHOICES: TrainingFocusChoice[] = [
   { id: "strength", label: "Weight Room", description: "Focuses on strength and physical durability." },
   { id: "speed", label: "Speed Work", description: "Focuses on speed and acceleration." },
@@ -191,6 +191,28 @@ function log(state: CareerState, entry: string): CareerState {
 const HS_NAMES = ["Riverdale High", "Central High", "Lincoln High", "Jefferson High", "Kennedy High", "Franklin High"];
 const HS_COACHES = ["Coach Reilly", "Coach Bannister", "Coach Delgado", "Coach Whitmore", "Coach Alvarez"];
 
+/** These are people, not disposable flavour text.  Each starts with a
+ * relationship record so choices can leave a visible, durable history from
+ * the first week of a career. */
+function startingRelationships(coachName: string): Relationship[] {
+  return [
+    { id: "rel_coach", name: coachName, type: "coach", value: 55, tags: ["high_school_coach"], history: [] },
+    { id: "rel_teammate", name: "Jordan Reed", type: "teammate", value: 50, tags: ["locker_room"], history: [] },
+    { id: "rel_family", name: "Family", type: "family", value: 75, tags: ["home"], history: [] },
+    { id: "rel_agent", name: "Morgan Hale", type: "agent", value: 50, tags: ["representation"], history: [] },
+    { id: "rel_rival", name: "Dante Cole", type: "rival", value: 48, tags: ["competitive_rival"], history: [] },
+  ];
+}
+
+/** Older saves predate the persistent-circle model.  Add only the missing
+ * records, preserving every existing person and their accumulated history. */
+function ensureContinuityRelationships(state: CareerState): CareerState {
+  const present = new Set(state.relationships.map((relationship) => relationship.type));
+  const coachName = state.relationships.find((relationship) => relationship.type === "coach")?.name ?? state.highSchool.coachName ?? "Coach";
+  const missing = startingRelationships(coachName).filter((relationship) => !present.has(relationship.type));
+  return missing.length ? { ...state, relationships: [...state.relationships, ...missing] } : state;
+}
+
 export function createCareer(input: CreatePlayerInput): CareerState {
   validatePointBuy(input);
   const seed = createSeed();
@@ -241,10 +263,7 @@ export function createCareer(input: CreatePlayerInput): CareerState {
     statHistory: [],
     currentSeasonGameStats: [],
     finance: emptyFinanceState(),
-    relationships: [
-      { id: "rel_coach", name: coachName, type: "coach", value: 55, tags: ["high_school_coach"], history: [] },
-      { id: "rel_family", name: "Family", type: "family", value: 75, tags: [], history: [] },
-    ],
+    relationships: startingRelationships(coachName),
     news: [],
     socialFeed: [],
     injuries: [],
@@ -330,7 +349,7 @@ function categoriesForStage(stage: CareerStage): GameEventDefinition["category"]
 // Relationship helper
 // -----------------------------------------------------------------------------
 
-function bumpRelationship(state: CareerState, targetTag: string, delta: number): Relationship[] {
+function bumpRelationship(state: CareerState, targetTag: string, delta: number, note?: string): Relationship[] {
   const typeMap: Record<string, RelationshipType> = {
     coach: "coach",
     team: "teammate",
@@ -340,6 +359,7 @@ function bumpRelationship(state: CareerState, targetTag: string, delta: number):
     partner: "partner",
     friend: "friend",
     agent: "agent",
+    rival: "rival",
     booster: "booster",
   };
   const type = typeMap[targetTag];
@@ -348,10 +368,25 @@ function bumpRelationship(state: CareerState, targetTag: string, delta: number):
   if (!existing) {
     return [
       ...state.relationships,
-      { id: `rel_${type}_${state.totalWeek}`, name: type === "coach" ? "Coach" : type, type, value: clamp(50 + delta), tags: [], history: [] },
+      {
+        id: `rel_${type}_${state.totalWeek}`,
+        name: type === "coach" ? "Coach" : type,
+        type,
+        value: clamp(50 + delta),
+        tags: [],
+        history: note ? [{ week: state.totalWeek, note }] : [],
+      },
     ];
   }
-  return state.relationships.map((r) => (r.id === existing.id ? { ...r, value: clamp(r.value + delta) } : r));
+  return state.relationships.map((r) => (
+    r.id === existing.id
+      ? {
+        ...r,
+        value: clamp(r.value + delta),
+        history: note ? [{ week: state.totalWeek, note }, ...(r.history ?? [])].slice(0, 16) : r.history ?? [],
+      }
+      : r
+  ));
 }
 
 function isTrainingFocus(selection: TrainingSelection): selection is TrainingFocus {
@@ -404,7 +439,7 @@ export function resolveDecision(state: CareerState, choiceId: string): CareerSta
 
   let relationships = state.relationships;
   for (const rd of c.relationshipDeltas ?? []) {
-    relationships = bumpRelationship({ ...state, relationships }, rd.targetTag, rd.delta);
+    relationships = bumpRelationship({ ...state, relationships }, rd.targetTag, rd.delta, `${decision.title}: ${choice.label}`);
   }
 
   let tags = state.tags;
@@ -467,6 +502,7 @@ export interface AdvanceWeekOptions {
 const TRAINABLE_STAGES: CareerStage[] = ["high_school", "college", "nfl_season", "nfl_offseason"];
 
 export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}): CareerState {
+  state = ensureContinuityRelationships(state);
   if (state.retired) return state;
   if (state.interaction) return state; // must resolve the pending decision/game first
   if (state.recruitingReady) return state; // must commit to a college first
@@ -528,6 +564,17 @@ export function chooseTrainingFocus(state: CareerState, focus: TrainingSelection
   return advanceWeek(next, { trainingFocus: focus });
 }
 
+/** Prevent a recent story arc from taking every decision slot.  Direct event
+ * cooldowns still apply in the event engine; this is deliberately broader so
+ * e.g. two rival scenes do not play back-to-back under different IDs. */
+export function hasRecentNarrativeArc(state: CareerState, candidate: GameEventDefinition, recentDecisions = 3): boolean {
+  const candidateArc = candidate.tags.find((tag) => tag.startsWith("arc:"));
+  if (!candidateArc) return false;
+  return state.decisionHistory.slice(0, recentDecisions).some((decision) =>
+    ALL_EVENTS.find((event) => event.id === decision.eventId)?.tags.includes(candidateArc)
+  );
+}
+
 function rollNarrativeEvent(state: CareerState): { state: CareerState; decision: PendingDecision | null } {
   const { firedAt, firedOnce } = eventMemoryMaps(state);
   const ctx: EventEngineContext = {
@@ -544,7 +591,7 @@ function rollNarrativeEvent(state: CareerState): { state: CareerState; decision:
   const categories = categoriesForStage(state.stage);
   const candidates = ALL_EVENTS.filter((e) => categories.includes(e.category));
   const { result: eligible, rngState } = withRng(state, (rng) => {
-    const pool = candidates.filter((e) => isEligible(e, ctx));
+    const pool = candidates.filter((e) => isEligible(e, ctx) && !hasRecentNarrativeArc(state, e));
     // Global frequency boost over each event's own base probability so a
     // typical week is meaningfully more likely to bring a real decision,
     // not just an "Advance Week" click.
@@ -569,7 +616,9 @@ function rollNarrativeEvent(state: CareerState): { state: CareerState; decision:
 function applyTrainingTick(state: CareerState, focus: TrainingFocus): CareerState {
   const college = state.college ? getCollege(state.college.collegeId) : null;
   const devRate = college ? college.developmentRate : 1;
-  const { result, rngState } = withRng(state, (rng) => applyTraining(state.player.attributes, focus, 1, devRate, rng, positionSpecificPaths(state.player)));
+  const { result, rngState } = withRng(state, (rng) =>
+    applyTraining(state.player.attributes, focus, 1, devRate, rng, positionSpecificPaths(state.player), state.trainingLoad ?? 0)
+  );
   // The workload trade-off was applied when the weekly focus was selected,
   // before a narrative event or Game Day can occur. This tick only applies the
   // attribute/morale result, so a single session is never counted twice.
@@ -580,8 +629,12 @@ function applyTrainingTick(state: CareerState, focus: TrainingFocus): CareerStat
 
 function applyTrainingCondition(state: CareerState, focus: TrainingFocus): CareerState {
   const isRecovery = focus === "recovery";
-  const fatigueDelta = isRecovery ? -18 : 10;
-  const injuryRiskDelta = isRecovery ? -0.02 : 0.015;
+  const isHardPositionWork = focus === "position_specific";
+  // Repeating the most productive focus must be a meaningful choice. General
+  // work remains sustainable, recovery clears pressure, and position-specific
+  // work now accumulates enough load/risk that it cannot be a free meta pick.
+  const fatigueDelta = isRecovery ? -18 : isHardPositionWork ? 16 : 8;
+  const injuryRiskDelta = isRecovery ? -0.025 : isHardPositionWork ? 0.04 : 0.01;
   return {
     ...state,
     trainingLoad: nextTrainingLoad(state.trainingLoad, fatigueDelta),
@@ -802,7 +855,7 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
     const focus = state.pendingTrainingFocus ?? "position_specific";
     if (isTrainingFocus(focus)) {
       const { result: practiceResult, rngState: rngState3 } = withRng({ ...state, rngState: rngState2 }, (rng) =>
-        applyTraining(player.attributes, focus, 0.5, devRate, rng, positionSpecificPaths(player))
+        applyTraining(player.attributes, focus, 0.5, devRate, rng, positionSpecificPaths(player), trainingLoad)
       );
       const attributes = applyAttributeDelta(practiceResult.attributes, "general.morale", practiceResult.moraleDelta * 0.5);
       player = { ...player, attributes };
@@ -882,9 +935,21 @@ function scoreGamePerformance(stat: StatLine, position: string): number {
     const eff = stat.passAttempts > 0 ? stat.passCompletions / stat.passAttempts : 0.5;
     return clampScore((eff - 0.6) * 2 + stat.passTDs * 0.25 - stat.interceptionsThrown * 0.3);
   }
-  if (position === "RB") return clampScore(stat.rushYards / 100 - 0.4 + stat.rushTDs * 0.3 - stat.fumbles * 0.4);
-  if (position === "WR" || position === "TE") return clampScore(stat.receivingYards / 90 - 0.4 + stat.receivingTDs * 0.3);
-  if (position === "LB" || position === "CB") return clampScore(stat.tackles / 8 - 0.3 + stat.sacks * 0.3 + stat.interceptions * 0.5);
+  if (position === "RB") return clampScore((stat.rushYards + stat.receivingYards * 0.45) / 100 - 0.4 + (stat.rushTDs + stat.receivingTDs) * 0.3 - stat.fumbles * 0.4);
+  if (position === "WR") return clampScore(stat.receivingYards / 90 - 0.4 + stat.receptions / 8 + stat.receivingTDs * 0.3 - stat.fumbles * 0.35);
+  if (position === "TE") return clampScore(stat.receivingYards / 75 - 0.38 + stat.receivingTDs * 0.38 + stat.blocksWon / 5 - stat.fumbles * 0.35);
+  if (position === "OL") return clampScore(stat.blocksWon / 5 - 0.35);
+  if (position === "LB") return clampScore(stat.tackles / 7 - 0.35 + stat.sacks * 0.36 + stat.interceptions * 0.5 + stat.passesDefended * 0.12 + stat.forcedFumbles * 0.22);
+  if (position === "CB") return clampScore(stat.passesDefended / 2 - 0.3 + stat.interceptions * 0.55 + stat.tackles / 12 + stat.forcedFumbles * 0.16);
+  if (position === "DL" || position === "S") return clampScore(stat.tackles / 8 - 0.3 + stat.sacks * 0.3 + stat.interceptions * 0.5);
+  if (position === "K") {
+    const accuracy = stat.fieldGoalAttempts > 0 ? stat.fieldGoalsMade / stat.fieldGoalAttempts : 0;
+    return clampScore((accuracy - 0.72) * 2.2 + stat.fieldGoalsMade * 0.18 + stat.extraPointsMade * 0.03);
+  }
+  if (position === "P") {
+    const average = stat.punts > 0 ? stat.puntYards / stat.punts : 0;
+    return clampScore((average - 39) / 10 + stat.puntsInside20 * 0.15);
+  }
   return 0;
 }
 
@@ -899,11 +964,25 @@ function seasonPerformanceScore(stat: StatLine, position: string): number {
   const games = Math.max(1, stat.gamesPlayed);
   if (position === "QB") {
     const eff = stat.passAttempts > 0 ? stat.passCompletions / stat.passAttempts : 0.5;
-    return clampScore((eff - 0.6) * 2 + (stat.passTDs / games) * 0.5 - (stat.interceptionsThrown / games) * 0.4 + (stat.passYards / games / 300) * 0.4);
+    return clampScore((eff - 0.59) * 1.6 + ((stat.passTDs / games) - 1.25) * 0.35 - (stat.interceptionsThrown / games) * 0.3 + ((stat.passYards / games) - 210) / 100 * 0.3);
   }
-  if (position === "RB") return clampScore((stat.rushYards / games) / 100 - 0.4 + (stat.rushTDs / games) * 0.5 - (stat.fumbles / games) * 0.4);
-  if (position === "WR" || position === "TE") return clampScore((stat.receivingYards / games) / 90 - 0.4 + (stat.receivingTDs / games) * 0.5);
-  if (position === "LB" || position === "CB") return clampScore((stat.tackles / games) / 8 - 0.3 + (stat.sacks / games) * 0.5 + (stat.interceptions / games) * 0.7);
+  if (position === "RB") return clampScore((((stat.rushYards + stat.receivingYards * 0.45) / games) - 70) / 55 * 0.45 + (((stat.rushTDs + stat.receivingTDs) / games) - 0.35) * 0.45 - (stat.fumbles / games) * 0.4);
+  if (position === "WR") return clampScore(((stat.receivingYards / games) - 60) / 55 * 0.42 + ((stat.receptions / games) - 4) * 0.05 + ((stat.receivingTDs / games) - 0.35) * 0.46 - (stat.fumbles / games) * 0.3);
+  // Tight ends need both receiving and blocking routes to elite recognition,
+  // but routine blocking cannot make every above-average season an award.
+  if (position === "TE") return clampScore(((stat.receivingYards / games) - 65) / 50 * 0.2 + ((stat.receivingTDs / games) - 0.3) * 0.4 + Math.max(0, (stat.blocksWon / games) - 4) * 1.05 + ((stat.receptions / games) - 4) * 0.04 - (stat.fumbles / games) * 0.3);
+  if (position === "OL") return clampScore(((stat.blocksWon / games) - 4) / 3 * 0.4);
+  if (position === "LB") return clampScore(((stat.tackles / games) - 5) / 4 * 0.38 + (stat.sacks / games) * 0.5 + (stat.interceptions / games) * 0.55 + (stat.passesDefended / games) * 0.14 + (stat.forcedFumbles / games) * 0.18);
+  if (position === "CB") return clampScore(((stat.passesDefended / games) - 0.6) * 0.5 + (stat.interceptions / games) * 0.75 + ((stat.tackles / games) - 3) / 7 * 0.14 + (stat.forcedFumbles / games) * 0.15);
+  if (position === "DL" || position === "S") return clampScore(((stat.tackles / games) - 4) / 5 * 0.35 + (stat.sacks / games) * 0.45 + (stat.interceptions / games) * 0.6 + (stat.passesDefended / games) * 0.15);
+  if (position === "K") {
+    const accuracy = stat.fieldGoalAttempts > 0 ? stat.fieldGoalsMade / stat.fieldGoalAttempts : 0;
+    return clampScore((accuracy - 0.78) * 1.2 + ((stat.fieldGoalsMade / games) - 0.7) * 0.35 + ((stat.extraPointsMade / games) - 1.5) * 0.08);
+  }
+  if (position === "P") {
+    const average = stat.punts > 0 ? stat.puntYards / stat.punts : 0;
+    return clampScore((average - 42) / 6 * 0.45 + ((stat.puntsInside20 / games) - 0.4) * 0.65);
+  }
   return 0;
 }
 
@@ -913,10 +992,46 @@ function seasonPerformanceScore(stat: StatLine, position: string): number {
 export function evaluateSeasonAwards(stat: StatLine, position: string, teamWins: number): { proBowl: boolean; allPro: boolean; mvp: boolean } {
   if (stat.gamesPlayed < 6) return { proBowl: false, allPro: false, mvp: false };
   const score = seasonPerformanceScore(stat, position);
-  const proBowl = score >= 0.35;
-  const allPro = score >= 0.65;
-  const mvp = score >= 0.85 && teamWins >= 10;
+  // A personal career is not a league-wide simulation. A deterministic,
+  // stat-derived selection roll models the scarcity of each honour without
+  // making saves non-reproducible or turning every solid year into an award.
+  const proBowl = score >= 0.55 || (score >= 0.28 && awardRoll(stat, position, teamWins, "pro") < clamp((score - 0.2) * 0.28, 0.02, 0.22));
+  const allPro = score >= 0.6 || (score >= 0.52 && awardRoll(stat, position, teamWins, "all") < clamp((score - 0.48) * 0.12, 0.01, 0.07));
+  // MVP is still deliberately rare outside QB, but the six MVP-depth roles
+  // can now earn it from truly exceptional, position-appropriate seasons.
+  const mvpThreshold = position === "QB" ? 0.6 : 0.92;
+  const mvp = ["QB", "RB", "WR", "TE", "LB", "CB"].includes(position) && score >= mvpThreshold && teamWins >= 11 && (score >= mvpThreshold || awardRoll(stat, position, teamWins, "mvp") < 0.01);
   return { proBowl, allPro, mvp };
+}
+
+function awardRoll(stat: StatLine, position: string, teamWins: number, award: string): number {
+  const value = [
+    award,
+    position,
+    stat.season,
+    stat.teamOrSchoolId,
+    teamWins,
+    stat.gamesPlayed,
+    stat.passYards,
+    stat.passTDs,
+    stat.rushYards,
+    stat.rushTDs,
+    stat.receivingYards,
+    stat.receivingTDs,
+    stat.tackles,
+    stat.sacks,
+    stat.interceptions,
+    stat.blocksWon,
+    stat.fieldGoalsMade,
+    stat.puntYards,
+    stat.puntsInside20,
+  ].join(":");
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index++) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0x1_0000_0000;
 }
 
 // -----------------------------------------------------------------------------
