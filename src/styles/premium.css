@@ -132,3 +132,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
    Small buttons keep their compact typography, not a smaller touch surface. */
 .btn,.pill-option,.skip-link,input:not([type="checkbox"]):not([type="radio"]),select{min-height:44px}.life-buy-button,.life-action-row .btn{min-height:44px!important}.app-footer button{display:inline-flex;align-items:center;min-height:44px;margin-left:8px;padding:6px 4px}.skip-link{display:inline-flex;align-items:center}
 @media(max-width:480px){.app-footer button{display:flex;width:max-content;margin-left:0}}
+
+/* People screen: relationship scores are readable at a glance without
+   turning the page into another dashboard. */
+.life-availability{display:inline-flex;width:max-content;padding:5px 8px;border:1px solid var(--border);border-radius:999px;color:var(--text-dim);font-size:12px;font-weight:700}.life-headline{margin:7px 0 2px;font-weight:800}.relationship-scale{margin:4px 0 14px;font-size:12px}.relationship-context{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:5px 0 13px 2px;font-size:12px}.relationship-meaning{font-weight:800;color:var(--text-dim)}.relationship-trend-up,.relationship-trend-down,.relationship-trend-steady{font-weight:800}.relationship-trend-up{color:#65cf96}.relationship-trend-down{color:#ef7b78}.relationship-trend-steady{color:var(--text-dim)}.relationship-cause{flex-basis:100%;color:var(--text-muted);line-height:1.4}.life-milestones-card{margin-top:22px}

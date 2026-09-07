@@ -2,6 +2,41 @@ import type { GameEventDefinition } from "../../types";
 
 export const MEDIA_EVENTS: GameEventDefinition[] = [
   {
+    id: "media_paparazzi_outside",
+    category: "media",
+    title: "Paparazzi Outside",
+    description: "After a high-profile night out, cameras wait outside. This only reaches you once your career has earned sustained public attention.",
+    conditions: { probability: 0.08, maxOccurrences: 3 },
+    cooldownWeeks: 32,
+    tags: ["arc:public-attention"],
+    choices: [
+      {
+        id: "keep_private",
+        label: "Keep it private",
+        description: "Set a boundary and let the story cool down.",
+        consequences: {
+          relationshipDeltas: [{ targetTag: "media", delta: -2 }],
+          attributeDeltas: [{ path: "general.reputation", delta: 1 }],
+          addTags: ["media:private-boundary"],
+          news: { headline: "Player keeps private life out of the spotlight", body: "A calm response cooled the story before it could grow.", tone: "neutral" },
+          narrativeMemory: "You set a clear boundary when the cameras waited outside.",
+        },
+      },
+      {
+        id: "own_moment",
+        label: "Own the moment",
+        description: "Control the story openly, accepting a louder spotlight.",
+        consequences: {
+          relationshipDeltas: [{ targetTag: "media", delta: 4 }],
+          attributeDeltas: [{ path: "general.reputation", delta: 3 }, { path: "general.fame", delta: 2 }],
+          addTags: ["media:embraced-spotlight"],
+          news: { headline: "Player embraces the spotlight after a night out", body: "The appearance puts the player at the center of the week's conversation.", tone: "controversial" },
+          narrativeMemory: "You chose to own a difficult public moment.",
+        },
+      },
+    ],
+  },
+  {
     id: "media_personality_platform",
     category: "media",
     title: "What Do You Stand For?",

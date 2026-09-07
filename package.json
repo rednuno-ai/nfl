@@ -14,6 +14,7 @@
     "test": "vitest --configLoader runner run",
     "test:watch": "vitest --configLoader runner",
     "test:careers": "tsx tools/run-career-simulation.ts",
+    "test:narrative-events": "tsx tools/run-narrative-eligibility-audit.ts",
     "test:e2e": "playwright test",
     "test:sandbox": "tsx --test src/engine/__tests__/*.test.ts",
     "build:sandbox": "node tools/sandbox/esbuild-build.mjs"

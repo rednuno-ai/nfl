@@ -37,7 +37,7 @@ import { createPlayer, type CreatePlayerInput } from "./player";
 import { applyAttributeDelta, applyAttributeDeltas, computeOverall, pointBuyPointsLeft, POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_SLOTS } from "./attributes";
 import { applySeasonalAging, applyTraining, type TrainingFocus } from "./aging";
 import { ALL_EVENTS } from "./events/data";
-import { createEmptyEventMemory, isEligible, markFired, rollEligibleEvents, selectWeeklyEvents, type EventEngineContext } from "./events/engine";
+import { markFired, isEventEligible, selectWeightedEligibleEvent } from "./events/engine";
 import { COLLEGES, getCollege } from "./colleges";
 import { TEAMS, getTeam } from "./teams";
 import {
@@ -145,7 +145,7 @@ export interface CareerState {
   injuries: Injury[];
   tags: string[];
 
-  eventMemory: { firedAt: [string, number][]; firedOnce: string[] };
+  eventMemory: { firedAt: [string, number][]; firedOnce: string[]; firedCount?: [string, number][] };
   narrativeRolledForWeek: number;
   trainingFocusChosenForWeek: number;
   pendingTrainingFocus: TrainingSelection | null;
@@ -268,7 +268,7 @@ export function createCareer(input: CreatePlayerInput): CareerState {
     socialFeed: [],
     injuries: [],
     tags: [],
-    eventMemory: { firedAt: [], firedOnce: [] },
+    eventMemory: { firedAt: [], firedOnce: [], firedCount: [] },
     narrativeRolledForWeek: -1,
     trainingFocusChosenForWeek: -1,
     pendingTrainingFocus: null,
@@ -305,21 +305,17 @@ function validatePointBuy(input: CreatePlayerInput): void {
 // Shared lookups
 // -----------------------------------------------------------------------------
 
-function coachRelationship(state: CareerState): number {
-  const coach = state.relationships.find((r) => r.type === "coach");
-  return coach?.value ?? 50;
-}
-
-function tagSet(state: CareerState): Set<string> {
-  return new Set(state.tags);
-}
-
 function eventMemoryMaps(state: CareerState) {
-  return { firedAt: new Map(state.eventMemory.firedAt), firedOnce: new Set(state.eventMemory.firedOnce) };
+  const memory = state.eventMemory ?? { firedAt: [], firedOnce: [] };
+  return {
+    firedAt: new Map(memory.firedAt ?? []),
+    firedOnce: new Set(memory.firedOnce ?? []),
+    firedCount: new Map(memory.firedCount ?? (memory.firedOnce ?? []).map((eventId) => [eventId, 1] as [string, number])),
+  };
 }
 
-function serializeEventMemory(firedAt: Map<string, number>, firedOnce: Set<string>) {
-  return { firedAt: Array.from(firedAt.entries()), firedOnce: Array.from(firedOnce) };
+function serializeEventMemory(firedAt: Map<string, number>, firedOnce: Set<string>, firedCount: Map<string, number>) {
+  return { firedAt: Array.from(firedAt.entries()), firedOnce: Array.from(firedOnce), firedCount: Array.from(firedCount.entries()) };
 }
 
 function overall(player: Player): number {
@@ -374,7 +370,7 @@ function bumpRelationship(state: CareerState, targetTag: string, delta: number, 
         type,
         value: clamp(50 + delta),
         tags: [],
-        history: note ? [{ week: state.totalWeek, note }] : [],
+        history: note ? [{ week: state.totalWeek, note, delta }] : [],
       },
     ];
   }
@@ -383,7 +379,7 @@ function bumpRelationship(state: CareerState, targetTag: string, delta: number, 
       ? {
         ...r,
         value: clamp(r.value + delta),
-        history: note ? [{ week: state.totalWeek, note }, ...(r.history ?? [])].slice(0, 16) : r.history ?? [],
+        history: note ? [{ week: state.totalWeek, note, delta }, ...(r.history ?? [])].slice(0, 16) : r.history ?? [],
       }
       : r
   ));
@@ -468,9 +464,12 @@ export function resolveDecision(state: CareerState, choiceId: string): CareerSta
     state = { ...state, rngState };
   }
 
-  const { firedAt, firedOnce } = eventMemoryMaps(state);
+  const { firedAt, firedOnce, firedCount } = eventMemoryMaps(state);
   const eventDef = ALL_EVENTS.find((e) => e.id === decision.eventId);
-  if (eventDef) markFired({ firedAt, firedOnce, player, stage: state.stage, week: state.totalWeek, coachRelationship: 0, fame: 0, tags: new Set(tags) }, eventDef);
+  if (eventDef) {
+    markFired({ firedAt, firedOnce, firedCount, week: state.totalWeek }, eventDef);
+    tags = Array.from(new Set([...tags, `event:${eventDef.id}`]));
+  }
 
   const resolved: ResolvedDecision = { eventId: decision.eventId, title: decision.title, choiceId: choice.id, choiceLabel: choice.label, week: state.totalWeek };
 
@@ -483,7 +482,7 @@ export function resolveDecision(state: CareerState, choiceId: string): CareerSta
       tags,
       news,
       injuries,
-      eventMemory: serializeEventMemory(firedAt, firedOnce),
+      eventMemory: serializeEventMemory(firedAt, firedOnce, firedCount),
       interaction: null,
       decisionHistory: [resolved, ...state.decisionHistory].slice(0, 300),
     },
@@ -576,40 +575,26 @@ export function hasRecentNarrativeArc(state: CareerState, candidate: GameEventDe
 }
 
 function rollNarrativeEvent(state: CareerState): { state: CareerState; decision: PendingDecision | null } {
-  const { firedAt, firedOnce } = eventMemoryMaps(state);
-  const ctx: EventEngineContext = {
-    player: state.player,
-    stage: state.stage,
-    week: state.totalWeek,
-    coachRelationship: coachRelationship(state),
-    fame: state.player.attributes.general.fame,
-    tags: tagSet(state),
-    firedAt,
-    firedOnce,
-  };
-
   const categories = categoriesForStage(state.stage);
   const candidates = ALL_EVENTS.filter((e) => categories.includes(e.category));
-  const { result: eligible, rngState } = withRng(state, (rng) => {
-    const pool = candidates.filter((e) => isEligible(e, ctx) && !hasRecentNarrativeArc(state, e));
-    // Global frequency boost over each event's own base probability so a
-    // typical week is meaningfully more likely to bring a real decision,
-    // not just an "Advance Week" click.
-    return pool.filter((e) => rng.chance(Math.min(0.92, (e.conditions.probability ?? 0.35) * 1.6)));
+  const { result: rolled, rngState } = withRng(state, (rng) => {
+    const pool = candidates
+      .map((event) => ({ event, eligibility: isEventEligible(event, state) }))
+      .filter((candidate) => candidate.eligibility.eligible && !hasRecentNarrativeArc(state, candidate.event));
+    // Probability is applied only after every deterministic requirement is
+    // met. If nothing rolls this week, no narrative event is shown.
+    const passedProbability = pool
+      .filter((candidate) => rng.chance(candidate.eligibility.probability))
+      .map((candidate) => candidate.event);
+    return selectWeightedEligibleEvent(passedProbability, state, rng);
   });
 
   state = { ...state, rngState };
-
-  if (eligible.length === 0) return { state, decision: null };
-
-  const { result: chosen, rngState: rngState2 } = withRng(state, (rng) => selectWeeklyEvents(eligible, rng, 1));
-  state = { ...state, rngState: rngState2 };
-  const def = chosen[0];
-  if (!def) return { state, decision: null };
+  if (!rolled) return { state, decision: null };
 
   return {
     state,
-    decision: { eventId: def.id, title: def.title, description: def.description, choices: def.choices, week: state.totalWeek },
+    decision: { eventId: rolled.id, title: rolled.title, description: rolled.description, choices: rolled.choices, week: state.totalWeek },
   };
 }
 
@@ -1508,27 +1493,6 @@ export function endPartnerRelationship(state: CareerState): CareerState {
     { ...state, relationships: state.relationships.filter((r) => r.type !== "partner"), tags: state.tags.filter((t) => t !== "in_relationship" && t !== "married") },
     `You chose to end your relationship with ${partner.name}.`
   );
-}
-
-export function handlePaparazzi(state: CareerState, approach: "private" | "embrace"): CareerState {
-  const mediaDelta = approach === "private" ? -2 : 4;
-  const relationships = bumpRelationship(state, "media", mediaDelta);
-  const player = {
-    ...state.player,
-    attributes: applyAttributeDelta(state.player.attributes, "general.reputation", approach === "private" ? 1 : 3),
-  };
-  const item: NewsItem = {
-    id: `news_press_${state.totalWeek}`,
-    week: state.totalWeek,
-    headline: approach === "private" ? "Player keeps private life out of the spotlight" : "Player embraces the spotlight after a night out",
-    body: approach === "private" ? "A calm response cooled the story before it could grow." : "The appearance puts the player at the center of the week's conversation.",
-    tone: approach === "private" ? "neutral" : "controversial",
-    source: "Cityline Sports",
-    requiresResponse: false,
-    responded: false,
-    tags: ["paparazzi"],
-  };
-  return log({ ...state, player, relationships, news: [item, ...state.news].slice(0, 100) }, `You chose how to handle the paparazzi.`);
 }
 
 export function respondToNews(state: CareerState, newsId: string): CareerState {

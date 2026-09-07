@@ -389,7 +389,9 @@ export interface Relationship {
   type: RelationshipType;
   value: number; // 0-100
   tags: string[]; // e.g. ["recruited_you", "betrayed"], used by event conditions for callbacks
-  history: { week: number; note: string }[];
+  /** `delta` is optional so browser saves made before relationship trends
+   * existed remain readable. New entries always record the direction. */
+  history: { week: number; note: string; delta?: number }[];
 }
 
 // -----------------------------------------------------------------------------
@@ -469,24 +471,51 @@ export interface Achievement {
 // -----------------------------------------------------------------------------
 
 export interface EventCondition {
+  /** Career phases in which the event is narratively valid. */
   stage?: CareerStage[];
   minAge?: number;
   maxAge?: number;
+  /** `year` is the calendar/career year; `week` is the current season week. */
+  minYear?: number;
+  maxYear?: number;
+  minWeek?: number;
+  maxWeek?: number;
+  minCareerWeek?: number;
+  minCareerSeasons?: number;
   positions?: Position[];
   /** Personality-gated story opportunities. `personalityAny` needs one
    * match; `personalityAll` needs every listed trait. */
   personalityAny?: PersonalityTrait[];
   personalityAll?: PersonalityTrait[];
+  personalityNone?: PersonalityTrait[];
   minAttribute?: { path: string; value: number };
   maxAttribute?: { path: string; value: number };
   minCoachRelationship?: number;
   maxCoachRelationship?: number;
+  /** Minimum relationship score by person type, e.g. `{ agent: 55 }`. */
+  minRelationships?: Partial<Record<RelationshipType, number>>;
   minFame?: number;
   maxFame?: number;
+  minReputation?: number;
+  maxReputation?: number;
+  minGamesPlayed?: number;
+  /** Career aggregate stat gates. Only numeric StatLine fields are valid. */
+  minStats?: Partial<Record<StatMinimumKey, number>>;
+  /** Career award totals, rather than a one-season boolean. */
+  minAwards?: Partial<Record<EventAwardKey, number>>;
+  requiredAchievements?: string[];
+  requiredMilestones?: string[];
+  requiredEvents?: string[];
+  incompatibleEvents?: string[];
   tagsPresent?: string[]; // world/player tags that must be present (e.g. from relationships/history)
   tagsAbsent?: string[];
   probability?: number; // 0-1 base chance this event fires when eligible
+  /** Maximum times an event may resolve in one career. `once` maps to 1. */
+  maxOccurrences?: number;
 }
+
+export type StatMinimumKey = Exclude<keyof StatLine, "season" | "level" | "teamOrSchoolId" | "proBowl" | "allPro" | "mvp" | "championshipWon">;
+export type EventAwardKey = "proBowls" | "allPros" | "mvps" | "championships";
 
 export interface AttributeDelta {
   path: string; // dotted path into Attributes, e.g. "general.confidence"

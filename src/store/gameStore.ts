@@ -28,7 +28,6 @@ import {
   signWithTeam,
   buyAsset,
   endPartnerRelationship,
-  handlePaparazzi,
   respondToNews,
   startOrChangePartner,
   chooseTrainingFocus,
@@ -109,7 +108,6 @@ export interface GameStoreState {
   respondNews: (newsId: string) => void;
   startOrChangePartner: () => void;
   endPartnerRelationship: () => void;
-  respondToPaparazzi: (approach: "private" | "embrace") => void;
   dismissCinematic: () => void;
 
   navigate: (screen: ScreenId) => void;
@@ -468,19 +466,6 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const current = get().activeCareer;
     if (!current) return;
     applyCareer(get, set, endPartnerRelationship(current));
-  },
-
-  respondToPaparazzi: (approach) => {
-    const current = get().activeCareer;
-    if (!current) return;
-    applyCareer(get, set, handlePaparazzi(current, approach));
-    set({
-      cinematic: {
-        scene: "press",
-        title: approach === "private" ? "Hold The Line" : "Own The Moment",
-        body: approach === "private" ? "You kept the attention at a distance." : "You chose to control the story, not hide from it.",
-      },
-    });
   },
 
   dismissCinematic: () => set({ cinematic: null }),
