@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { gameStore, useGameStore } from "@store/gameStore";
-import { usesRemoteAuth } from "@data/auth";
+import { DEMO_ACCOUNT_USERNAME, usesRemoteAuth } from "@data/auth";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, validateRegistrationInput } from "@data/authValidation";
 import { publicCopy } from "@ui/copy";
 
 type AuthMode = "login" | "register" | "recover";
@@ -18,12 +19,14 @@ export function AuthScreen() {
   const [password, setPassword] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
   const [notice, setNotice] = useState("");
+  const [submittedRegistration, setSubmittedRegistration] = useState(false);
   const authError = useGameStore((s) => s.authError);
   const authBusy = useGameStore((s) => s.authBusy);
 
   function selectMode(nextMode: AuthMode) {
     setMode(nextMode);
     setNotice("");
+    setSubmittedRegistration(false);
     gameStore.setState({ authError: null });
   }
 
@@ -43,12 +46,18 @@ export function AuthScreen() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (mode === "login") void gameStore.getState().loginAccount(username, password);
-    else if (mode === "register") void gameStore.getState().registerAccount(username, password, referralCode ?? undefined);
+    else if (mode === "register") {
+      setSubmittedRegistration(true);
+      if (!validateRegistrationInput(username, password, DEMO_ACCOUNT_USERNAME).valid) return;
+      void gameStore.getState().registerAccount(username.trim().toLowerCase(), password, referralCode ?? undefined);
+    }
     else void gameStore.getState().recoverAccount(username, recoveryKey, password);
   }
 
   const submitLabel = mode === "login" ? "Log In" : mode === "register" ? "Create Account" : "Reset Password";
   const isReady = mode === "recover" ? Boolean(username && password && recoveryKey) : Boolean(username && password);
+  const registration = mode === "register" ? validateRegistrationInput(username, password, DEMO_ACCOUNT_USERNAME) : null;
+  const showRegistrationErrors = mode === "register" && submittedRegistration;
 
   return (
     <div className="auth-page">
@@ -88,7 +97,8 @@ export function AuthScreen() {
               <form onSubmit={submit} noValidate>
                 <div className="field">
                   <label htmlFor="auth-username">Username</label>
-                  <input id="auth-username" name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Jordan_23" autoComplete="username" />
+                  <input id="auth-username" name="username" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Jordan_23" autoComplete="username" minLength={mode === "register" ? USERNAME_MIN_LENGTH : undefined} maxLength={USERNAME_MAX_LENGTH} aria-invalid={showRegistrationErrors && Boolean(registration?.username)} aria-describedby={mode === "register" ? "auth-username-help" : undefined} />
+                  {mode === "register" && <p id="auth-username-help" className={showRegistrationErrors && registration?.username ? "form-help form-help-warning" : "form-help"}>{showRegistrationErrors && registration?.username ? registration.username : "2–31 lowercase letters, numbers, underscores or hyphens. Start with a letter or number."}</p>}
                 </div>
 
                 {mode === "recover" && (
@@ -100,7 +110,8 @@ export function AuthScreen() {
 
                 <div className="field">
                   <label htmlFor="auth-password">{mode === "recover" ? "New password" : "Password"}</label>
-                  <input id="auth-password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+                  <input id="auth-password" name="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "login" ? undefined : PASSWORD_MIN_LENGTH} maxLength={PASSWORD_MAX_LENGTH} aria-invalid={showRegistrationErrors && Boolean(registration?.password)} aria-describedby={mode === "register" ? "auth-password-help" : undefined} />
+                  {mode === "register" && <p id="auth-password-help" className={showRegistrationErrors && registration?.password ? "form-help form-help-warning" : "form-help"}>{showRegistrationErrors && registration?.password ? registration.password : "Use 8–128 characters. A passphrase is easiest to remember."}</p>}
                 </div>
 
                 {mode === "register" && referralCode && <p className="form-help">Invite code <strong>{referralCode}</strong> will be applied after sign-up.</p>}

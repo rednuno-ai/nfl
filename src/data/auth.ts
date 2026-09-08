@@ -84,7 +84,13 @@ async function remoteRequest<T = Record<string, unknown>>(path: string, init?: R
       headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });
     if (!response.headers.get("content-type")?.includes("application/json")) {
-      if (!isPublishedHost()) backendMode = "local";
+      // A deployed game must never pretend that a browser-only account was
+      // created when its account route is misconfigured or unavailable.
+      // That used to make sign-up look successful, then fail after refresh.
+      if (isPublishedHost()) {
+        return { ok: false, status: 502, data: { error: "The secure account service returned an unexpected response. Please try again in a moment." } as T & { error?: string } };
+      }
+      backendMode = "local";
       return null;
     }
     const data = (await response.json()) as T & { error?: string; ok?: boolean };

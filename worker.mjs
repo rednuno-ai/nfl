@@ -12,6 +12,7 @@ const DEMO_RECOVERY_KEY = "DEMO-2026";
 const SESSION_COOKIE = "gl_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
 const MAX_CAREER_BYTES = 1_000_000;
 const REFERRAL_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -85,7 +86,8 @@ function validUsername(username) {
 }
 
 function validPassword(username, password) {
-  return username === DEMO_USERNAME ? String(password).length >= 3 : String(password).length >= MIN_PASSWORD_LENGTH;
+  const length = String(password).length;
+  return username === DEMO_USERNAME ? length >= 3 && length <= MAX_PASSWORD_LENGTH : length >= MIN_PASSWORD_LENGTH && length <= MAX_PASSWORD_LENGTH;
 }
 
 function userForClient(row) {
@@ -226,8 +228,9 @@ export class AccountStore extends DurableObject {
       const body = await this.body(request);
       const username = normalizeUsername(body.username);
       const password = String(body.password ?? "");
+      if (username === DEMO_USERNAME) return apiError("That username is reserved for the public demo. Choose another one.");
       if (!validUsername(username)) return apiError("Use 2–31 lowercase letters, numbers, _ or - for your username.");
-      if (!validPassword(username, password)) return apiError(`Use at least ${MIN_PASSWORD_LENGTH} characters for your password.`);
+      if (!validPassword(username, password)) return apiError(`Use ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters for your password.`);
       if (this.one("SELECT username FROM accounts WHERE username = ?", username)) return apiError("That username is already registered.");
 
       let referrer = null;
