@@ -279,7 +279,7 @@ export class AccountStore extends DurableObject {
       if (!account || normalizeRecoveryKey(account.recovery_key) !== normalizeRecoveryKey(body.recoveryKey)) {
         return apiError("That username and recovery code do not match.", 401);
       }
-      if (!validPassword(username, password)) return apiError(`Use at least ${MIN_PASSWORD_LENGTH} characters for your new password.`);
+      if (!validPassword(username, password)) return apiError(`Use ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters for your new password.`);
       const salt = randomToken(16);
       this.ctx.storage.sql.exec("UPDATE accounts SET password_salt = ?, password_hash = ? WHERE username = ?", salt, await hashPassword(password, salt), username);
       const token = await this.newSession(username);
@@ -302,7 +302,7 @@ export class AccountStore extends DurableObject {
         return apiError("Your current password is incorrect.", 401);
       }
       const password = String(body.nextPassword ?? "");
-      if (!validPassword(username, password)) return apiError(`Use at least ${MIN_PASSWORD_LENGTH} characters for your new password.`);
+      if (!validPassword(username, password)) return apiError(`Use ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters for your new password.`);
       const salt = randomToken(16);
       this.ctx.storage.sql.exec("UPDATE accounts SET password_salt = ?, password_hash = ? WHERE username = ?", salt, await hashPassword(password, salt), username);
       return json({ ok: true, user: userForClient(this.one("SELECT * FROM accounts WHERE username = ?", username)) });
