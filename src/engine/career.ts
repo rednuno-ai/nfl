@@ -575,6 +575,8 @@ export function hasRecentNarrativeArc(state: CareerState, candidate: GameEventDe
 }
 
 function rollNarrativeEvent(state: CareerState): { state: CareerState; decision: PendingDecision | null } {
+  const introduction = ALL_EVENTS.find(event => event.id.startsWith("intro_") && isEventEligible(event, state).eligible);
+  if (introduction) return { state, decision: { eventId: introduction.id, title: introduction.title, description: introduction.id === "intro_coach" ? `${state.relationships.find(person => person.type === "coach")?.name ?? "Your coach"} welcomes you. ${introduction.description}` : introduction.description, choices: introduction.choices, week: state.totalWeek } };
   const categories = categoriesForStage(state.stage);
   const candidates = ALL_EVENTS.filter((e) => categories.includes(e.category));
   const { result: rolled, rngState } = withRng(state, (rng) => {
@@ -600,7 +602,8 @@ function rollNarrativeEvent(state: CareerState): { state: CareerState; decision:
 
 function applyTrainingTick(state: CareerState, focus: TrainingFocus): CareerState {
   const college = state.college ? getCollege(state.college.collegeId) : null;
-  const devRate = college ? college.developmentRate : 1;
+  const coachTrust = state.tags.includes("met:coach") ? state.relationships.find(person => person.type === "coach")?.value ?? 50 : 50;
+  const devRate = (college ? college.developmentRate : 1) * (1 + (coachTrust - 50) / 500);
   const { result, rngState } = withRng(state, (rng) =>
     applyTraining(state.player.attributes, focus, 1, devRate, rng, positionSpecificPaths(state.player), state.trainingLoad ?? 0)
   );
@@ -801,13 +804,13 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
 
   const performanceScore = scoreGamePerformance(game.stat, state.player.position);
   const { result: newsItem, rngState: rngState1 } = withRng(state, (rng) =>
-    generatePerformanceNews(state.totalWeek, state.player.bio.lastName, `${ownTeam.city} ${ownTeam.name}`.trim(), performanceScore, rng)
+    generatePerformanceNews(state.totalWeek, state.player.bio.lastName, `${ownTeam.city} ${ownTeam.name}`.trim(), performanceScore, rng, { stage: state.stage, age: state.player.bio.age, fame: state.player.attributes.general.fame })
   );
   let news = state.news;
   if (newsItem) news = [newsItem, ...news].slice(0, 100);
 
   const { result: social, rngState: rngState2 } = withRng({ ...state, rngState: rngState1 }, (rng) =>
-    rng.chance(0.4) ? generateSocialPost(state.totalWeek, performanceScore >= 0 ? "positive" : "negative", rng) : null
+    rng.chance(0.4) ? generateSocialPost(state.totalWeek, performanceScore >= 0 ? "positive" : "negative", rng, { stage: state.stage, age: state.player.bio.age, fame: state.player.attributes.general.fame }) : null
   );
   let socialFeed = state.socialFeed;
   if (social) socialFeed = [social, ...socialFeed].slice(0, 100);
@@ -1193,6 +1196,7 @@ export function commitToCollege(state: CareerState, collegeId: string): CareerSt
       weekInSeason: 1,
       seasonRecord: emptyRecord(),
       relationships: [...state.relationships.filter((r) => r.type !== "coach"), { id: `rel_coach_college`, name: `${college.name} Coaching Staff`, type: "coach", value: 55, tags: [], history: [] }],
+      tags: state.tags.filter(tag => tag !== "met:coach"),
     },
     `Committed to ${college.name} ${college.mascot}!`
   );

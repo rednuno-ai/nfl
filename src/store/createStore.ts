@@ -42,10 +42,11 @@ export function createStore<T extends object>(initializer: (set: StoreApi<T>["se
 
 export function createUseStore<T extends object>(api: StoreApi<T>) {
   return function useStore<U>(selector: (state: T) => U): U {
-    return useSyncExternalStore(
+    const state = useSyncExternalStore(
       api.subscribe,
-      () => selector(api.getState()),
-      () => selector(api.getState())
+      api.getState,
+      api.getState
     );
+    return selector(state);
   };
 }

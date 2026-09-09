@@ -8,6 +8,8 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
  * backdrop. */
 export function useDialogFocus(onEscape?: () => void) {
   const dialogRef = useRef<HTMLElement>(null);
+  const escapeRef = useRef(onEscape);
+  escapeRef.current = onEscape;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -16,9 +18,9 @@ export function useDialogFocus(onEscape?: () => void) {
     const frame = window.requestAnimationFrame(focusFirst);
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && onEscape) {
+      if (event.key === "Escape" && escapeRef.current) {
         event.preventDefault();
-        onEscape();
+        escapeRef.current();
         return;
       }
       if (event.key !== "Tab" || !dialog) return;
@@ -41,7 +43,7 @@ export function useDialogFocus(onEscape?: () => void) {
       window.removeEventListener("keydown", handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [onEscape]);
+  }, []);
 
   return dialogRef;
 }

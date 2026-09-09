@@ -1,4 +1,8 @@
 import { createStore, createUseStore } from "./createStore";
+import { restoreCareer } from "@data/restoreCareer";
+import { SaveQueue } from "@data/saveQueue";
+
+const saves = new SaveQueue();
 import { getRepository, type CareerSummary } from "@data/index";
 import {
   getSession,
@@ -121,8 +125,8 @@ function persist(state: GameStoreState, set: (partial: Partial<GameStoreState>) 
     // a Supabase-backed repository would be a real network write here, so a
     // rejection (e.g. a dropped connection) shouldn't crash the app — just
     // surface it for debugging.
-    void getRepository()
-      .saveCareer(state.userId, state.activeCareer)
+    const career = state.activeCareer;
+    void saves.enqueue(`${state.userId}:${career.id}`, () => getRepository().saveCareer(state.userId, career))
       .then(() => {
         if (state.saveError) set({ saveError: null });
       })
@@ -290,7 +294,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   },
 
   refreshCareers: async () => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const careers = await getRepository().listCareers(get().userId);
       set({ careers, loading: false });
@@ -304,7 +308,8 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     completeOnboarding();
     set({ activeCareer: state, screen: "dashboard" });
     try {
-      await getRepository().saveCareer(get().userId, state);
+      const userId = get().userId;
+      await saves.enqueue(`${userId}:${state.id}`, () => getRepository().saveCareer(userId, state));
     } catch (err) {
       console.error("Initial career save failed:", err);
       set({ saveError: "Your new career could not be saved yet. Check your connection, then retry." });
@@ -313,13 +318,18 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
   },
 
   openCareer: async (id) => {
-    set({ loading: true });
+    if (get().loading) return;
+    const userId = get().userId;
+    set({ loading: true, error: null });
     try {
-      const state = await getRepository().loadCareer(get().userId, id);
-      set({ activeCareer: state, screen: state ? "dashboard" : "career-select", loading: false, toast: state ? get().toast : "That career could not be found." });
+      await saves.flush(`${userId}:${id}`);
+      const saved = await getRepository().loadCareer(userId, id);
+      if (get().userId !== userId) return;
+      const state = saved ? restoreCareer(saved) : null;
+      set({ activeCareer: state, screen: state?.interaction?.type === "game" ? "game-day" : state ? "dashboard" : "career-select", loading: false, cinematic: null, error: state ? null : "That career could not be found." });
     } catch (err) {
       console.error("Career load failed:", err);
-      set({ loading: false, toast: "Couldn't open that career. Check your connection and try again." });
+      if (get().userId === userId) set({ loading: false, error: err instanceof Error ? err.message : "Couldn't open that career. Please retry." });
     }
   },
 
@@ -359,7 +369,21 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const current = get().activeCareer;
     if (!current) return;
     const decision = current.interaction?.type === "decision" ? current.interaction.decision : null;
-    applyCareer(get, set, resolveDecision(current, choiceId));
+    const next = resolveDecision(current, choiceId);
+    const choice = decision?.choices.find(option => option.id === choiceId);
+    const impacts = next.relationships.flatMap(person => {
+      const before = current.relationships.find(previous => previous.id === person.id);
+      const delta = person.value - (before?.value ?? 50);
+      return delta ? [`${person.name} ${delta > 0 ? "+" : ""}${delta} trust`] : [];
+    });
+    const cash = next.finance.cash - current.finance.cash;
+    if (cash) impacts.push(`Cash ${cash > 0 ? "+" : ""}${cash}`);
+    for (const [key, value] of Object.entries(next.player.attributes.general)) {
+      const before = current.player.attributes.general[key as keyof typeof current.player.attributes.general];
+      if (typeof value === "number" && typeof before === "number" && value !== before) impacts.push(`${key} ${value > before ? "+" : ""}${value - before}`);
+    }
+    const feedback = `${impacts.join(" · ") || "Choice recorded."}${choice?.description ? ` Next: ${choice.description}` : ""}`;
+    applyCareer(get, set, { ...next, log: [feedback, ...next.log].slice(0, 200) }, feedback);
     const cinematic = decision ? cinematicForDecision(decision.eventId) : null;
     if (cinematic) set({ cinematic });
   },

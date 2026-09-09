@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScreenId } from "@store/gameStore";
+import { useGameStore } from "@store/gameStore";
 
 interface NavEntry {
   id: ScreenId;
@@ -25,8 +26,13 @@ function visibleEntries(gameAvailable: boolean): NavEntry[] {
   return gameAvailable ? [{ id: "game-day", label: "Game Day", icon: "🏈" }, ...NAV_ENTRIES] : NAV_ENTRIES;
 }
 
+function useCareerEntries(gameAvailable: boolean): NavEntry[] {
+  const stage = useGameStore(state => state.activeCareer?.stage);
+  return visibleEntries(gameAvailable).map(entry => entry.id === "finance" && (stage === "high_school" || stage === "recruiting") ? { ...entry, label: "Career Path" } : entry);
+}
+
 export function Sidebar({ active, onNavigate, onExit, gameAvailable = false }: { active: ScreenId; onNavigate: (id: ScreenId) => void; onExit: () => void; gameAvailable?: boolean }) {
-  const entries = visibleEntries(gameAvailable);
+  const entries = useCareerEntries(gameAvailable);
   return (
     <nav className="app-sidebar" aria-label="Career navigation">
       <div className="brand">
@@ -49,7 +55,7 @@ export function Sidebar({ active, onNavigate, onExit, gameAvailable = false }: {
 }
 
 export function MobileNav({ active, onNavigate, gameAvailable = false }: { active: ScreenId; onNavigate: (id: ScreenId) => void; gameAvailable?: boolean }) {
-  const visible = visibleEntries(gameAvailable);
+  const visible = useCareerEntries(gameAvailable);
   const entries = visible.slice(0, 4);
   const secondary = visible.slice(4);
   const [open, setOpen] = useState(false);

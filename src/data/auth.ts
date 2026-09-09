@@ -81,6 +81,7 @@ async function remoteRequest<T = Record<string, unknown>>(path: string, init?: R
     const response = await fetch(path, {
       ...init,
       credentials: "same-origin",
+      signal: AbortSignal.timeout(15000),
       headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });
     if (!response.headers.get("content-type")?.includes("application/json")) {

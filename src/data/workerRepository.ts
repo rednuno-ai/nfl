@@ -1,4 +1,5 @@
 import type { CareerState } from "@engine/career";
+import { restoreCareer } from "./restoreCareer";
 import { computeOverall } from "@engine/attributes";
 import { FREE_TIER_CAREER_LIMIT, type CareerSummary, type Repository } from "./repository";
 
@@ -21,6 +22,7 @@ export class WorkerRepository implements Repository {
     const response = await fetch(path, {
       ...init,
       credentials: "same-origin",
+      signal: AbortSignal.timeout(15000),
       headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });
     const data = (await response.json()) as T;
@@ -29,7 +31,7 @@ export class WorkerRepository implements Repository {
   }
 
   private summary(row: StoredCareer): CareerSummary {
-    const state = row.state;
+    const state = restoreCareer(row.state);
     return {
       id: state.id,
       playerName: `${state.player.bio.firstName} ${state.player.bio.lastName}`,

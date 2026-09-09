@@ -1,4 +1,5 @@
 import type { CareerState } from "@engine/career";
+import { restoreCareer } from "./restoreCareer";
 import { computeOverall } from "@engine/attributes";
 import type { CareerSummary, Repository } from "./repository";
 import { FREE_TIER_CAREER_LIMIT } from "./repository";
@@ -36,8 +37,9 @@ export class LocalRepository implements Repository {
     const ids = getIndex(userId);
     const summaries: CareerSummary[] = [];
     for (const id of ids) {
-      const state = safeParse<CareerState | null>(localStorage.getItem(CAREER_KEY(id)), null);
-      if (!state) continue;
+      const saved = safeParse<CareerState | null>(localStorage.getItem(CAREER_KEY(id)), null);
+      if (!saved) continue;
+      const state = restoreCareer(saved);
       const updatedAt = Number(localStorage.getItem(UPDATED_KEY(id)) ?? 0);
       summaries.push({
         id: state.id,

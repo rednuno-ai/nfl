@@ -63,9 +63,9 @@ export default function App() {
         ? "Membership"
         : activeCareer?.interaction?.type === "game" && screen === "game-day"
           ? "Game Day"
-          : SCREEN_TITLES[screen];
+          : screen === "finance" && (activeCareer?.stage === "high_school" || activeCareer?.stage === "recruiting") ? "Career Path" : SCREEN_TITLES[screen];
     document.title = `${title} | GRIDIRON LIFE`;
-  }, [activeCareer?.interaction?.type, currentUser?.subscriptionActive, screen, session]);
+  }, [activeCareer?.interaction?.type, activeCareer?.stage, currentUser?.subscriptionActive, screen, session]);
 
   useEffect(() => {
     if (session) recordDailyReturn();

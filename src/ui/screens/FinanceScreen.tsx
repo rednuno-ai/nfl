@@ -28,6 +28,13 @@ export function FinanceScreen() {
   const state = useGameStore((s) => s.activeCareer)!;
   const f = state.finance;
 
+  if (state.stage === "high_school" || state.stage === "recruiting") return (
+    <div className="finance-screen"><h1 className="page-title">Recruiting & Career Path</h1>
+      <section className="card"><h2>Prepare for college</h2><p>Practice builds your ability. Schoolwork protects eligibility. Coach trust opens opportunities.</p><p>Personal savings: {money(f.cash)}</p></section>
+      <section className="card"><h2>College interest</h2>{state.recruitingOffers.length ? state.recruitingOffers.map(offer => <div key={offer.collegeId}><p>{offer.collegeName} · {offer.scholarship ? "Scholarship" : "Walk-on interest"}</p>{state.recruitingReady && <button className="btn" onClick={() => gameStore.getState().commitCollege(offer.collegeId)}>Commit to {offer.collegeName}</button>}</div>) : <p>Your game performances and school progress will build your recruiting profile.</p>}</section>
+    </div>
+  );
+
   return (
     <div className="finance-screen">
       <div className="life-finance-hero">

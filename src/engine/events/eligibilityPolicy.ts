@@ -1,4 +1,5 @@
 import type { CareerStage, EventCondition, GameEventDefinition } from "../types";
+import { characterRequirements } from "../characters";
 
 /**
  * Narrative policy lives in one place instead of being reimplemented by
@@ -103,6 +104,7 @@ export function getEventRequirements(event: GameEventDefinition): EventCondition
   // Definitions can lower it (or intentionally raise it) in their own data;
   // `once` always wins so legacy content keeps its original meaning.
   const merged = { maxOccurrences: 3, ...baseline, ...event.conditions, ...override };
+  merged.tagsPresent = [...new Set([...(merged.tagsPresent ?? []), ...characterRequirements(event)])];
   return event.once ? { ...merged, maxOccurrences: 1 } : merged;
 }
 

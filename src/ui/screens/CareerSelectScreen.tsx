@@ -11,6 +11,7 @@ import { startOnboarding } from "@data/metrics";
 export function CareerSelectScreen() {
   const careers = useGameStore((s) => s.careers);
   const loading = useGameStore((s) => s.loading);
+  const error = useGameStore((s) => s.error);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; playerName: string } | null>(null);
 
   useEffect(() => {
@@ -66,6 +67,7 @@ export function CareerSelectScreen() {
       </header>
 
       <main className="homepage-body" id="career-select-main">
+        {error && <div role="alert" className="card"><p>{error}</p><button type="button" className="btn" onClick={() => void gameStore.getState().refreshCareers()}>Retry loading careers</button></div>}
         {loading && <div className="faint" style={{ textAlign: "center" }}>Loading your careers…</div>}
 
         {hasCareers && (

@@ -8,10 +8,12 @@ import { MEDIA_EVENTS } from "./media";
 import { POSITION_EVENTS } from "./position";
 import { CONTINUITY_EVENTS } from "./continuity";
 import type { GameEventDefinition } from "../../types";
+import { CHARACTER_INTRODUCTIONS } from "../../characters";
 
 // Single source of truth: every event definition in the game. To add content,
 // append to the relevant data file above — nothing else needs to change.
 export const ALL_EVENTS: GameEventDefinition[] = [
+  ...CHARACTER_INTRODUCTIONS,
   ...HIGH_SCHOOL_EVENTS,
   ...COLLEGE_EVENTS,
   ...DRAFT_EVENTS,

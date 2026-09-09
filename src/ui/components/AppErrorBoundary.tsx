@@ -26,8 +26,8 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, AppErro
       <main className="app-error-page">
         <div className="card">
           <p className="screen-eyebrow">RECOVERY MODE</p>
-          <h1 className="page-title">We hit a timeout.</h1>
-          <p className="muted">Your local saves were not removed. Reload to return to the latest saved career.</p>
+          <h1 className="page-title">This screen could not be displayed.</h1>
+          <p className="muted">Your saved careers were not removed. Reload to return to career selection.</p>
           <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>Reload game</button>
         </div>
       </main>

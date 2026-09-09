@@ -1,6 +1,7 @@
 import { useGameStore, gameStore } from "@store/gameStore";
 import { AttributeBar } from "../components/AttributeBar";
 import type { Relationship } from "@engine/types";
+import { hasMetCharacter } from "@engine/characters";
 
 const TYPE_LABELS: Record<string, string> = { coach: "Coach", teammate: "Teammates", family: "Family", friend: "Friends", agent: "Agent", rival: "Rival", partner: "Partner", media: "Media", booster: "Booster" };
 const MILESTONE_TAGS = ["in_relationship", "married", "has_child", "owns_house", "owns_luxury_home", "owns_car", "owns_luxury_car", "has_investments", "team_captain"];
@@ -67,8 +68,8 @@ export function RelationshipsScreen() {
 
       <section className="card life-relationship-list" aria-labelledby="connections-heading">
         <div className="life-card-heading"><div><div className="life-card-kicker">CONNECTIONS</div><h2 id="connections-heading" className="section-title">People who shape the journey</h2></div></div>
-        <p className="faint relationship-scale">80–100 trusted · 60–79 strong · 40–59 unsettled · below 40 strained.</p>
-        {state.relationships.map((relationship) => {
+        <p className="faint relationship-scale">80–100 trusted · 60–79 strong · 40–59 unsettled · below 40 strained. Coach trust affects training progress. Trust also opens or closes story opportunities.</p>
+        {state.relationships.filter(relationship => hasMetCharacter(state, relationship)).map((relationship) => {
           const latest = relationship.history?.[0];
           const trend = relationshipTrend(relationship);
           return (
@@ -82,7 +83,7 @@ export function RelationshipsScreen() {
             </div>
           );
         })}
-        {state.relationships.length === 0 && <p className="faint">No tracked relationships yet.</p>}
+        {!state.relationships.some(relationship => hasMetCharacter(state, relationship)) && <p className="faint">Not met yet. Your circle develops through your story.</p>}
       </section>
 
       <section className="card life-milestones-card" aria-labelledby="milestones-heading">

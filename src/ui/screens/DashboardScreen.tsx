@@ -163,7 +163,7 @@ function NormalDashboard({ state }: { state: CareerState }) {
         <AttributeSummary state={state} />
       </div>
       <div className="card">
-        <div className="section-title">Contract</div>
+        <h2 className="section-title">{state.stage === "high_school" || state.stage === "recruiting" ? "Recruiting" : "Contract"}</h2>
         {/* The matchup + "advance" prompt now lives in the NEXT EVENT card above —
             this panel just adds the contract detail that doesn't fit there. */}
         {contract ? (
@@ -171,7 +171,7 @@ function NormalDashboard({ state }: { state: CareerState }) {
             {contract.years - contract.currentYear} year(s) left · weekly salary {money(weeklySalary(contract))}
           </p>
         ) : (
-          <p className="muted">No active contract yet — keep performing to earn one.</p>
+          <p className="muted">{state.stage === "high_school" || state.stage === "recruiting" ? "Build your school record and explore college opportunities in Career Path." : "No active contract yet — keep performing to earn one."}</p>
         )}
       </div>
     </div>

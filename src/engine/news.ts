@@ -1,4 +1,10 @@
 import type { NewsItem, NewsTone, SocialPost } from "./types";
+import type { CareerStage } from "./types";
+
+export interface NewsAudience { stage: CareerStage; age: number; fame: number }
+export function isLocalAudience(context?: NewsAudience): boolean {
+  return Boolean(context && (context.age < 18 || context.stage === "high_school" || context.stage === "recruiting" || context.fame < 20));
+}
 
 // =============================================================================
 // Press & social media generation. Deterministic templates driven by game
@@ -73,7 +79,8 @@ export function generatePerformanceNews(
   playerLastName: string,
   teamOrSchoolName: string,
   performanceScore: number, // -1..1, negative = bad game, positive = great game
-  rng: { next: () => number }
+  rng: { next: () => number },
+  audience?: NewsAudience
 ): NewsItem | null {
   // Not every week produces news — only when something is notable.
   if (Math.abs(performanceScore) < 0.35 && rng.next() > 0.15) return null;
@@ -103,11 +110,11 @@ export function generatePerformanceNews(
   return {
     id: nextId("news", week),
     week,
-    headline: headlineFn(ctx),
-    body,
+    headline: isLocalAudience(audience) ? `${teamOrSchoolName}: ${playerLastName} ${tone === "positive" ? "makes progress on game day" : tone === "negative" ? "has lessons to take into practice" : "prepares for next week"}` : headlineFn(ctx),
+    body: isLocalAudience(audience) ? "The team reviews the latest game and prepares its next practice." : body,
     tone,
-    source: pickSource(rng),
-    requiresResponse: tone === "negative" && rng.next() > 0.5,
+    source: isLocalAudience(audience) ? "School Sports Bulletin" : audience?.stage === "college" ? "Campus Sports" : pickSource(rng),
+    requiresResponse: !isLocalAudience(audience) && tone === "negative" && rng.next() > 0.5,
     responded: false,
     tags: ["performance"],
   };
@@ -142,7 +149,7 @@ const SOCIAL_NEGATIVE = ["Overrated.", "Not it tonight. Rough watch.", "Concerni
 const SOCIAL_COMMENTS_POS = ["Facts.", "Called it months ago.", "MVP trajectory ngl", "Respect the grind 💪"];
 const SOCIAL_COMMENTS_NEG = ["Hard disagree, still elite", "One bad week means nothing", "Y'all are so quick to turn"];
 
-export function generateSocialPost(week: number, tone: "positive" | "negative", rng: { next: () => number }): SocialPost {
+export function generateSocialPost(week: number, tone: "positive" | "negative", rng: { next: () => number }, audience?: NewsAudience): SocialPost {
   const body = tone === "positive" ? pickFrom(SOCIAL_POSITIVE, rng) : pickFrom(SOCIAL_NEGATIVE, rng);
   const comments = Array.from({ length: 1 + Math.floor(rng.next() * 3) }, () =>
     pickFrom(tone === "positive" ? SOCIAL_COMMENTS_POS : SOCIAL_COMMENTS_NEG, rng)
@@ -150,10 +157,10 @@ export function generateSocialPost(week: number, tone: "positive" | "negative", 
   return {
     id: nextId("social", week),
     week,
-    handle: pickFrom(SOCIAL_HANDLES, rng),
-    body,
-    likes: Math.floor(rng.next() * 5000),
-    comments,
+    handle: isLocalAudience(audience) ? "@SchoolSideline" : pickFrom(SOCIAL_HANDLES, rng),
+    body: isLocalAudience(audience) ? (tone === "positive" ? "Good effort from the team today." : "A tough game. Back to practice together.") : body,
+    likes: Math.floor(rng.next() * (isLocalAudience(audience) ? 40 : Math.max(50, (audience?.fame ?? 50) * 100))),
+    comments: isLocalAudience(audience) ? ["See you at practice."] : comments,
     tone,
   };
 }

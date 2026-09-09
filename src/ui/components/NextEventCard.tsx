@@ -121,7 +121,7 @@ function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; 
         </button>
       </div>
       <div className="weekly-plan-links" aria-label="Off-field decisions">
-        <button type="button" onClick={() => gameStore.getState().navigate("relationships")}>Coach, team & family <span>Relationship events change trust · coach {coachTrust}/100 · family {familyTrust}/100</span></button>
+        <button type="button" onClick={() => gameStore.getState().navigate("relationships")}>Coach, team & family <span>Coach {state.tags.includes("met:coach") ? `${coachTrust}/100` : "not met yet"} · Family {state.tags.includes("met:family") ? `${familyTrust}/100` : "not introduced yet"}</span></button>
         <button type="button" onClick={() => gameStore.getState().navigate("news")}>Reputation & social <span>Media choices affect reputation · {Math.round(state.player.attributes.general.reputation)}/100</span></button>
       </div>
       <div className="weekly-risk-note"><strong>Condition: {workload < 25 ? "fresh" : workload < 55 ? "managed" : "overworked"} · injury outlook: {injuryOutlook}</strong><span>Workload {workload}/100 and resilience {resilience}/100 set the next game&apos;s risk. Recovery clears more load; hard practice adds it.</span></div>
