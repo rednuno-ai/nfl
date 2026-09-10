@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useGameStore, gameStore, type ScreenId } from "@store/gameStore";
 import { Sidebar, MobileNav } from "@ui/layout/NavBar";
 import { AuthScreen } from "@ui/screens/AuthScreen";
-import { SubscriptionScreen } from "@ui/screens/SubscriptionScreen";
 import { CareerSelectScreen } from "@ui/screens/CareerSelectScreen";
 import { PrivacyAccountControlsDialog } from "@ui/components/PrivacyAccountControlsDialog";
 import { getGameDayObjective } from "@engine/gameObjectives";
@@ -41,7 +40,6 @@ const SCREEN_TITLES: Record<ScreenId, string> = {
 
 export default function App() {
   const session = useGameStore((s) => s.session);
-  const currentUser = useGameStore((s) => s.currentUser);
   const activeCareer = useGameStore((s) => s.activeCareer);
   const screen = useGameStore((s) => s.screen);
   const toast = useGameStore((s) => s.toast);
@@ -59,13 +57,11 @@ export default function App() {
   useEffect(() => {
     const title = !session
       ? "Sign in"
-      : !currentUser?.subscriptionActive
-        ? "Membership"
-        : activeCareer?.interaction?.type === "game" && screen === "game-day"
+      : activeCareer?.interaction?.type === "game" && screen === "game-day"
           ? "Game Day"
           : screen === "finance" && (activeCareer?.stage === "high_school" || activeCareer?.stage === "recruiting") ? "Career Path" : SCREEN_TITLES[screen];
     document.title = `${title} | GRIDIRON LIFE`;
-  }, [activeCareer?.interaction?.type, activeCareer?.stage, currentUser?.subscriptionActive, screen, session]);
+  }, [activeCareer?.interaction?.type, activeCareer?.stage, screen, session]);
 
   useEffect(() => {
     if (session) recordDailyReturn();
@@ -76,10 +72,7 @@ export default function App() {
     return <AuthScreen />;
   }
 
-  // Subscription paywall: an account alone isn't enough to play.
-  if (!currentUser?.subscriptionActive) {
-    return <SubscriptionScreen />;
-  }
+  // Access is free for now. Existing subscription records remain untouched.
 
   if (!activeCareer) {
     return screen === "create-player" ? <ScreenBoundary label="Loading player builder"><CreatePlayerScreen /></ScreenBoundary> : <CareerSelectScreen />;
