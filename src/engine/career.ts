@@ -514,6 +514,16 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
     return { ...state, interaction: { type: "training", week: state.totalWeek, options: TRAINING_FOCUS_CHOICES } };
   }
   if (options.trainingFocus) {
+    // Introduce every participant before this priority can award trust.
+    // Do not consume the weekly choice while an introduction is pending.
+    if (options.trainingFocus === "relationships") {
+      const missing = ["coach", "family", "teammate"].find(type => !state.tags.includes(`met:${type}`));
+      if (missing) {
+        const introduction = ALL_EVENTS.find(event => event.id === (missing === "coach" && state.stage === "college" ? "intro_college_coach" : `intro_${missing}`));
+        if (!introduction || !isEventEligible(introduction, state).eligible) return state;
+        return { ...state, trainingFocusChosenForWeek: -1, pendingTrainingFocus: null, interaction: { type: "decision", decision: { eventId: introduction.id, title: introduction.title, description: introduction.description, choices: introduction.choices, week: state.totalWeek } } };
+      }
+    }
     state = { ...state, trainingFocusChosenForWeek: state.totalWeek, pendingTrainingFocus: options.trainingFocus };
     if (isTrainingFocus(options.trainingFocus)) {
       state = applyTrainingCondition(state, options.trainingFocus);

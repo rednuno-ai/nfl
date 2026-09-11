@@ -133,6 +133,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .btn,.pill-option,.skip-link,input:not([type="checkbox"]):not([type="radio"]),select{min-height:44px}.life-buy-button,.life-action-row .btn{min-height:44px!important}.app-footer button{display:inline-flex;align-items:center;min-height:44px;margin-left:8px;padding:6px 4px}.skip-link{display:inline-flex;align-items:center}
 @media(max-width:480px){.app-footer button{display:flex;width:max-content;margin-left:0}}
 
+/* Compact player summary; decisions use the available desktop width. */
+.command-center-row{grid-template-columns:minmax(0,1fr);align-items:start}
+.command-center-row .player-hero,.command-center-row .next-event-card{height:auto}
+.weekly-plan-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.weekly-plan-option{min-height:88px;padding:14px 16px}
+.weekly-plan-option strong{font-size:16px}
+.weekly-plan-option span,.choice-desc{font-size:14px;line-height:1.55;color:#cbd2df}
+.weekly-plan-option:last-child:nth-child(odd){grid-column:1 / -1}
+@media(max-width:600px){.weekly-plan-options{grid-template-columns:minmax(0,1fr)}.weekly-plan-option{min-height:80px}}
+
 /* People screen: relationship scores are readable at a glance without
    turning the page into another dashboard. */
 .life-availability{display:inline-flex;width:max-content;padding:5px 8px;border:1px solid var(--border);border-radius:999px;color:var(--text-dim);font-size:12px;font-weight:700}.life-headline{margin:7px 0 2px;font-weight:800}.relationship-scale{margin:4px 0 14px;font-size:12px}.relationship-context{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:5px 0 13px 2px;font-size:12px}.relationship-meaning{font-weight:800;color:var(--text-dim)}.relationship-trend-up,.relationship-trend-down,.relationship-trend-steady{font-weight:800}.relationship-trend-up{color:#65cf96}.relationship-trend-down{color:#ef7b78}.relationship-trend-steady{color:var(--text-dim)}.relationship-cause{flex-basis:100%;color:var(--text-muted);line-height:1.4}.life-milestones-card{margin-top:22px}

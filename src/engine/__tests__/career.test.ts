@@ -160,6 +160,7 @@ describe("career state machine", () => {
 
   it("makes weekly relationship and media priorities apply visible, exclusive trade-offs", () => {
     const base = createCareer(baseInput());
+    base.tags.push("met:coach", "met:family", "met:teammate");
     const relationshipWeek = advanceWeek(base, { trainingFocus: "relationships" });
     const socialWeek = advanceWeek(base, { trainingFocus: "social" });
     const relationshipValue = (state: CareerState, type: string) => state.relationships.find((relationship) => relationship.type === type)?.value;

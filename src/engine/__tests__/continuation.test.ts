@@ -22,6 +22,24 @@ function step(state: CareerState): CareerState {
 }
 
 describe("career recovery and narrative continuity", () => {
+  it("introduces the circle before awarding weekly relationship gains", () => {
+    let state = fresh();
+    for (const type of ["coach", "family", "teammate"]) {
+      const before = state.relationships;
+      state = advanceWeek(state, { trainingFocus: "relationships" });
+      expect(state.relationships).toEqual(before);
+      expect(state.trainingFocusChosenForWeek).not.toBe(state.totalWeek);
+      expect(state.interaction?.type).toBe("decision");
+      if (state.interaction?.type !== "decision") throw new Error("Missing introduction");
+      expect(state.interaction.decision.eventId).toBe(`intro_${type}`);
+      state = resolveDecision(state, "engage");
+      expect(state.tags).toContain(`met:${type}`);
+    }
+    const before = state.relationships.find(person => person.type === "coach")!.value;
+    state = advanceWeek(state, { trainingFocus: "relationships" });
+    expect(state.relationships.find(person => person.type === "coach")!.value).toBe(before + 3);
+    expect(state.trainingFocusChosenForWeek).toBe(state.totalWeek);
+  });
   it("restores optional legacy fields without modifying the saved source", () => {
     const saved = fresh();
     const old = JSON.parse(JSON.stringify(saved));

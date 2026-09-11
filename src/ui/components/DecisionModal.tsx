@@ -1,12 +1,12 @@
 import type { PendingDecision } from "@engine/types";
 import { useDialogFocus } from "@ui/hooks/useDialogFocus";
 
-export function DecisionModal({ decision, onChoose }: { decision: PendingDecision; onChoose: (choiceId: string) => void }) {
+export function DecisionModal({ decision, week, onChoose }: { decision: PendingDecision; week: number; onChoose: (choiceId: string) => void }) {
   const dialogRef = useDialogFocus();
   return (
     <div className="modal-backdrop">
       <section ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="decision-modal-title" aria-describedby="decision-modal-description">
-        <div className="modal-eyebrow">Decision · Week {decision.week}</div>
+        <div className="modal-eyebrow">Decision · Week {week}</div>
         <h2 id="decision-modal-title" className="modal-title">{decision.title}</h2>
         <p id="decision-modal-description" className="modal-body">{decision.description}</p>
         <div className="choice-list">

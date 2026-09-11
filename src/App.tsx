@@ -95,7 +95,7 @@ export default function App() {
             <span className="season-hud-divider" aria-hidden="true">•</span>
             <span>WEEK {activeCareer.weekInSeason}</span>
             <span className="season-hud-divider" aria-hidden="true">•</span>
-            <span className="season-hud-screen">{screen.replace("-", " ")}</span>
+            <span className="season-hud-screen">{screen === "finance" && (activeCareer.stage === "high_school" || activeCareer.stage === "recruiting") ? "Career Path" : SCREEN_TITLES[screen]}</span>
           </div>
         </header>
         <main id="game-main" className="app-main" tabIndex={-1}>
@@ -125,9 +125,9 @@ export default function App() {
       </div>
       <MobileNav active={screen} gameAvailable={interactionIsGame(activeCareer)} onNavigate={(id) => gameStore.getState().navigate(id)} />
 
-      {interaction?.type === "decision" && <Suspense fallback={null}><DecisionModal decision={interaction.decision} onChoose={(choiceId) => gameStore.getState().decide(choiceId)} /></Suspense>}
+      {interaction?.type === "decision" && <Suspense fallback={null}><DecisionModal decision={interaction.decision} week={activeCareer.weekInSeason} onChoose={(choiceId) => gameStore.getState().decide(choiceId)} /></Suspense>}
       {interaction?.type === "training" && (
-        <Suspense fallback={null}><TrainingModal week={interaction.week} options={interaction.options} onChoose={(focusId) => gameStore.getState().chooseTraining(focusId)} /></Suspense>
+        <Suspense fallback={null}><TrainingModal week={activeCareer.weekInSeason} options={interaction.options} onChoose={(focusId) => gameStore.getState().chooseTraining(focusId)} /></Suspense>
       )}
       {cinematic && <Suspense fallback={null}><LifeCinematic {...cinematic} onClose={() => gameStore.getState().dismissCinematic()} /></Suspense>}
       {privacyOpen && (
