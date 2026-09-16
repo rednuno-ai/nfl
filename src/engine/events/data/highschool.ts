@@ -332,7 +332,7 @@ export const HIGH_SCHOOL_EVENTS: GameEventDefinition[] = [
   {
     id: "hs_college_camp_invite",
     category: "high_school",
-    title: "Summer Camp at a College Program",
+    title: "College Prospect Workout",
     description: "A college program invited you to a prospect workout in front of their staff.",
     conditions: { stage: ["high_school"], minAge: 15, probability: 0.25 },
     cooldownWeeks: 20,
