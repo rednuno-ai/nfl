@@ -357,7 +357,7 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     if (options?.trainingFocus) recordWeeklyPriority(options.trainingFocus);
     const next = advanceWeek(current, options);
     if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
-    const weeklyFeedback = options?.trainingFocus === "relationships" && next.trainingFocusChosenForWeek === current.totalWeek && current.trainingFocusChosenForWeek !== current.totalWeek ? next.log.find(entry => entry.startsWith("Team & family:")) : undefined;
+    const weeklyFeedback = options?.trainingFocus && ["relationships", "social", "family_time", "team_leadership"].includes(options.trainingFocus) && next.trainingFocusChosenForWeek === current.totalWeek && current.trainingFocusChosenForWeek !== current.totalWeek ? next.log.find(entry => /^(Team & family|Family reset|Team leadership|Community & media):/.test(entry)) : undefined;
     applyCareer(get, set, next, weeklyFeedback);
     if (next.interaction?.type === "game") {
       set({ screen: "game-day" });

@@ -20,9 +20,11 @@ export function describeImpact(before: CareerState, after: CareerState): string[
     else if (person.value !== old.value) changes.push(`${person.name} trust ${signed(person.value - old.value)}`);
   }
   const cash = after.finance.cash - before.finance.cash;
+  const workload = after.trainingLoad - before.trainingLoad;
+  if (workload) changes.push(`Workload ${signed(workload)}`);
   if (cash) changes.push(`Cash ${signed(cash)} dollars`);
   for (const injury of after.injuries) if (!before.injuries.some(old => old.id === injury.id)) changes.push(`Injury: ${injury.type}`);
-  for (const flag of after.tags.filter(tag => !before.tags.includes(tag))) changes.push(`Story: ${flag.replace(/[:_]/g, " ")}`);
+  for (const flag of after.tags.filter(tag => !before.tags.includes(tag) && !tag.startsWith("event:"))) changes.push(`Story: ${flag.replace(/[:_]/g, " ")}`);
   for (const flag of before.tags.filter(tag => !after.tags.includes(tag))) changes.push(`Resolved: ${flag.replace(/[:_]/g, " ")}`);
   return changes;
 }

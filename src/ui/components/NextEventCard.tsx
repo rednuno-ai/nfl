@@ -120,6 +120,12 @@ function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; 
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("social")}>
           <strong>📣 Community &amp; media</strong><span>Reputation +2, fame +1, media +3. Cost: −1 morale, no recovery.</span>
         </button>
+        {state.tags.includes("met:family") && <button type="button" className="weekly-plan-option" onClick={() => onChoose("family_time")}>
+          <strong>🏡 Family reset</strong><span>Up to +5 family trust, +4 morale, −8 workload. No practice or team trust gain.</span>
+        </button>}
+        {state.tags.includes("met:teammate") && <button type="button" className="weekly-plan-option" onClick={() => onChoose("team_leadership")}>
+          <strong>🤝 Lead a team session</strong><span>Up to +4 team trust, +2 leadership, +1 football IQ. Costs 2 morale and adds 8 workload; no position practice.</span>
+        </button>}
       </div>
       <div className="weekly-plan-links" aria-label="Off-field decisions">
         <button type="button" onClick={() => gameStore.getState().navigate("relationships")}>Coach, team & family <span>Coach {state.tags.includes("met:coach") ? `${coachTrust}/100` : "not met yet"} · Family {state.tags.includes("met:family") ? `${familyTrust}/100` : "not introduced yet"}</span></button>

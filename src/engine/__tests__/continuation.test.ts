@@ -24,6 +24,34 @@ function step(state: CareerState): CareerState {
 }
 
 describe("career recovery and narrative continuity", () => {
+  it("gates new life choices behind introductions without spending the week", () => {
+    for (const focus of ["family_time", "team_leadership"] as const) {
+      const before = fresh();
+      const after = advanceWeek(before, { trainingFocus: focus });
+      expect(after.relationships).toEqual(before.relationships);
+      expect(after.player).toEqual(before.player);
+      expect(after.trainingFocusChosenForWeek).not.toBe(after.totalWeek);
+      expect(after.interaction?.type).toBe("decision");
+    }
+  });
+  it("makes family recovery and team leadership distinct capped trade-offs", () => {
+    const base = fresh();
+    base.tags.push("met:family", "met:teammate", "met:coach");
+    base.trainingLoad = 20;
+    base.player.attributes.general.morale = 99;
+    const family = advanceWeek(base, { trainingFocus: "family_time" });
+    const team = advanceWeek(base, { trainingFocus: "team_leadership" });
+    expect(family.trainingLoad).toBe(12);
+    expect(team.trainingLoad).toBe(28);
+    expect(family.player.attributes.general.morale).toBe(100);
+    expect(team.player.attributes.general.morale).toBe(97);
+    expect(team.player.attributes.general.leadership).toBe(base.player.attributes.general.leadership + 2);
+    expect(describeImpact(base, family).join(" ")).toContain("morale +1");
+    const restored = restoreCareer(JSON.parse(JSON.stringify(team)));
+    const repeated = advanceWeek(restored, { trainingFocus: "team_leadership" });
+    expect(repeated.player.attributes).toEqual(restored.player.attributes);
+    expect(repeated.trainingLoad).toBe(restored.trainingLoad);
+  });
   it("records a new decision at the displayed season week", () => {
     const pending = advanceWeek(fresh(), { trainingFocus: "relationships" });
     const resolved = resolveDecision(pending, "engage");

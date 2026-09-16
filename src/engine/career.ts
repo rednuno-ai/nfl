@@ -79,7 +79,7 @@ export interface TrainingFocusChoice {
  * week, preserving the trade-off instead of forcing a workout every turn. */
 /** One weekly priority only: field work, recovery, or an intentional life
  * investment. The life priorities are real trade-offs, not navigation links. */
-export type TrainingSelection = TrainingFocus | "relationships" | "social" | "skip";
+export type TrainingSelection = TrainingFocus | "relationships" | "social" | "family_time" | "team_leadership" | "skip";
 
 // Every trainable week the player picks how to spend their practice time
 // before the rest of the week (narrative event / game / offseason work)
@@ -94,6 +94,8 @@ export const TRAINING_FOCUS_CHOICES: TrainingFocusChoice[] = [
   { id: "position_specific", label: "Position-Specific Work", description: "Focuses on your position's key attributes." },
   { id: "recovery", label: "Active Recovery", description: "Reduces fatigue and injury risk; slower attribute gains." },
   { id: "relationships", label: "Team & Family Time", description: "Builds coach, teammate and family trust; no training gain this week." },
+  { id: "family_time", label: "Family Reset", description: "Family trust +5, morale +4, workload −8. No practice or team trust gain." },
+  { id: "team_leadership", label: "Lead a Team Session", description: "Team trust +4, leadership +2, football IQ +1. Costs 2 morale and adds 8 workload; no position practice." },
   { id: "social", label: "Community & Media", description: "Builds reputation and media access; no training or recovery gain this week." },
   { id: "skip", label: "Skip Training", description: "Take the week for life off the field. No attribute gain this week." },
 ];
@@ -397,7 +399,19 @@ function isTrainingFocus(selection: TrainingSelection): selection is TrainingFoc
 /** Applies non-training weekly priorities at the moment the player chooses
  * them, so their consequence is visible before game day. They are excluded
  * from the later practice tick — one week deliberately has one priority. */
-function applyLifePriority(state: CareerState, selection: Extract<TrainingSelection, "relationships" | "social">): CareerState {
+function applyLifePriority(state: CareerState, selection: Extract<TrainingSelection, "relationships" | "social" | "family_time" | "team_leadership">): CareerState {
+  if (selection === "family_time" || selection === "team_leadership") {
+    const family = selection === "family_time";
+    const next: CareerState = {
+      ...state,
+      relationships: bumpRelationship(state, family ? "family" : "team", family ? 5 : 4, family ? "Made time for family this week." : "Led a team study session."),
+      trainingLoad: Math.max(0, Math.min(100, state.trainingLoad + (family ? -8 : 8))),
+      player: { ...state.player, attributes: applyAttributeDeltas(state.player.attributes, family
+        ? [{ path: "general.morale", delta: 4 }]
+        : [{ path: "general.leadership", delta: 2 }, { path: "mental.footballIQ", delta: 1 }, { path: "general.morale", delta: -2 }]) },
+    };
+    return log(next, `${family ? "Family reset" : "Team leadership"}: ${describeImpact(state, next).join(" · ")}. No position practice.`);
+  }
   if (selection === "relationships") {
     let relationships = bumpRelationship(state, "coach", 3);
     relationships = bumpRelationship({ ...state, relationships }, "team", 2);
@@ -415,7 +429,8 @@ function applyLifePriority(state: CareerState, selection: Extract<TrainingSelect
     ...state.player,
     attributes: applyAttributeDeltas(state.player.attributes, [{ path: "general.reputation", delta: 2 }, { path: "general.fame", delta: 1 }, { path: "general.morale", delta: -1 }]),
   };
-  return log({ ...state, player, relationships }, "Weekly priority: invested in community and media (+reputation, +fame; less recovery this week). ");
+  const next = { ...state, player, relationships };
+  return log(next, `Community & media: ${describeImpact(state, next).join(" · ")}. No practice gain.`);
 }
 
 // -----------------------------------------------------------------------------
@@ -524,8 +539,9 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
     if (state.trainingFocusChosenForWeek === state.totalWeek) return advanceWeek(state);
     // Introduce every participant before this priority can award trust.
     // Do not consume the weekly choice while an introduction is pending.
-    if (options.trainingFocus === "relationships") {
-      const missing = ["coach", "family", "teammate"].find(type => !state.tags.includes(`met:${type}`));
+    if (["relationships", "family_time", "team_leadership"].includes(options.trainingFocus)) {
+      const required = options.trainingFocus === "family_time" ? ["family"] : options.trainingFocus === "team_leadership" ? ["teammate"] : ["coach", "family", "teammate"];
+      const missing = required.find(type => !state.tags.includes(`met:${type}`));
       if (missing) {
         const introduction = ALL_EVENTS.find(event => event.id === (missing === "coach" && state.stage === "college" ? "intro_college_coach" : `intro_${missing}`));
         if (!introduction || !isEventEligible(introduction, state).eligible) return state;
@@ -535,7 +551,7 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
     state = { ...state, trainingFocusChosenForWeek: state.totalWeek, pendingTrainingFocus: options.trainingFocus };
     if (isTrainingFocus(options.trainingFocus)) {
       state = applyTrainingCondition(state, options.trainingFocus);
-    } else if (options.trainingFocus === "relationships" || options.trainingFocus === "social") {
+    } else if (options.trainingFocus === "relationships" || options.trainingFocus === "social" || options.trainingFocus === "family_time" || options.trainingFocus === "team_leadership") {
       state = applyLifePriority(state, options.trainingFocus);
     }
   }
