@@ -8,6 +8,8 @@ import { characterRequirements, hasMetCharacter } from "../characters";
 import { generatePerformanceNews, generateSocialPost } from "../news";
 import { RNG } from "../rng";
 import { POINT_BUY_SLOTS } from "../attributes";
+import { applyAttributeDeltas } from "../attributes";
+import { describeImpact } from "../impact";
 import type { Position } from "../types";
 
 function fresh(position: Position = "QB") {
@@ -22,6 +24,60 @@ function step(state: CareerState): CareerState {
 }
 
 describe("career recovery and narrative continuity", () => {
+  it("records a new decision at the displayed season week", () => {
+    const pending = advanceWeek(fresh(), { trainingFocus: "relationships" });
+    const resolved = resolveDecision(pending, "engage");
+    expect(resolved.log[0]).toContain("Week 1:");
+    expect(resolveDecision(resolved, "engage")).toBe(resolved);
+  });
+  it("reports clamped gains including nested position skills and money", () => {
+    const before = fresh();
+    before.player.attributes.physical.stamina = 99;
+    const after = structuredClone(before);
+    after.player.attributes = applyAttributeDeltas(before.player.attributes, [
+      { path: "physical.stamina", delta: 3 }, { path: "mental.footballIQ", delta: 2 },
+      { path: "position.QB.shortAccuracy", delta: 1 },
+    ]);
+    after.finance.cash += 25;
+    const impact = describeImpact(before, after).join(" | ");
+    expect(impact).toContain("stamina +1");
+    expect(impact).toContain("football iq +2");
+    expect(impact).toContain("short accuracy +1");
+    expect(impact).toContain("Cash +25 dollars");
+  });
+  it("rejects preseason stories after the opener even if the week is stale", () => {
+    const state = fresh(); state.stage = "college"; state.player.bio.age = 18;
+    state.tags.push("met:coach");
+    const event = ALL_EVENTS.find(e => e.id === "college_depth_chart_battle")!;
+    state.weekInSeason = 2;
+    expect(isEventEligible(event, state).reasons.some(reason => reason.code === "season_phase")).toBe(true);
+  });
+  it("completes a season with save/reopen and no duplicate game or priority rewards", () => {
+    let state = fresh();
+    state.tags.push("met:coach", "met:family", "met:teammate");
+    let summaries = 0;
+    for (let i = 0; i < 150 && state.player.bio.age === 15; i++) {
+      state = restoreCareer(JSON.parse(JSON.stringify(state)));
+      if (state.interaction?.type === "game") {
+        state = simulateActiveGame(state);
+        expect(state.lastGameSummary?.score).toMatch(/\d+–\d+/);
+        expect(state.lastGameSummary?.nextObjective).toBeTruthy();
+        expect(acknowledgeFinishedGame(state)).toBe(state);
+        expect(simulateActiveGame(state)).toBe(state);
+        summaries++;
+      } else if (!state.interaction) {
+        state = advanceWeek(state, { trainingFocus: "relationships" });
+        const morale = state.player.attributes.general.morale;
+        const coach = state.relationships[0].value;
+        const repeated = advanceWeek(state, { trainingFocus: "relationships" });
+        expect(repeated.player.attributes.general.morale).toBe(morale);
+        expect(repeated.relationships[0].value).toBe(coach);
+        state = repeated;
+      } else state = step(state);
+    }
+    expect(summaries).toBeGreaterThanOrEqual(8);
+    expect(state.player.bio.age).toBeGreaterThan(15);
+  });
   it("introduces the circle before awarding weekly relationship gains", () => {
     let state = fresh();
     for (const type of ["coach", "family", "teammate"]) {

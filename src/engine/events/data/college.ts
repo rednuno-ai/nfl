@@ -27,7 +27,7 @@ export const COLLEGE_EVENTS: GameEventDefinition[] = [
     category: "college",
     title: "Fighting for the Starting Job",
     description: "Preseason camp is a dogfight for the starting role at your position.",
-    conditions: { stage: ["college"], probability: 0.35 },
+    conditions: { stage: ["college"], seasonPhase: "before_opener", probability: 0.35 },
     cooldownWeeks: 15,
     tags: [],
     choices: [

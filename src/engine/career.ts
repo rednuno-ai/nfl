@@ -32,6 +32,7 @@ import type {
   Team,
 } from "./types";
 import { emptyStatLine } from "./types";
+import { describeImpact } from "./impact";
 import { RNG, type RNGState, createSeed, clamp } from "./rng";
 import { createPlayer, type CreatePlayerInput } from "./player";
 import { applyAttributeDelta, applyAttributeDeltas, computeOverall, pointBuyPointsLeft, POINT_BUY_BASELINE, POINT_BUY_MAX, POINT_BUY_SLOTS } from "./attributes";
@@ -104,6 +105,10 @@ export type Interaction =
   | null;
 
 export interface CareerState {
+  lastGameSummary?: {
+    season: number; week: number; opponent: string; score: string; result: string;
+    stats: StatLine; mission: string; missionCompleted: boolean; evolution: string[]; nextObjective: string;
+  };
   id: string;
   seed: number;
   rngState: RNGState;
@@ -401,7 +406,8 @@ function applyLifePriority(state: CareerState, selection: Extract<TrainingSelect
       ...state.player,
       attributes: applyAttributeDeltas(state.player.attributes, [{ path: "general.morale", delta: 3 }, { path: "general.leadership", delta: 1 }]),
     };
-    return log({ ...state, player, relationships }, "Weekly priority: invested time in coach, teammates and family (+trust, +morale; no practice gain). ");
+    const next = { ...state, player, relationships };
+    return log(next, `Team & family: ${describeImpact(state, next).join(" · ")}. No practice gain.`);
   }
 
   const relationships = bumpRelationship(state, "media", 3);
@@ -486,7 +492,7 @@ export function resolveDecision(state: CareerState, choiceId: string): CareerSta
       interaction: null,
       decisionHistory: [resolved, ...state.decisionHistory].slice(0, 300),
     },
-    `Week ${state.totalWeek}: "${decision.title}" -> ${choice.label}`
+    `Week ${state.weekInSeason}: "${decision.title}" -> ${choice.label}`
   );
 }
 
@@ -514,6 +520,8 @@ export function advanceWeek(state: CareerState, options: AdvanceWeekOptions = {}
     return { ...state, interaction: { type: "training", week: state.totalWeek, options: TRAINING_FOCUS_CHOICES } };
   }
   if (options.trainingFocus) {
+    // Repeated clicks or a reopened save cannot award the same weekly focus twice.
+    if (state.trainingFocusChosenForWeek === state.totalWeek) return advanceWeek(state);
     // Introduce every participant before this priority can award trust.
     // Do not consume the weekly choice while an introduction is pending.
     if (options.trainingFocus === "relationships") {
@@ -567,7 +575,7 @@ export function chooseTrainingFocus(state: CareerState, focus: TrainingSelection
   const next: CareerState = {
     ...state,
     interaction: null,
-    trainingFocusChosenForWeek: state.totalWeek,
+    trainingFocusChosenForWeek: -1,
     pendingTrainingFocus: focus,
   };
   return advanceWeek(next, { trainingFocus: focus });
@@ -924,7 +932,14 @@ function foldGameResult(state: CareerState, game: GameSimState, ownTeam: Team, o
     next = log(next, `Injury: ${injuries[injuries.length - 1].type} (out an estimated ${injuries[injuries.length - 1].recoveryWeeks} week(s)).`);
   }
 
-  return finishWeekProcessing(next, true);
+  const finished = finishWeekProcessing(next, true);
+  return { ...finished, lastGameSummary: {
+    season: state.seasonYear, week: state.weekInSeason, opponent: game.opponentName,
+    score: `${game.scorePlayer}–${game.scoreOpponent}`, result: game.result ?? "loss",
+    stats: game.stat, mission: gameDayObjective.title, missionCompleted: objectiveCompleted,
+    evolution: describeImpact(state, finished),
+    nextObjective: finished.retired ? "Review your legacy." : finished.stage !== state.stage ? `Explore your next career chapter: ${finished.stage.replace(/_/g, " ")}.` : getGameDayObjective(finished.player.position, finished.totalWeek).description,
+  } };
 }
 
 function scoreGamePerformance(stat: StatLine, position: string): number {

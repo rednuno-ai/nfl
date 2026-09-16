@@ -480,6 +480,7 @@ export interface EventCondition {
   maxYear?: number;
   minWeek?: number;
   maxWeek?: number;
+  seasonPhase?: "before_opener" | "in_season";
   minCareerWeek?: number;
   minCareerSeasons?: number;
   positions?: Position[];

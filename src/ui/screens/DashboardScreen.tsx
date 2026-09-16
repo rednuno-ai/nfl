@@ -45,6 +45,16 @@ export function DashboardScreen() {
   return (
     <div>
       <h1 className="sr-only">Career HQ</h1>
+      {state.lastGameSummary && <section className="card" aria-labelledby="last-game-summary" style={{ marginBottom: 18 }}>
+        <h2 id="last-game-summary">Last game · Week {state.lastGameSummary.week} · {state.lastGameSummary.season}</h2>
+        <p><strong>{state.lastGameSummary.result.toUpperCase()} {state.lastGameSummary.score}</strong> vs {state.lastGameSummary.opponent}</p>
+        <details><summary>Individual statistics</summary><dl>
+          {Object.entries(state.lastGameSummary.stats).filter(([key, value]) => typeof value === "number" && value !== 0 && !["season", "gamesPlayed", "gamesStarted"].includes(key)).map(([key, value]) => <div key={key}><dt>{key.replace(/([a-z])([A-Z])/g, "$1 $2")}</dt><dd>{String(value)}</dd></div>)}
+        </dl></details>
+        <p>Mission: {state.lastGameSummary.mission} — {state.lastGameSummary.missionCompleted ? "Completed" : "Not completed"}</p>
+        <details><summary>Evolution and rewards</summary><ul>{state.lastGameSummary.evolution.length ? state.lastGameSummary.evolution.map((item, i) => <li key={i}>{item}</li>) : <li>No numerical changes.</li>}</ul></details>
+        <p>Next objective: {state.lastGameSummary.nextObjective}</p>
+      </section>}
       <div className="dashboard-intro">
         <div>
           <div className="screen-eyebrow">CAREER COMMAND CENTER</div>

@@ -73,7 +73,7 @@ export const HIGH_SCHOOL_EVENTS: GameEventDefinition[] = [
     id: "hs_two_a_days",
     category: "high_school",
     title: "Two-a-Day Practices",
-    description: "Preseason camp is brutal. Your coach is pushing the team hard before the opener.",
+    description: "A demanding week of practice tests your endurance. Your coach is pushing the team hard before the next game.",
     conditions: { stage: ["high_school"], probability: 0.5 },
     cooldownWeeks: 20,
     tags: [],
@@ -81,6 +81,7 @@ export const HIGH_SCHOOL_EVENTS: GameEventDefinition[] = [
       {
         id: "grind",
         label: "Push through at full intensity",
+        description: "Build stamina and discipline, with a higher risk of injury.",
         consequences: {
           attributeDeltas: [
             { path: "physical.stamina", delta: 3 },
@@ -92,6 +93,7 @@ export const HIGH_SCHOOL_EVENTS: GameEventDefinition[] = [
       {
         id: "manage",
         label: "Manage your effort smartly",
+        description: "Build a little stamina while taking a lower injury risk.",
         consequences: {
           attributeDeltas: [{ path: "physical.stamina", delta: 1 }],
           injuryChance: 0.015,
@@ -331,7 +333,7 @@ export const HIGH_SCHOOL_EVENTS: GameEventDefinition[] = [
     id: "hs_college_camp_invite",
     category: "high_school",
     title: "Summer Camp at a College Program",
-    description: "A college program invited you to their summer prospect camp to work out in front of their staff.",
+    description: "A college program invited you to a prospect workout in front of their staff.",
     conditions: { stage: ["high_school"], minAge: 15, probability: 0.25 },
     cooldownWeeks: 20,
     tags: ["recruiting"],

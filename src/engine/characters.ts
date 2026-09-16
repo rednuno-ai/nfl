@@ -28,6 +28,19 @@ export const CHARACTER_INTRODUCTIONS: GameEventDefinition[] = introductions.map(
   ],
 }));
 
+// Keep stable choice IDs so already-saved introductions remain resolvable.
+CHARACTER_INTRODUCTIONS[0].choices = [
+  { id: "engage", label: "Ask what earns a starting spot", description: "Coach trust +3, football IQ +1. Learn the standard.", consequences: { addTags: ["met:coach"], relationshipDeltas: [{ targetTag: "coach", delta: 3 }], attributeDeltas: [{ path: "mental.footballIQ", delta: 1 }] } },
+  { id: "reserved", label: "Let my practice speak", description: "Discipline +2, coach trust −1. Prove yourself over time.", consequences: { addTags: ["met:coach"], relationshipDeltas: [{ targetTag: "coach", delta: -1 }], attributeDeltas: [{ path: "general.discipline", delta: 2 }] } },
+];
+CHARACTER_INTRODUCTIONS[1].choices = [
+  { id: "engage", label: "Tell them what worries me", description: "Family trust +4 and morale +2; confidence −1 while admitting your doubts.", consequences: { addTags: ["met:family"], relationshipDeltas: [{ targetTag: "family", delta: 4 }], attributeDeltas: [{ path: "general.morale", delta: 2 }, { path: "general.confidence", delta: -1 }] } },
+  { id: "reserved", label: "Ask for space to focus", description: "Discipline +2, family trust −2. Independence has a cost.", consequences: { addTags: ["met:family"], relationshipDeltas: [{ targetTag: "family", delta: -2 }], attributeDeltas: [{ path: "general.discipline", delta: 2 }] } },
+];
+CHARACTER_INTRODUCTIONS[2].choices = [
+  { id: "engage", label: "Study the playbook with Jordan", description: "Team trust +3, football IQ +1 and leadership +1.", consequences: { addTags: ["met:teammate"], relationshipDeltas: [{ targetTag: "team", delta: 3 }], attributeDeltas: [{ path: "mental.footballIQ", delta: 1 }, { path: "general.leadership", delta: 1 }] } },
+  { id: "reserved", label: "Compete for reps on my own", description: "Confidence +2, team trust −2. Competition before friendship.", consequences: { addTags: ["met:teammate"], relationshipDeltas: [{ targetTag: "team", delta: -2 }], attributeDeltas: [{ path: "general.confidence", delta: 2 }] } },
+];
 CHARACTER_INTRODUCTIONS.push({ ...CHARACTER_INTRODUCTIONS[0], id: "intro_college_coach", title: "Your college coaching staff", conditions: { stage: ["college"], minAge: 17, tagsAbsent: ["met:coach"], probability: 1 } });
 
 /** Shared dependency gate includes both prose references and affected people. */

@@ -115,7 +115,7 @@ function WeeklyPlan({ state, needsWeeklyPlan, onChoose }: { state: CareerState; 
           <strong>🛌 Recover</strong><span>Raise morale and protect readiness. Cost: slower attribute development.</span>
         </button>
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("relationships")}>
-          <strong>🤝 {circleIntroduced ? "Team & family" : "Meet your circle"}</strong><span>{circleIntroduced ? "Coach +3, team +2, family +3, morale +3. No practice gain." : "Meet your coach, family and teammate before choosing time together. Does not use your weekly focus."}</span>
+          <strong>🤝 {circleIntroduced ? "Team & family" : "Meet your circle"}</strong><span>{circleIntroduced ? "Up to: coach +3, team +2, family +3, morale +3, leadership +1. No practice gain." : "Meet your coach, family and teammate before choosing time together. Does not use your weekly focus."}</span>
         </button>
         <button type="button" className="weekly-plan-option" onClick={() => onChoose("social")}>
           <strong>📣 Community &amp; media</strong><span>Reputation +2, fame +1, media +3. Cost: −1 morale, no recovery.</span>

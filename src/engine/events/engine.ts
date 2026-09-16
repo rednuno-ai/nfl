@@ -26,7 +26,7 @@ export type EligibilityReasonCode =
   | "relationship_min" | "fame_min" | "fame_max" | "reputation_min" | "reputation_max"
   | "games_min" | "stat_min" | "award_min" | "achievement_required" | "milestone_required"
   | "tag_required" | "tag_forbidden" | "event_required" | "event_incompatible"
-  | "cooldown" | "max_occurrences";
+  | "cooldown" | "max_occurrences" | "season_phase";
 
 export interface EligibilityReason {
   code: EligibilityReasonCode;
@@ -115,6 +115,8 @@ export function isEventEligible(event: GameEventDefinition, state: EventEligibil
   const fame = player.attributes.general.fame;
   const reputation = player.attributes.general.reputation;
   const count = occurrenceCount(event.id, state);
+  if (requirements.seasonPhase === "before_opener" && (state.currentSeasonGameStats.length > 0 || state.weekInSeason > 1)) addReason(reasons, "season_phase", "Only available before the season opener.");
+  if (requirements.seasonPhase === "in_season" && state.currentSeasonGameStats.length === 0) addReason(reasons, "season_phase", "Requires a completed game this season.");
 
   if (state.retired || state.stage === "retired") addReason(reasons, "retired", "The career is retired.");
   if (requirements.stage && !requirements.stage.includes(state.stage)) addReason(reasons, "stage", `Requires ${requirements.stage.join(" or ")}.`, requirements.stage, state.stage);

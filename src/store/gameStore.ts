@@ -1,6 +1,7 @@
 import { createStore, createUseStore } from "./createStore";
 import { restoreCareer } from "@data/restoreCareer";
 import { SaveQueue } from "@data/saveQueue";
+import { describeImpact } from "@engine/impact";
 
 const saves = new SaveQueue();
 import { getRepository, type CareerSummary } from "@data/index";
@@ -356,7 +357,8 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     if (options?.trainingFocus) recordWeeklyPriority(options.trainingFocus);
     const next = advanceWeek(current, options);
     if (current.currentSeasonGameStats.length === 0 && next.interaction?.type === "game") recordFirstGameStarted();
-    applyCareer(get, set, next);
+    const weeklyFeedback = options?.trainingFocus === "relationships" && next.trainingFocusChosenForWeek === current.totalWeek && current.trainingFocusChosenForWeek !== current.totalWeek ? next.log.find(entry => entry.startsWith("Team & family:")) : undefined;
+    applyCareer(get, set, next, weeklyFeedback);
     if (next.interaction?.type === "game") {
       set({ screen: "game-day" });
       const scheduledGame = current.schedule.find((entry) => entry.week === current.weekInSeason);
@@ -371,18 +373,9 @@ export const gameStore = createStore<GameStoreState>((set, get) => ({
     const decision = current.interaction?.type === "decision" ? current.interaction.decision : null;
     const next = resolveDecision(current, choiceId);
     const choice = decision?.choices.find(option => option.id === choiceId);
-    const impacts = next.relationships.flatMap(person => {
-      const before = current.relationships.find(previous => previous.id === person.id);
-      const delta = person.value - (before?.value ?? 50);
-      return delta ? [`${person.name} ${delta > 0 ? "+" : ""}${delta} trust`] : [];
-    });
-    const cash = next.finance.cash - current.finance.cash;
-    if (cash) impacts.push(`Cash ${cash > 0 ? "+" : ""}${cash}`);
-    for (const [key, value] of Object.entries(next.player.attributes.general)) {
-      const before = current.player.attributes.general[key as keyof typeof current.player.attributes.general];
-      if (typeof value === "number" && typeof before === "number" && value !== before) impacts.push(`${key} ${value > before ? "+" : ""}${value - before}`);
-    }
-    const feedback = `${impacts.join(" · ") || "Choice recorded."}${choice?.description ? ` Next: ${choice.description}` : ""}`;
+    if (next === current) return;
+    const impacts = describeImpact(current, next);
+    const feedback = `${choice?.label ?? "Decision"}: ${impacts.join(" · ") || "No immediate numerical change; existing limits and story conditions still apply."}`;
     applyCareer(get, set, { ...next, log: [feedback, ...next.log].slice(0, 200) }, feedback);
     const cinematic = decision ? cinematicForDecision(decision.eventId) : null;
     if (cinematic) set({ cinematic });
