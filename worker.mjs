@@ -5,6 +5,8 @@
 // never need to live in localStorage on the published game.
 
 import { DurableObject } from "cloudflare:workers";
+import { aggregateMetrics, canViewMetrics } from "./server/admin-metrics.mjs";
+import { adminDashboard } from "./server/admin-dashboard.mjs";
 
 const DEMO_USERNAME = "adm";
 const DEMO_PASSWORD = "adm";
@@ -296,6 +298,20 @@ export class AccountStore extends DurableObject {
     if (!session) return this.unauthorized();
     const username = session.account.username;
 
+    if (pathname.startsWith("/api/admin/")) {
+      if (!canViewMetrics(username, this.env.ADMIN_USERNAME)) return apiError("Owner access required.", 403);
+      if (request.method !== "GET") return apiError("Method not allowed.", 405);
+      if (pathname === "/api/admin/dashboard") return new Response(adminDashboard, { headers: {
+        "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex, nofollow", "x-frame-options": "DENY", "referrer-policy": "no-referrer",
+        "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+      } });
+      if (pathname === "/api/admin/metrics") return json(aggregateMetrics(
+        this.all("SELECT username, created_at FROM accounts WHERE username != ?", DEMO_USERNAME),
+        this.all("SELECT user_id, updated_at, state_json FROM careers WHERE user_id != ?", DEMO_USERNAME)
+      ));
+      return apiError("Unknown admin route.", 404);
+    }
+
     if (request.method === "POST" && pathname === "/api/auth/change-password") {
       const body = await this.body(request);
       if ((await hashPassword(String(body.currentPassword ?? ""), session.account.password_salt)) !== session.account.password_hash) {
@@ -343,6 +359,7 @@ export class AccountStore extends DurableObject {
     }
 
     if (request.method === "DELETE" && pathname === "/api/auth/account") {
+      if (canViewMetrics(username, this.env.ADMIN_USERNAME)) return apiError("Remove the owner configuration before deleting this account, to prevent someone re-registering its admin username.", 409);
       this.ctx.storage.sql.exec("DELETE FROM careers WHERE user_id = ?", username);
       this.ctx.storage.sql.exec("DELETE FROM sessions WHERE username = ?", username);
       this.ctx.storage.sql.exec("DELETE FROM accounts WHERE username = ?", username);

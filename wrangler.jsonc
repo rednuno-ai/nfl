@@ -3,6 +3,7 @@
   "name": "nfl",
   "main": "./worker.mjs",
   "compatibility_date": "2026-08-25",
+  "vars": { "ADMIN_USERNAME": "nunoredondo" },
   "durable_objects": {
     "bindings": [
       { "name": "ACCOUNT_STORE", "class_name": "AccountStore" }
