@@ -125,6 +125,7 @@ export class AccountStore extends DurableObject {
   async initialize() {
     const sql = this.ctx.storage.sql;
     sql.exec("CREATE TABLE IF NOT EXISTS funnel_daily (day TEXT NOT NULL, event TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(day,event))");
+    sql.exec("CREATE TABLE IF NOT EXISTS playtime (username TEXT PRIMARY KEY, seconds INTEGER NOT NULL DEFAULT 0, last_tick INTEGER NOT NULL)");
     sql.exec("CREATE TABLE IF NOT EXISTS metrics_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
     sql.exec("INSERT OR IGNORE INTO metrics_metadata (key,value) VALUES ('funnel_started', ?)", new Date().toISOString());
     sql.exec(`CREATE TABLE IF NOT EXISTS accounts (
@@ -153,6 +154,7 @@ export class AccountStore extends DurableObject {
     )`);
     sql.exec("CREATE INDEX IF NOT EXISTS careers_user_updated_idx ON careers(user_id, updated_at DESC)");
 
+    sql.exec("INSERT OR IGNORE INTO metrics_metadata (key,value) VALUES ('playtime_started', ?)", new Date().toISOString());
     const demo = this.one("SELECT username FROM accounts WHERE username = ?", DEMO_USERNAME);
     if (!demo) {
       const salt = randomToken(16);
@@ -329,6 +331,19 @@ export class AccountStore extends DurableObject {
     if (!session) return this.unauthorized();
     const username = session.account.username;
 
+    if (pathname === "/api/playtime" && request.method === "POST") {
+      if (request.headers.get('origin') !== new URL(request.url).origin) return apiError('Same-origin request required.', 403);
+      if (username === DEMO_USERNAME || request.headers.get('dnt') === '1' || request.headers.get('sec-gpc') === '1') return json({ ok: true });
+      const body = await this.body(request);
+      if (!Number.isInteger(body.seconds) || body.seconds < 0 || body.seconds > 30) return apiError('Invalid duration.');
+      const now = Date.now();
+      const prior = this.one('SELECT last_tick FROM playtime WHERE username = ?', username);
+      const elapsed = prior ? Math.floor((now - prior.last_tick) / 1000) : 0;
+      const seconds = elapsed > 0 && elapsed <= 45 ? Math.min(body.seconds, elapsed) : 0;
+      this.ctx.storage.sql.exec('INSERT INTO playtime (username, seconds, last_tick) VALUES (?, ?, ?) ON CONFLICT(username) DO UPDATE SET seconds=playtime.seconds+excluded.seconds, last_tick=excluded.last_tick', username, seconds, now);
+      return json({ ok: true });
+    }
+
     if (pathname.startsWith("/api/admin/")) {
       if (!canViewMetrics(username, this.env.ADMIN_USERNAME)) return apiError("Owner access required.", 403);
       if (request.method !== "GET") return apiError("Method not allowed.", 405);
@@ -339,7 +354,7 @@ export class AccountStore extends DurableObject {
       if (pathname === "/api/admin/metrics") return json({ ...aggregateMetrics(
         this.all("SELECT username, created_at FROM accounts WHERE username != ?", DEMO_USERNAME),
         this.all("SELECT user_id, updated_at, state_json FROM careers WHERE user_id != ?", DEMO_USERNAME)
-      ), funnel: funnelSummary(this.all("SELECT event, SUM(count) AS count FROM funnel_daily WHERE day >= ? GROUP BY event", new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10)), this.one("SELECT value FROM metrics_metadata WHERE key='funnel_started'")?.value) });
+      ), playtime: { startedAt: this.one("SELECT value FROM metrics_metadata WHERE key='playtime_started'")?.value, accounts: this.all('SELECT a.username, COALESCE(p.seconds, 0) AS seconds, p.last_tick IS NOT NULL AS measured FROM accounts a LEFT JOIN playtime p ON p.username=a.username WHERE a.username != ? ORDER BY seconds DESC', DEMO_USERNAME) }, funnel: funnelSummary(this.all("SELECT event, SUM(count) AS count FROM funnel_daily WHERE day >= ? GROUP BY event", new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10)), this.one("SELECT value FROM metrics_metadata WHERE key='funnel_started'")?.value) });
       return apiError("Unknown admin route.", 404);
     }
 
@@ -394,6 +409,7 @@ export class AccountStore extends DurableObject {
       this.ctx.storage.sql.exec("DELETE FROM careers WHERE user_id = ?", username);
       this.ctx.storage.sql.exec("DELETE FROM sessions WHERE username = ?", username);
       this.ctx.storage.sql.exec("DELETE FROM accounts WHERE username = ?", username);
+      this.ctx.storage.sql.exec("DELETE FROM playtime WHERE username = ?", username);
       return json({ ok: true }, 200, { "set-cookie": clearSessionCookie() });
     }
 

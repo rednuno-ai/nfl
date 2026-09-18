@@ -6,6 +6,7 @@ import { CareerSelectScreen } from "@ui/screens/CareerSelectScreen";
 import { PrivacyAccountControlsDialog } from "@ui/components/PrivacyAccountControlsDialog";
 import { getGameDayObjective } from "@engine/gameObjectives";
 import { recordDailyReturn } from "@data/metrics";
+import { usePlaytime } from "@data/playtime";
 import { usesRemoteAuth } from "@data/auth";
 import { publicCopy } from "@ui/copy";
 import type { CareerState } from "@engine/career";
@@ -42,6 +43,7 @@ export default function App() {
   const session = useGameStore((s) => s.session);
   const activeCareer = useGameStore((s) => s.activeCareer);
   const screen = useGameStore((s) => s.screen);
+  usePlaytime(Boolean(session && activeCareer && usesRemoteAuth()));
   const toast = useGameStore((s) => s.toast);
   const cinematic = useGameStore((s) => s.cinematic);
   const saveError = useGameStore((s) => s.saveError);

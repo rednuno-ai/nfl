@@ -64,6 +64,7 @@ export function PrivacyAccountControlsDialog({
         <div className="modal-eyebrow">ACCOUNT & PRIVACY</div>
         <h2 id="privacy-controls-title" className="modal-title">Privacy & account controls</h2>
         <p id="privacy-controls-description" className="modal-body">You are signed in as <strong>{username ?? "your account"}</strong>. {storageSummary}</p>
+<p>Active playtime is measured while a career is visible and recently used. Account totals are visible only to the site owner and removed when the account is deleted. No input contents are stored. Do Not Track and Global Privacy Control disable this measurement.</p>
         <ul className="privacy-controls-list">
           <li>Review your recovery code, sign out, reset the demo profile, or delete saved data in Profile settings.</li>
           <li>Deleting a career or account always asks for confirmation.</li>
