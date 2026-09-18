@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
+import { registrationSignal } from "@data/registrationMetrics";
 import { gameStore, useGameStore } from "@store/gameStore";
 import { DEMO_ACCOUNT_USERNAME, usesRemoteAuth } from "@data/auth";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, validateRegistrationInput } from "@data/authValidation";
@@ -22,6 +23,8 @@ export function AuthScreen() {
   const [submittedRegistration, setSubmittedRegistration] = useState(false);
   const authError = useGameStore((s) => s.authError);
   const authBusy = useGameStore((s) => s.authBusy);
+  useEffect(() => { registrationSignal("landing_opened", true); }, []);
+  useEffect(() => { if (mode === "register") registrationSignal("register_opened", true); }, [mode]);
 
   function selectMode(nextMode: AuthMode) {
     setMode(nextMode);
@@ -31,6 +34,7 @@ export function AuthScreen() {
   }
 
   async function useDemo() {
+    registrationSignal("demo_selected");
     setMode("login");
     setNotice(publicCopy.demo.opening);
     gameStore.setState({ authError: null });
@@ -48,7 +52,13 @@ export function AuthScreen() {
     if (mode === "login") void gameStore.getState().loginAccount(username, password);
     else if (mode === "register") {
       setSubmittedRegistration(true);
-      if (!validateRegistrationInput(username, password, DEMO_ACCOUNT_USERNAME).valid) return;
+      registrationSignal("register_clicked");
+      const validation = validateRegistrationInput(username, password, DEMO_ACCOUNT_USERNAME);
+      if (!validation.valid) {
+        if (validation.username) registrationSignal("invalid_username");
+        if (validation.password) registrationSignal("invalid_password");
+        return;
+      }
       void gameStore.getState().registerAccount(username.trim().toLowerCase(), password, referralCode ?? undefined);
     }
     else void gameStore.getState().recoverAccount(username, recoveryKey, password);
@@ -147,7 +157,7 @@ export function AuthScreen() {
         <a href="#support">Support</a>
         <a href="#account-deletion">Delete account</a>
         <div className="auth-legal-panels">
-          <details id="privacy"><summary>Privacy</summary><p>{usesRemoteAuth() ? publicCopy.storage.server : publicCopy.storage.local}</p></details>
+          <details id="privacy"><summary>Privacy</summary><p>{usesRemoteAuth() ? publicCopy.storage.server : publicCopy.storage.local}</p><p>Registration diagnostics count page openings, form steps and broad error categories. Only daily totals are stored for 60 days, without usernames, passwords, IP addresses or device identifiers. Do Not Track and Global Privacy Control are respected. Openings are not unique visitors.</p></details>
           <details id="terms"><summary>Terms</summary><p>GRIDIRON LIFE is a fictional football simulator. Teams, players, marks and stories are original and unaffiliated with the NFL.</p></details>
           <details id="support"><summary>Support</summary><p>Use the demo for a clean, automatic test entry. For account help, keep your recovery code available in Profile.</p></details>
           <details id="account-deletion"><summary>Delete account</summary><p>After signing in, open Profile → Danger Zone → Delete Account. The confirmation explains exactly which saved careers will be removed.</p></details>

@@ -7,6 +7,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { aggregateMetrics, canViewMetrics } from "./server/admin-metrics.mjs";
 import { adminDashboard } from "./server/admin-dashboard.mjs";
+import { validClientSignal, funnelSummary } from "./server/funnel.mjs";
 
 const DEMO_USERNAME = "adm";
 const DEMO_PASSWORD = "adm";
@@ -123,6 +124,9 @@ export class AccountStore extends DurableObject {
 
   async initialize() {
     const sql = this.ctx.storage.sql;
+    sql.exec("CREATE TABLE IF NOT EXISTS funnel_daily (day TEXT NOT NULL, event TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(day,event))");
+    sql.exec("CREATE TABLE IF NOT EXISTS metrics_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+    sql.exec("INSERT OR IGNORE INTO metrics_metadata (key,value) VALUES ('funnel_started', ?)", new Date().toISOString());
     sql.exec(`CREATE TABLE IF NOT EXISTS accounts (
       username TEXT PRIMARY KEY,
       password_salt TEXT NOT NULL,
@@ -217,9 +221,31 @@ export class AccountStore extends DurableObject {
     return apiError("Sign in to continue.", 401);
   }
 
+  countFunnel(event, request) {
+    if (request.headers.get("DNT") === "1" || request.headers.get("Sec-GPC") === "1") return;
+    try {
+      const day = new Date().toISOString().slice(0, 10);
+      this.ctx.storage.sql.exec("INSERT INTO funnel_daily (day,event,count) VALUES (?,?,1) ON CONFLICT(day,event) DO UPDATE SET count=count+1", day, event);
+      this.ctx.storage.sql.exec("DELETE FROM funnel_daily WHERE day < ?", new Date(Date.now() - 60 * 86400000).toISOString().slice(0,10));
+    } catch { /* Diagnostics must not block registration. */ }
+  }
+
   async fetch(request) {
     await this.ready;
     const { pathname } = new URL(request.url);
+
+    if (pathname === "/api/telemetry" && request.method === "POST") {
+      if (request.headers.get("origin") !== new URL(request.url).origin && request.headers.get("sec-fetch-site") !== "same-origin") return apiError("Same-origin request required.", 403);
+      const text = await request.text();
+      if (text.length > 128) return apiError("Invalid signal.", 400);
+      let body; try { body = JSON.parse(text); } catch { return apiError("Invalid signal.", 400); }
+      if (!validClientSignal(body)) return apiError("Invalid signal.", 400);
+      const minute = Math.floor(Date.now() / 60000);
+      if (this.signalMinute !== minute) { this.signalMinute = minute; this.signalCount = 0; }
+      if (++this.signalCount > 600) return apiError("Signal limit reached.", 429);
+      this.countFunnel(body.event, request);
+      return json({ ok: true });
+    }
 
     if (request.method === "GET" && pathname === "/api/auth/session") {
       const session = await this.sessionFromRequest(request);
@@ -227,13 +253,15 @@ export class AccountStore extends DurableObject {
     }
 
     if (request.method === "POST" && pathname === "/api/auth/register") {
+      this.countFunnel("register_received", request);
+      const reject = (message, reason) => { this.countFunnel(reason, request); return apiError(message); };
       const body = await this.body(request);
       const username = normalizeUsername(body.username);
       const password = String(body.password ?? "");
-      if (username === DEMO_USERNAME) return apiError("That username is reserved for the public demo. Choose another one.");
-      if (!validUsername(username)) return apiError("Use 2–31 lowercase letters, numbers, _ or - for your username.");
-      if (!validPassword(username, password)) return apiError(`Use ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters for your password.`);
-      if (this.one("SELECT username FROM accounts WHERE username = ?", username)) return apiError("That username is already registered.");
+      if (username === DEMO_USERNAME) return reject("That username is reserved for the public demo. Choose another one.", "server_reserved_username");
+      if (!validUsername(username)) return reject("Use 2–31 lowercase letters, numbers, _ or - for your username.", "server_invalid_username");
+      if (!validPassword(username, password)) return reject(`Use ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters for your password.`, "server_invalid_password");
+      if (this.one("SELECT username FROM accounts WHERE username = ?", username)) return reject("That username is already registered.", "server_duplicate_username");
 
       let referrer = null;
       const referralCode = normalizeReferralCode(body.referralCode);
@@ -241,6 +269,8 @@ export class AccountStore extends DurableObject {
       const salt = randomToken(16);
       const now = Date.now();
       const playerReferralCode = await this.availableReferralCode(username);
+      const passwordHash = await hashPassword(password, salt);
+      if (this.one("SELECT username FROM accounts WHERE username = ?", username)) return reject("That username is already registered.", "server_duplicate_username");
       this.ctx.storage.sql.exec(
         `INSERT INTO accounts (
           username, password_salt, password_hash, recovery_key, created_at,
@@ -248,7 +278,7 @@ export class AccountStore extends DurableObject {
         ) VALUES (?, ?, ?, ?, ?, 0, NULL, ?, ?, 0)`,
         username,
         salt,
-        await hashPassword(password, salt),
+        passwordHash,
         this.createRecoveryKey(),
         now,
         playerReferralCode,
@@ -258,6 +288,7 @@ export class AccountStore extends DurableObject {
         this.ctx.storage.sql.exec("UPDATE accounts SET referral_count = referral_count + 1 WHERE username = ?", referrer.username);
       }
       const account = this.one("SELECT * FROM accounts WHERE username = ?", username);
+      this.countFunnel("register_created", request);
       const token = await this.newSession(username);
       return json({ ok: true, user: userForClient(account) }, 200, { "set-cookie": sessionCookie(token) });
     }
@@ -305,10 +336,10 @@ export class AccountStore extends DurableObject {
         "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex, nofollow", "x-frame-options": "DENY", "referrer-policy": "no-referrer",
         "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
       } });
-      if (pathname === "/api/admin/metrics") return json(aggregateMetrics(
+      if (pathname === "/api/admin/metrics") return json({ ...aggregateMetrics(
         this.all("SELECT username, created_at FROM accounts WHERE username != ?", DEMO_USERNAME),
         this.all("SELECT user_id, updated_at, state_json FROM careers WHERE user_id != ?", DEMO_USERNAME)
-      ));
+      ), funnel: funnelSummary(this.all("SELECT event, SUM(count) AS count FROM funnel_daily WHERE day >= ? GROUP BY event", new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10)), this.one("SELECT value FROM metrics_metadata WHERE key='funnel_started'")?.value) });
       return apiError("Unknown admin route.", 404);
     }
 

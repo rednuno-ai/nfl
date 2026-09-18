@@ -459,6 +459,10 @@ export async function register(username: string, password: string, referralCode?
     body: JSON.stringify({ username, password, referralCode }),
   });
   if (response) {
+    if (!response.ok && response.status >= 500) {
+      const { registrationSignal } = await import("./registrationMetrics");
+      registrationSignal("register_client_error");
+    }
     if (!response.ok) return { ok: false, error: response.data.error ?? "Couldn't create the account." };
     cacheRemoteUser(remoteUserFrom(response.data));
     return { ok: true };
