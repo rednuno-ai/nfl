@@ -1,0 +1,8 @@
+.play-replay { margin: 16px 0; overflow: hidden; border: 1px solid #303d4f; border-radius: 14px; background: #102419; }
+.play-replay canvas { display: block; width: 100%; aspect-ratio: 2 / 1; }
+.play-replay figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding: 12px 16px; background: #131a24; color: #edf0f7; font-size: 14px; }
+.play-replay figcaption span { display: inline-flex; align-items: center; gap: 7px; }
+.play-replay figcaption small { color: #bcc6d6; font-size: 12px; }
+.play-replay figcaption i { width: 10px; height: 10px; border-radius: 50%; }
+.replay-home { background: #f8794d; } .replay-away { background: #3aa0d6; }
+@media (max-width: 600px) { .play-replay canvas { aspect-ratio: 16 / 11; } }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameSimState, KeyMomentPrompt } from "@engine/simulation/gameSim";
 import { isGameDayObjectiveComplete, objectiveProgress, type GameDayObjective } from "@engine/gameObjectives";
+import { PlayReplay } from "./PlayReplay";
 import { TeamCrest } from "@ui/components/TeamCrest";
 
 // =============================================================================
@@ -34,7 +35,7 @@ const KIND_LABEL: Record<KeyMomentPrompt["kind"], string> = {
 };
 
 const DOWN_LABELS = ["1st", "2nd", "3rd", "4th"];
-const SPEED_MS: Record<number, number> = { 1: 1900, 2: 950, 3: 480 };
+const SPEED_MS: Record<number, number> = { 1: 4400, 2: 2200, 3: 1467 };
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -43,23 +44,6 @@ function clamp(v: number, min: number, max: number): number {
 function formatDownDistance(down: number, distance: number): string {
   if (down < 1 || down > 4) return "";
   return `${DOWN_LABELS[down - 1]} & ${distance}`;
-}
-
-function fieldPct(displayYard: number): number {
-  // The 0-100 field is drawn across an 8%-92% band, leaving room for the two end zones.
-  return 8 + clamp(displayYard, 0, 100) * 0.84;
-}
-
-type VisualPlay = "idle" | "pass" | "run" | "tackle" | "touchdown" | "first-down" | "turnover";
-
-function visualPlayFor(text = "", scoring = false, turnover = false): VisualPlay {
-  if (scoring && /touchdown/i.test(text)) return "touchdown";
-  if (turnover) return "turnover";
-  if (/first down|moves the chains/i.test(text)) return "first-down";
-  if (/sack|tackl|stuffed|no gain/i.test(text)) return "tackle";
-  if (/pass|throw|complete|intercept|reception|caught/i.test(text)) return "pass";
-  if (/run|rush|scrambl|carry/i.test(text)) return "run";
-  return "idle";
 }
 
 // A short post-game recap built purely from the resolved log — biggest
@@ -144,6 +128,12 @@ export function GameDayView({
   // A saved game is never allowed to play itself on mount. This also applies
   // when the player returns after visiting another screen or refreshing.
   const [paused, setPaused] = useState(true);
+  const [visible, setVisible] = useState(!document.hidden);
+  useEffect(() => {
+    const update = () => setVisible(!document.hidden);
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
   const [celebration, setCelebration] = useState<Celebration | null>(null);
   const finishedNotifiedRef = useRef(false);
   const prevRevealedRef = useRef(0);
@@ -167,10 +157,10 @@ export function GameDayView({
 
   // Advance the reveal cursor on a speed-controlled timer.
   useEffect(() => {
-    if (paused || caughtUp) return;
+    if (paused || caughtUp || !visible) return;
     const id = setTimeout(() => setRevealedCount((c) => Math.min(c + 1, totalEntries)), SPEED_MS[speed]);
     return () => clearTimeout(id);
-  }, [paused, caughtUp, revealedCount, speed, totalEntries]);
+  }, [paused, caughtUp, revealedCount, speed, totalEntries, visible]);
 
   // Whenever the reveal cursor moves forward, check the newly-revealed slice
   // for a player touchdown — that's the one moment worth interrupting the
@@ -236,13 +226,6 @@ export function GameDayView({
   const possessionIsPlayer = latest ? latest.possession === "player" : true;
   const ballDisplay = latest ? latest.displayBallOnAfter : 25;
   const downDistance = latest && latest.down >= 1 ? formatDownDistance(latest.down, latest.distance) : "";
-  const firstDownDisplay =
-    latest && latest.down >= 1 ? clamp(possessionIsPlayer ? ballDisplay + latest.distance : ballDisplay - latest.distance, 0, 100) : null;
-  const visualPlay = visualPlayFor(latest?.text, latest?.scoringPlay, latest?.turnover);
-  const offenseMovesRight = possessionIsPlayer;
-  const snapKey = `${revealedCount}-${visualPlay}`;
-  const controlledOffense = ["QB", "RB", "WR", "TE", "OL"].includes(playerPosition);
-  const controlledClass = (position: string) => controlledOffense && playerPosition === position ? " controlled" : "";
 
   return (
     <div className="game-day-cinematic" style={{ position: "relative" }}>
@@ -319,40 +302,7 @@ export function GameDayView({
         ))}
       </div>
 
-      <div className="field-wrap">
-        <div className={`field-pitch play-${visualPlay} ${offenseMovesRight ? "drive-right" : "drive-left"}`} key={snapKey} aria-label={`Animated field. Ball at the ${Math.round(ballDisplay)} yard line. ${latest?.text ?? "Awaiting kickoff."}`}>
-          <div className="field-live-hud"><strong>{quarterLabel}</strong><span>{clockLabel}</span><em>{downDistance || "KICKOFF"}</em></div>
-          <div className="field-endzone field-endzone-left">
-            <TeamCrest seed={game.teamId} label={(teamLabel || "You").slice(0, 3)} size={26} />
-          </div>
-          <div className="field-endzone field-endzone-right">
-            <TeamCrest seed={game.opponentId} label={opponentLabel.slice(0, 3)} size={26} />
-          </div>
-          {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((yard) => (
-            <div key={yard} className={`field-yardline ${yard === 50 ? "field-yardline-mid" : ""}`} style={{ left: `${fieldPct(yard)}%` }} />
-          ))}
-          {firstDownDisplay !== null && <div className="field-marker field-marker-firstdown" style={{ left: `${fieldPct(firstDownDisplay)}%` }} />}
-          <div className="field-marker field-marker-los" style={{ left: `${fieldPct(ballDisplay)}%` }} />
-          <div className={`field-ball ${possessionIsPlayer ? "" : "field-ball-opponent"}`} style={{ left: `${fieldPct(ballDisplay)}%` }}>
-            <span aria-hidden="true">◆</span>
-          </div>
-          <div className="formation" aria-hidden="true">
-            <svg className="route-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <path className="route route-slant" d={offenseMovesRight ? "M 38 18 C 51 18, 60 29, 70 38" : "M 62 18 C 49 18, 40 29, 30 38"} />
-              <path className="route route-out" d={offenseMovesRight ? "M 38 80 C 53 80, 62 78, 70 66" : "M 62 80 C 47 80, 38 78, 30 66"} />
-              <path className="route route-run" d={offenseMovesRight ? "M 34 65 C 45 60, 52 52, 62 50" : "M 66 65 C 55 60, 48 52, 38 50"} />
-            </svg>
-            <span className={`field-player offense qb${controlledClass("QB")}`} style={{ left: `${fieldPct(ballDisplay - (offenseMovesRight ? 4 : -4))}%`, top: "47%" }}><i>QB</i>{playerPosition === "QB" && <b>{playerName}</b>}</span>
-            <span className={`field-player offense rb${controlledClass("RB")}`} style={{ left: `${fieldPct(ballDisplay - (offenseMovesRight ? 8 : -8))}%`, top: "66%" }}><i>RB</i>{playerPosition === "RB" && <b>{playerName}</b>}</span>
-            <span className={`field-player offense wr wr-top${controlledClass("WR")}`} style={{ left: `${fieldPct(ballDisplay - (offenseMovesRight ? 1 : -1))}%`, top: "16%" }}><i>WR</i>{playerPosition === "WR" && <b>{playerName}</b>}</span>
-            <span className="field-player offense wr wr-bottom" style={{ left: `${fieldPct(ballDisplay - (offenseMovesRight ? 1 : -1))}%`, top: "79%" }}><i>WR</i></span>
-            {[-3, -1.5, 0, 1.5, 3].map((offset, index) => <span key={`ol-${index}`} className="field-player offense lineman" style={{ left: `${fieldPct(ballDisplay)}%`, top: `${38 + offset * 4}%` }} />)}
-            {[18, 31, 43, 57, 69, 82].map((top, index) => <span key={`d-${index}`} className={`field-player defense defender defender-${index}${!controlledOffense && index === 0 ? " controlled" : ""}`} style={{ left: `${fieldPct(ballDisplay + (offenseMovesRight ? 5 + (index % 2) * 3 : -5 - (index % 2) * 3))}%`, top: `${top}%` }}>{!controlledOffense && index === 0 && <b>{playerName}</b>}</span>)}
-            {visualPlay === "pass" && <span className="pass-flight" />}
-          </div>
-          {visualPlay !== "idle" && <div className={`play-feedback feedback-${visualPlay}`} role="status">{visualPlay === "first-down" ? "FIRST DOWN" : visualPlay === "touchdown" ? "TOUCHDOWN" : visualPlay === "turnover" ? "TURNOVER" : visualPlay === "tackle" ? "TACKLE" : visualPlay === "pass" ? "PASS" : "RUN"}</div>}
-        </div>
-      </div>
+      <PlayReplay entry={latest} paused={paused} duration={SPEED_MS[speed] * .85} home={teamLabel || "You"} away={opponentLabel} playerName={playerName} playerPosition={playerPosition} />
 
       <div className="ticker">
         {latest ? (

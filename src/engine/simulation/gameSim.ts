@@ -71,6 +71,8 @@ export interface KeyMomentPrompt {
 }
 
 export interface PossessionLogEntry {
+  // Optional for backwards compatibility with existing saved games.
+  replay?: { kind: "pass" | "run" | "sack"; complete: boolean; target?: TargetPriority; interception: boolean; fumble: boolean; scramble: boolean };
   quarter: number;
   overtime: boolean;
   clockLabel: string;
@@ -1551,6 +1553,7 @@ function applyPlayToState(
       possession: offenseIsPlayer ? "player" : "opponent",
       displayBallOnBefore: displayBefore,
       displayBallOnAfter: displayAfter,
+      replay: { kind: outcome.sack ? "sack" : outcome.isPassAttempt ? "pass" : "run", complete: outcome.complete, target: targetPriority, interception: outcome.interception, fumble: outcome.fumble, scramble: playType === "qb_scramble" },
       scoringPlay,
       turnover,
       scorePlayerAfter: next.scorePlayer,
