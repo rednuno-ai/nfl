@@ -90,10 +90,10 @@ export function AuthScreen() {
 
           <div className="auth-layout">
             <figure className="auth-demo" aria-labelledby="demo-caption">
-              <img className="auth-demo-media" src="/og-image.png" alt="GRIDIRON LIFE game dashboard preview" />
+              <img className="auth-demo-media" src="/og-image.png" width="1200" height="630" decoding="async" alt="GRIDIRON LIFE — a fictional football career RPG, from high school to the Hall of Fame" />
               <figcaption id="demo-caption">
-                <strong>See the game at full scale</strong>
-                <span>Career choices, game day, news and the life between the snaps.</span>
+                <strong>Your career, on and off the field</strong>
+                <span>Choose “Use demo” in Account access. No registration needed.</span>
               </figcaption>
             </figure>
 

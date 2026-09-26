@@ -9,6 +9,7 @@ import { recordDailyReturn } from "@data/metrics";
 import { usePlaytime } from "@data/playtime";
 import { usesRemoteAuth } from "@data/auth";
 import { publicCopy } from "@ui/copy";
+import { currentSchoolOrTeamLabel } from "@ui/teamLabel";
 import type { CareerState } from "@engine/career";
 
 const CreatePlayerScreen = lazy(() => import("@ui/screens/CreatePlayerScreen").then((module) => ({ default: module.CreatePlayerScreen })));
@@ -106,7 +107,7 @@ export default function App() {
             <GameDayView
               game={interaction.game}
               opponentLabel={interaction.game.opponentName}
-              teamLabel={activeCareer.team ? `${activeCareer.team.city} ${activeCareer.team.name}` : "Your Team"}
+              teamLabel={currentSchoolOrTeamLabel(activeCareer)}
               playerName={`${activeCareer.player.bio.firstName[0]}. ${activeCareer.player.bio.lastName}`}
               playerPosition={activeCareer.player.position}
               objective={getGameDayObjective(activeCareer.player.position, activeCareer.totalWeek)}

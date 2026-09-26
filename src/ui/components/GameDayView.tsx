@@ -278,7 +278,7 @@ export function GameDayView({
         </div>
       </div>
 
-      <div className="speed-controls">
+      <div className="speed-controls" role="group" aria-label="Match playback controls">
         <button type="button" className={`speed-btn game-resume-control ${paused ? "active" : ""}`} onClick={() => setPaused((p) => !p)} aria-pressed={!paused}>
           {paused ? "▶ Resume Game" : "❚❚ Pause Game"}
         </button>
@@ -294,13 +294,18 @@ export function GameDayView({
         {[1, 2, 3].map((s) => (
           <button
             key={s}
-            className={`speed-btn ${!paused && speed === s ? "active" : ""}`}
+            type="button"
+            className={`speed-btn ${speed === s ? "active" : ""}`}
+            aria-label={`Playback speed ${s}x`}
+            aria-pressed={speed === s}
             onClick={() => setSpeed(s)}
           >
             {s}x
           </button>
         ))}
       </div>
+
+      <p className="playback-status" role="status">{showDecision ? "Your call — choose an option below the field." : paused ? "Paused — resume to watch the next play, or skip to the result." : "Playing highlights · your next decision will appear below the field."}</p>
 
       <PlayReplay entry={latest} paused={paused} duration={SPEED_MS[speed] * .85} home={teamLabel || "You"} away={opponentLabel} playerName={playerName} playerPosition={playerPosition} />
 

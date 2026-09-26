@@ -1,0 +1,34 @@
+/* Targeted layout repairs; retain existing colours, artwork and typography. */
+.auth-demo { margin: 0; min-width: 0; min-height: 0; align-self: start; }
+.auth-demo-media { width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: contain; filter: none; }
+.auth-demo:hover .auth-demo-media { transform: none; filter: none; }
+.auth-demo::before, .auth-demo::after { content: none; }
+.auth-demo figcaption { font-size: 14px; line-height: 1.55; color: #cbd2df; }
+.auth-layout > *, .scoreboard .team, .scoreboard .meta { min-width: 0; }
+.game-day-cinematic .scoreboard, .game-day-cinematic .speed-controls { max-width: 980px; }
+.game-day-cinematic .scoreboard .team-label { overflow-wrap: anywhere; line-height: 1.4; }
+.game-day-cinematic .speed-controls { flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+.speed-controls .speed-btn { min-width: 44px; min-height: 44px; padding: 10px 14px; color: #e3e9f2; }
+.speed-controls .speed-btn:focus-visible { outline: 3px solid #9fd9ff; outline-offset: 3px; }
+.playback-status { max-width: 980px; margin: 0 auto 12px; font-size: 14px; line-height: 1.5; color: #cbd2df; }
+.play-replay { max-width: 980px; margin-inline: auto; }
+.play-replay figcaption span { min-width: 0; overflow-wrap: anywhere; }
+.play-replay figcaption i { flex-shrink: 0; }
+.life-cinematic-backdrop { overflow-y: auto; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.life-cinematic { min-height: min(570px, 80dvh); max-height: calc(100dvh - 24px); overflow-y: auto; }
+.life-cinematic-copy { position: relative; margin-top: auto; overflow-wrap: anywhere; background: linear-gradient(0deg,rgba(3,5,9,.96),rgba(3,5,9,.72) 80%,transparent); }
+.life-cinematic-actions { flex-wrap: wrap; }
+.life-cinematic-actions button { min-height: 44px; white-space: normal; }
+@media (max-width: 600px) {
+  .auth-layout .auth-form { order: -1; }
+  .game-day-cinematic .scoreboard { padding: 10px; gap: 8px; }
+  .game-day-cinematic .scoreboard .team-label { font-size: 12px; }
+  .game-day-cinematic .speed-controls .game-resume-control,
+  .game-day-cinematic .speed-controls .game-simulate-control { flex: 1 1 140px; }
+  .life-cinematic { min-height: min(520px, 78dvh); }
+  .life-cinematic-copy { padding: 22px 18px; }
+}
+@media (max-height: 500px) {
+  .life-cinematic { min-height: 0; align-items: flex-start; }
+  .life-cinematic-copy { padding: 20px; width: 100%; }
+}

@@ -12,14 +12,7 @@ import { CareerLadder } from "@ui/components/CareerLadder";
 import { AnimatedNumber } from "@ui/components/AnimatedNumber";
 import { getCareerJourney } from "@engine/careerJourney";
 
-function currentSchoolOrTeamLabel(state: CareerState): string {
-  if (state.stage === "high_school" || state.stage === "recruiting") return state.highSchool.schoolName;
-  if (state.stage === "college" && state.college) return getCollege(state.college.collegeId)?.name ?? "College";
-  if (state.stage === "draft") return "NFL Draft Prospect";
-  if (state.team) return `${state.team.city} ${state.team.name}`;
-  if (state.stage === "free_agency") return "Free Agent";
-  return "Retired";
-}
+import { currentSchoolOrTeamLabel } from "@ui/teamLabel";
 
 /** A crest seed+label for whatever program the player currently belongs to,
  *  or null when there isn't one yet (draft process, free agency, retired) —

@@ -8,6 +8,7 @@ import { AppErrorBoundary } from "@ui/components/AppErrorBoundary";
 import { gameStore } from "@store/gameStore";
 import "./styles/index.css";
 import "./styles/premium.css";
+import "./styles/visual-fixes.css";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("Root element not found");
